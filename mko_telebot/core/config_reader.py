@@ -18,6 +18,7 @@ class WorkingPaths(BaseSettings):
 
     default_settings: Path = Path.joinpath(root_dir, 'settings')
     user_settings: Path = Path.joinpath(user_folder, 'settings')
+    state_file: Path = Path.joinpath(user_settings, 'state.json')
 
     config_files: dict[str, str] = {
         "config": "config.yaml",
@@ -33,7 +34,6 @@ class WorkingPaths(BaseSettings):
 
 
 PATHS = WorkingPaths()
-
 
 
 # Telethon API settings
