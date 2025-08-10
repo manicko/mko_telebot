@@ -169,13 +169,8 @@ async def main_loop():
         await asyncio.sleep(scan_delay + random.uniform(10, 30))  # основной интервал
 
 
-async def main():
+async def run_monitor():
     await start_client()
     await main_loop()
 
 
-if __name__ == '__main__':
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Мониторинг остановлен пользователем.")
