@@ -2,5 +2,5 @@
 from .config_reader import CONFIG, PATHS
 from .task import Task
 
-__all__ = [ "CONFIG", "PATHS",]
+__all__ = [ "CONFIG", "PATHS","Task"]
 

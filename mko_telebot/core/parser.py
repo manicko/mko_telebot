@@ -37,12 +37,12 @@ def search_match(text, query):
     return re.search(regex, text.lower()) is not None
 
 
-# text1=' молоко -сахар'
-# text2='(кофе | чай) -сахар'
-# text3='("черный чай"|"зеленый чай") -молоко'
-# text4='cats dogs -parrots'
-# text5='"(cats | dogs) -parrots'
-#
-# stext = 'молоки зелены чайи нет кофта,  есть dogs и  cats черный чай'
-#
-# print(search_match(stext, text1))
+text1=' молоко -сахар'
+text2='(кофе | чай) -сахар'
+text3='("черный чай"|"зеленый чай") -молоко'
+text4='cats dogs -parrots'
+text5='"(cats | dogs) -parrots'
+
+stext = 'молоки зелены чайи нет кофта,  есть dogs и  cats черный чай'
+
+print(search_match(stext, text1))

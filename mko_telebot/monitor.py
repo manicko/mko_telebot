@@ -6,7 +6,6 @@ from telethon.errors import FloodWaitError
 import logging.config
 from pathlib import Path
 from mko_telebot.core import CONFIG, PATHS
-from mko_telebot.core.utils import ensure_path_exists
 import json
 
 # Файлы для сохранения состояния
@@ -29,16 +28,6 @@ phone_or_token = CONFIG.TELETHON_API.phone_or_token
 processed_msg_ids = set()
 last_ids = {channel: 0 for channel in channels}
 
-
-# Проверяем существование папки с сессиями
-if 'session' in CONFIG.TELETHON_API.client:
-    session_path = Path.joinpath(PATHS.session_dir,CONFIG.TELETHON_API.client['session'])
-    if session_path.suffix != '.session':
-        session_path.append_suffix('.session')
-    ensure_path_exists(session_path)
-    CONFIG.TELETHON_API.client['session'] = session_path
-    print(session_path, CONFIG.TELETHON_API.client['session'])
-
 # Инициализация клиента
 client = TelegramClient(**CONFIG.TELETHON_API.client)
 target_entities = []
@@ -53,8 +42,7 @@ def load_state():
 
 
 def save_state():
-    # state_file.parent.mkdir(parents=True, exist_ok=True)
-    ensure_path_exists(state_file)
+    state_file.parent.mkdir(parents=True, exist_ok=True)
     state_file.write_text(json.dumps({"last_ids": last_ids}))
     logger.info("Состояние сохранено")
 
