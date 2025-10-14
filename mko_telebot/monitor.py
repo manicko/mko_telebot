@@ -1,188 +1,155 @@
+# monitor.py
 import asyncio
 import random
 from telethon import TelegramClient
-from telethon.tl.functions.messages import GetHistoryRequest
 from telethon.errors import FloodWaitError
 import logging.config
 from pathlib import Path
-from mko_telebot.core import CONFIG, PATHS
-from mko_telebot.core.utils import ensure_path_exists
-import json
-
-# Файлы для сохранения состояния
-state_file = Path(PATHS.state_file)
+from mko_telebot.core import CONFIG, PATHS, Task, search_match, utils
 
 # Настройка логирования
 logging.config.dictConfig(CONFIG.LOGGING)
 logger = logging.getLogger('monitor')
 
-# Настройка мониторинга
-forward_to = CONFIG.MONITORING.forward_to
-history_limit = CONFIG.MONITORING.history_limit
-channels = CONFIG.MONITORING.channels
-keywords = CONFIG.MONITORING.keywords
-default_keywords = keywords.pop('default', None)
-scan_delay = CONFIG.MONITORING.scan_delay
+# Инициализация клиента
 is_user = CONFIG.TELETHON_API.is_user
 phone_or_token = CONFIG.TELETHON_API.phone_or_token
-# Хранилище обработанных ID и смещений для каждого канала
-processed_msg_ids = set()
-last_ids = {channel: 0 for channel in channels}
-
 
 # Проверяем существование папки с сессиями
 if 'session' in CONFIG.TELETHON_API.client:
-    session_path = Path.joinpath(PATHS.session_dir,CONFIG.TELETHON_API.client['session'])
+    session_path = Path.joinpath(PATHS.session_dir, CONFIG.TELETHON_API.client['session'])
     if session_path.suffix != '.session':
-        session_path.append_suffix('.session')
-    ensure_path_exists(session_path)
+        session_path = session_path.with_suffix('.session')
+    utils.ensure_path_exists(session_path)
     CONFIG.TELETHON_API.client['session'] = session_path
-    print(session_path, CONFIG.TELETHON_API.client['session'])
 
-# Инициализация клиента
 client = TelegramClient(**CONFIG.TELETHON_API.client)
-target_entities = []
 
-
-# ===== Функции состояния =====
-def load_state():
-    if state_file.exists():
-        data = json.loads(state_file.read_text())
-        last_ids.update(data.get("last_ids", {}))
-        logger.info("Состояние восстановлено")
-
-
-def save_state():
-    # state_file.parent.mkdir(parents=True, exist_ok=True)
-    ensure_path_exists(state_file)
-    state_file.write_text(json.dumps({"last_ids": last_ids}))
-    logger.info("Состояние сохранено")
+# Очередь задач
+task_queue = asyncio.Queue()
 
 
 async def start_client():
     """Инициализация Telethon клиента с учетом режима user/bot"""
-    if is_user:
-        await client.start(phone=phone_or_token)
-    else:
-        await client.start(bot_token=phone_or_token)
-    logger.info("Клиент Telethon успешно запущен.")
-
-
-async def matches(text, search_items: dict):
-    """Check if message matches the search criteria"""
-    if not search_items:
+    try:
+        if is_user:
+            await client.start(phone=phone_or_token)
+        else:
+            await client.start(bot_token=phone_or_token)
+        logger.info("Клиент Telethon успешно запущен.")
         return True
-    text = text.strip().lower()
-    if isinstance(search_items, dict):
-        for key, value in search_items.items():
-            if key == 'default':
-                continue
-            if key.lower() in text:
-                if value == 'default':
-                    value = default_keywords
-                # Check if the value is a dictionary (nested keywords)
-                if isinstance(value, dict):
-                    # Check if any nested keywords match
-                    if await matches(text, value):
-                        return True
-                # For empty dict values (no additional requirements)
-                # For list values (exclusion check)
-                elif isinstance(value, list):
-                    # Check that no exclusion words are present
-                    if not any(excl.lower() in text for excl in value):
-                        return True
-                elif isinstance(value, bool) and value:
-                    return True
-                elif not value:
-                    return True
+    except Exception as e:
+        logger.error(f"Ошибка запуска клиента: {e}")
         return False
 
 
-async def process_messages(messages, channel):
+async def process_messages(messages, task: Task):
+    if not messages:
+        return
     albums_msgs = {}
     albums_txt = {}
-    # группируем альбомы
-    for msg in reversed(messages):
-        if msg.id in processed_msg_ids:
-            continue
+    # группируем альбомы, messages уже oldest first
+    for msg in messages:
         try:
             group_id = msg.grouped_id if msg.grouped_id else msg.id
             albums_msgs.setdefault(group_id, []).append(msg)
-            if msg.message:
+            if hasattr(msg, 'message') and msg.message:
                 albums_txt.setdefault(group_id, []).append(msg.message)
+            elif hasattr(msg, 'media') and hasattr(msg.media, 'caption') and msg.media.caption:
+                albums_txt.setdefault(group_id, []).append(msg.media.caption)
         except Exception as e:
-            logger.error(f"Ошибка при обработке сообщения {msg.id} из {channel}: {e}")
+            logger.exception(f"Ошибка при обработке сообщения {getattr(msg, 'id', None)} из {task.channel_name}: {e}")
 
     for album_id, album_msgs in albums_msgs.items():
         text = " ".join(albums_txt.get(album_id, []))
-        if text and await matches(text, keywords):
-            logger.info(f"Найдено совпадение в сообщении {album_id} в канале {channel}")
+        if text and any(search_match(text, kw) for kw in task.keywords):
+            logger.info(f"Найдено совпадение в сообщении {album_id} в канале {task.channel_name}")
             await asyncio.sleep(random.uniform(3, 10))
-            await forward_to_users(album_msgs)
-        processed_msg_ids.update(m.id for m in album_msgs)
+            await forward_to_users(album_msgs, task)
 
-async def forward_to_users(msgs):
-    for target in target_entities:
+
+async def forward_to_users(msgs, task: Task):
+    for target in task.forward_to_entities:
         try:
             await client.forward_messages(target, msgs)
-            logger.info(f"Переслано {len(msgs)} сообщений пользователю/группе {target.id}")
+            logger.info(f"Переслано {len(msgs)} сообщений пользователю/группе {getattr(target, 'id', target)}")
             await asyncio.sleep(random.uniform(2, 5))  # задержка между пользователями
         except FloodWaitError as e:
-            logger.warning(f"Flood wait {e.seconds}s при пересылке")
+            logger.warning(f"Flood wait {e.seconds}s при пересылке в {getattr(target, 'id', target)}")
             await asyncio.sleep(e.seconds + random.uniform(5, 10))
         except Exception as e:
-            logger.error(f"Ошибка при пересылке: {e}")
+            logger.exception(f"Ошибка при пересылке в {getattr(target, 'id', target)}. Ошибка: {e}")
 
 
-async def monitor_channel(channel):
-    logger.info(f"Проверяем канал: {channel}")
-    limit = history_limit
-    min_id = max(1, last_ids[channel] - 5)
-    while True:
-        try:
-            history = await client(GetHistoryRequest(
-                peer=channel,
-                offset_id=0,
-                limit=limit,
-                add_offset=0,
-                max_id=0,
-                min_id=min_id,
-                offset_date=None,
-                hash=0
-            ))
-        except FloodWaitError as e:
-            logger.warning(f"Flood wait {e.seconds}s при получении истории {channel}")
-            await asyncio.sleep(e.seconds + random.uniform(5, 15))
-        else:
-            messages = history.messages
-            if not messages:
-                break
+async def process_task(task: Task):
+    logger.info(f"Проверяем канал: {task.channel_name}")
+    min_id = max(1, task.last_msg_id - task.overlap + 1)
+    new_messages = []
+    try:
+        async for msg in client.iter_messages(task.channel_entity, min_id=min_id, reverse=True):
+            if msg.id <= task.last_msg_id:
+                continue  # пропускаем overlap, если уже обработаны
+            new_messages.append(msg)
 
-            await process_messages(messages, channel)
-            last_ids[channel] = max(msg.id for msg in messages)
+    except FloodWaitError as e:
+        logger.warning(f"Flood wait {e.seconds}s при получении истории {task.channel_name}")
+        await asyncio.sleep(e.seconds + random.uniform(5, 15))
+        return
+    except Exception as e:
+        logger.error(f"Ошибка при итерации сообщений в {task.channel_name}: {e}")
+        return
 
-            save_state()
-            if len(messages) < limit:
-                break
+    if new_messages:
+        await process_messages(new_messages, task)
+        task.last_msg_id = max(msg.id for msg in new_messages)
+        logger.info(f"Обработано {len(new_messages)} новых сообщений, last_msg_id = {task.last_msg_id}")
+    else:
+        logger.info(f"Нет новых сообщений в {task.channel_name}")
+
+
+async def process_and_reschedule(task: Task):
+    try:
+        await process_task(task)
+    except Exception as e:
+        logger.error(f"Ошибка в канале {task.channel_name}: {e}")
+    finally:
+        await task.save_state()
+        logger.info(f"Состояние для {task.channel_name} сохранено")
+        # Переотправляем задачу в очередь после задержки (асинхронно)
+        await asyncio.sleep(task.scan_delay + random.uniform(10, 30))
+        await task_queue.put(task)
 
 
 async def main_loop():
-    load_state()
-    for e in forward_to:
-        target_entities.append(await client.get_entity(e))
+    # Загрузка конфига каналов
+    channels_config = CONFIG.MONITORING.channels
+    defaults = channels_config.get('DEFAULTS', {})
+    channels = [ch for ch in channels_config if ch != 'DEFAULTS']
 
+    # Инициализация задач
+    for channel in channels:
+        channel_settings = {**defaults, **channels_config[channel]}
+        task = Task(
+            channel=channel,
+            forward_to=channel_settings.get('forward_to', []),
+            keywords=channel_settings.get('keywords', []),
+            scan_delay=channel_settings.get('scan_delay', 420),
+            history_limit=channel_settings.get('history_limit', 50),
+            overlap=channel_settings.get('overlap', 5),  # новый param для extensible
+        )
+        await task.resolve_channel_entity(client)
+        task.resolve_state_file()
+        await task.load_state()
+        await task.resolve_targets_entities(client)
+        await task_queue.put(task)
+
+    logger.info("Запуск основного consumer loop для task_queue")
     while True:
-        for channel in channels:
-            try:
-                await monitor_channel(channel)
-            except Exception as e:
-                logger.error(f"Ошибка в канале {channel}: {e}")
-            await asyncio.sleep(random.uniform(10, 30))  # интервал между каналами
-        await asyncio.sleep(scan_delay + random.uniform(10, 30))  # основной интервал
+        task = await task_queue.get()
+        asyncio.create_task(process_and_reschedule(task))
+        await asyncio.sleep(0.01)
 
 
 async def run_monitor():
     await start_client()
     await main_loop()
-
-

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 from platformdirs import user_config_dir
@@ -18,7 +18,7 @@ class WorkingPaths(BaseSettings):
 
     default_settings: Path = Path.joinpath(root_dir, 'settings')
     user_settings: Path = Path.joinpath(user_folder, 'settings')
-    state_file: Path = Path.joinpath(user_settings, 'state.json')
+    state_dir: Path = Path.joinpath(user_settings, 'state')
     session_dir: Path = Path.joinpath(user_settings, 'sessions')
 
     config_files: dict[str, str] = {
@@ -50,13 +50,7 @@ class MonitoringSettings(BaseSettings):
     """
     Configuration for the Telegram Channels Monitoring.
     """
-    forward_to: list[str, Any]
-    history_limit: int = 50
-    channels: list[str]
-    keywords: dict[str, Any]
-    scan_delay: int = 300
-
-
+    channels: dict[str, Any]
 
 # Logging settings
 class LoggingSettings(BaseModel):
@@ -117,4 +111,4 @@ class Config(BaseSettings):
 CONFIG = Config.load()
 
 
-# print(CONFIG.TELETHON_API.client)
+# print(CONFIG.MONITORING.channels)
