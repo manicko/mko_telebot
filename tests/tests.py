@@ -50,6 +50,10 @@ query_strategy = st.one_of(
     # Exclusion-only and exclusion precedence
     ("no iphone here", '"-iphone"', False),
     ("My iPhone", '"-iphone"', False),
+    ("тут будет услуга которая мне не нужна", '"-услуг*"', False),
+    ("тут будут услуги которые мне не нужны", '"-услуг*"', False),
+    ("тут будет телефон и услуги которые мне не нужны", '"телефон -услуг*"', False),
+    ("тут будет телефон и услуги которые мне нужны", '"телефон"', True),
 
     # Malformed / robustness
     ("text", '"(unclosed | test"', False),

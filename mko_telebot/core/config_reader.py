@@ -51,6 +51,7 @@ class MonitoringSettings(BaseSettings):
     Configuration for the Telegram Channels Monitoring.
     """
     channels: dict[str, Any]
+    channels_delay: int
 
 # Logging settings
 class LoggingSettings(BaseModel):

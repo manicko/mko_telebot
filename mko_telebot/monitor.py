@@ -1,21 +1,18 @@
-# monitor.py
 import asyncio
 import random
+import logging.config
+import time
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
-import logging.config
 from pathlib import Path
 from mko_telebot.core import CONFIG, PATHS, Task, search_match, utils
 
-# Настройка логирования
 logging.config.dictConfig(CONFIG.LOGGING)
 logger = logging.getLogger('monitor')
 
-# Инициализация клиента
 is_user = CONFIG.TELETHON_API.is_user
 phone_or_token = CONFIG.TELETHON_API.phone_or_token
 
-# Проверяем существование папки с сессиями
 if 'session' in CONFIG.TELETHON_API.client:
     session_path = Path.joinpath(PATHS.session_dir, CONFIG.TELETHON_API.client['session'])
     if session_path.suffix != '.session':
@@ -24,132 +21,187 @@ if 'session' in CONFIG.TELETHON_API.client:
     CONFIG.TELETHON_API.client['session'] = session_path
 
 client = TelegramClient(**CONFIG.TELETHON_API.client)
-
-# Очередь задач
 task_queue = asyncio.Queue()
+process_lock = asyncio.Lock()
 
 
 async def start_client():
-    """Инициализация Telethon клиента с учетом режима user/bot"""
+    """Initialize and start the Telethon client.
+
+    Returns:
+        bool: True if client started successfully, False otherwise.
+    """
     try:
         if is_user:
             await client.start(phone=phone_or_token)
         else:
             await client.start(bot_token=phone_or_token)
-        logger.info("Клиент Telethon успешно запущен.")
+        logger.info("Telethon client started successfully.")
         return True
     except Exception as e:
-        logger.error(f"Ошибка запуска клиента: {e}")
+        logger.error(f"Failed to start Telethon client: {e}")
         return False
 
 
 async def process_messages(messages, task: Task):
+    """Process messages, group albums, check keywords, and forward matches.
+
+    Args:
+        messages (list): List of Telethon Message objects.
+        task (Task): Task object with configuration for a specific channel.
+    """
     if not messages:
         return
+
     albums_msgs = {}
     albums_txt = {}
-    # группируем альбомы, messages уже oldest first
+
     for msg in messages:
         try:
-            group_id = msg.grouped_id if msg.grouped_id else msg.id
+            group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
             albums_msgs.setdefault(group_id, []).append(msg)
-            if hasattr(msg, 'message') and msg.message:
+            if getattr(msg, "message", None):
                 albums_txt.setdefault(group_id, []).append(msg.message)
-            elif hasattr(msg, 'media') and hasattr(msg.media, 'caption') and msg.media.caption:
+            elif getattr(msg, "media", None) and getattr(msg.media, "caption", None):
                 albums_txt.setdefault(group_id, []).append(msg.media.caption)
         except Exception as e:
-            logger.exception(f"Ошибка при обработке сообщения {getattr(msg, 'id', None)} из {task.channel_name}: {e}")
+            logger.exception(f"Error while processing message {getattr(msg, 'id', None)} "
+                             f"from {task.channel_name}: {e}")
 
     for album_id, album_msgs in albums_msgs.items():
         text = " ".join(albums_txt.get(album_id, []))
         if text and any(search_match(text, kw) for kw in task.keywords):
-            logger.info(f"Найдено совпадение в сообщении {album_id} в канале {task.channel_name}")
-            await asyncio.sleep(random.uniform(3, 10))
+            logger.debug(f"Match found in message {album_id} from {task.channel_name}")
             await forward_to_users(album_msgs, task)
 
 
 async def forward_to_users(msgs, task: Task):
+    """Forward messages to the target users or groups.
+
+    Args:
+        msgs (list): List of Telethon Message objects to forward.
+        task (Task): Task object containing forwarding configuration.
+    """
     for target in task.forward_to_entities:
         try:
             await client.forward_messages(target, msgs)
-            logger.info(f"Переслано {len(msgs)} сообщений пользователю/группе {getattr(target, 'id', target)}")
-            await asyncio.sleep(random.uniform(2, 5))  # задержка между пользователями
+            logger.info(f"Forwarded {len(msgs)} messages to {getattr(target, 'id', target)}")
+            await asyncio.sleep(random.uniform(5, 10))
         except FloodWaitError as e:
-            logger.warning(f"Flood wait {e.seconds}s при пересылке в {getattr(target, 'id', target)}")
+            logger.warning(f"Flood wait {e.seconds}s while forwarding to {getattr(target, 'id', target)}")
             await asyncio.sleep(e.seconds + random.uniform(5, 10))
         except Exception as e:
-            logger.exception(f"Ошибка при пересылке в {getattr(target, 'id', target)}. Ошибка: {e}")
+            logger.exception(f"Failed to forward messages to {getattr(target, 'id', target)}: {e}")
 
 
 async def process_task(task: Task):
-    logger.info(f"Проверяем канал: {task.channel_name}")
+    """Fetch and process recent messages from a specific Telegram channel.
+
+    Args:
+        task (Task): Task object representing the channel to process.
+    """
+    logger.debug(f"{task.channel_name} is processed")
     min_id = max(1, task.last_msg_id - task.overlap + 1)
     new_messages = []
-    try:
-        async for msg in client.iter_messages(task.channel_entity, min_id=min_id, reverse=True):
-            if msg.id <= task.last_msg_id:
-                continue  # пропускаем overlap, если уже обработаны
-            new_messages.append(msg)
 
+    try:
+        messages_iter = client.iter_messages(
+            task.channel_entity,
+            min_id=min_id,
+            offset_date=task.offset_date,
+            limit=task.history_limit,
+            reverse=True
+        )
+        async for msg in messages_iter:
+            if msg.id <= task.last_msg_id:
+                continue
+            new_messages.append(msg)
     except FloodWaitError as e:
-        logger.warning(f"Flood wait {e.seconds}s при получении истории {task.channel_name}")
+        logger.warning(f"Flood wait {e.seconds}s while fetching {task.channel_name}")
         await asyncio.sleep(e.seconds + random.uniform(5, 15))
-        return
     except Exception as e:
-        logger.error(f"Ошибка при итерации сообщений в {task.channel_name}: {e}")
+        logger.error(f"Error fetching messages in {task.channel_name}: {e}")
         return
 
     if new_messages:
         await process_messages(new_messages, task)
         task.last_msg_id = max(msg.id for msg in new_messages)
-        logger.info(f"Обработано {len(new_messages)} новых сообщений, last_msg_id = {task.last_msg_id}")
+        logger.info(f"{task.channel_name}: {len(new_messages)} new messages are processed, "
+                    f"last_msg_id={task.last_msg_id}")
     else:
-        logger.info(f"Нет новых сообщений в {task.channel_name}")
+        logger.info(f"{task.channel_name}: no new messages found")
 
 
-async def process_and_reschedule(task: Task):
-    try:
+async def reschedule_task(task: Task, queue: asyncio.Queue):
+    """Schedule the next run for the given channel after its scan delay.
+
+    Args:
+        task (Task): Task object to be rescheduled.
+        queue (asyncio.Queue): Queue where the task will be re-added.
+    """
+    delay = task.scan_interval + random.uniform(10, 30)
+    logger.debug(f"{task.channel_name} will return to queue in {delay:.1f}s")
+    await asyncio.sleep(delay)
+    await queue.put(task)
+    logger.debug(f"{task.channel_name} returned to queue.")
+
+
+async def process_and_reschedule(task: Task, queue: asyncio.Queue):
+    """Process a single task, save its state, and reschedule it asynchronously.
+
+    Args:
+        task (Task): Task object to process.
+        queue (asyncio.Queue): Queue used for scheduling tasks.
+    """
+    async with process_lock:
         await process_task(task)
-    except Exception as e:
-        logger.error(f"Ошибка в канале {task.channel_name}: {e}")
-    finally:
         await task.save_state()
-        logger.info(f"Состояние для {task.channel_name} сохранено")
-        # Переотправляем задачу в очередь после задержки (асинхронно)
-        await asyncio.sleep(task.scan_delay + random.uniform(10, 30))
-        await task_queue.put(task)
+    asyncio.create_task(reschedule_task(task, queue))
 
 
 async def main_loop():
-    # Загрузка конфига каналов
+    """Main monitoring loop that sequentially processes channels."""
+    channels_delay = CONFIG.MONITORING.channels_delay
     channels_config = CONFIG.MONITORING.channels
     defaults = channels_config.get('DEFAULTS', {})
     channels = [ch for ch in channels_config if ch != 'DEFAULTS']
 
-    # Инициализация задач
+    stagger_start_seconds = getattr(channels_config, "stagger_start_seconds", 3)
+
     for channel in channels:
         channel_settings = {**defaults, **channels_config[channel]}
         task = Task(
             channel=channel,
             forward_to=channel_settings.get('forward_to', []),
             keywords=channel_settings.get('keywords', []),
-            scan_delay=channel_settings.get('scan_delay', 420),
+            scan_interval=channel_settings.get('scan_interval', 420),
             history_limit=channel_settings.get('history_limit', 50),
-            overlap=channel_settings.get('overlap', 5),  # новый param для extensible
+            history_days=channel_settings.get('history_days', None),
+            overlap=channel_settings.get('overlap', 5),
         )
         await task.resolve_channel_entity(client)
         task.resolve_state_file()
         await task.load_state()
         await task.resolve_targets_entities(client)
+        await asyncio.sleep(random.uniform(0, stagger_start_seconds))
         await task_queue.put(task)
 
-    logger.info("Запуск основного consumer loop для task_queue")
+    logger.info("Monitoring loop started.")
+
     while True:
         task = await task_queue.get()
-        asyncio.create_task(process_and_reschedule(task))
-        await asyncio.sleep(0.01)
+        asyncio.create_task(process_and_reschedule(task, task_queue))
+        await asyncio.sleep(channels_delay)
 
 
 async def run_monitor():
-    await start_client()
-    await main_loop()
+    """Run the monitoring system."""
+    if await start_client():
+        await main_loop()
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(run_monitor())
+    except KeyboardInterrupt:
+        logger.info("Мониторинг остановлен пользователем.")
