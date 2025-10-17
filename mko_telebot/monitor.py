@@ -1,7 +1,6 @@
 import asyncio
 import random
 import logging.config
-import time
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from pathlib import Path
@@ -199,9 +198,11 @@ async def run_monitor():
     if await start_client():
         await main_loop()
 
-
-if __name__ == "__main__":
+def launcher():
     try:
         asyncio.run(run_monitor())
     except KeyboardInterrupt:
         logger.info("Мониторинг остановлен пользователем.")
+
+if __name__ == "__main__":
+    launcher()
