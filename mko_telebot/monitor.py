@@ -42,55 +42,128 @@ async def start_client():
         return False
 
 
+def build_message_link(msg):
+    """Build a Telegram t.me link to the message if possible.
+
+    Args:
+        msg: telethon.tl.custom.message.Message
+
+    Returns:
+        Optional[str]: URL like 'https://t.me/username/123' or None.
+    """
+    try:
+        chat = getattr(msg, "chat", None)
+        if chat and getattr(chat, "username", None):
+            return f"https://t.me/{chat.username}/{msg.id}"
+        return None
+    except Exception:
+        return None
+
+
+async def build_sender_tag(msg):
+    """Return sender username or display name.
+
+    Args:
+        msg: telethon.tl.custom.message.Message
+
+    Returns:
+        str: '@username' if available, otherwise 'First Last' or empty string.
+    """
+    try:
+        sender = await msg.get_sender()
+        if not sender:
+            return ""
+        if getattr(sender, "username", None):
+            return f"@{sender.username}"
+        name = " ".join(filter(None, [getattr(sender, "first_name", None), getattr(sender, "last_name", None)]))
+        return name.strip()
+    except Exception:
+        return ""
+
+
+async def forward_to_users(msg, msg_text, msg_media, task: Task):
+    """Forward message or album to targets, appending author and link.
+
+    Behavior:
+        - If msg_media is not empty -> send media group via send_file(target, msg_media, caption=caption).
+        - Otherwise -> send plain text message via send_message.
+        - Caption includes text, author, and message link (if available).
+
+    Args:
+        msg (telethon.tl.custom.message.Message): The main message object (used to extract author and link).
+        msg_text (str): Text content (combined text and captions).
+        msg_media (list): List of message.media objects, if any.
+        task (Task): Task configuration including forwarding targets.
+    """
+
+    link = build_message_link(msg)
+    sender_tag = await build_sender_tag(msg)
+
+    caption_lines = []
+    if msg_text:
+        caption_lines.append(msg_text)
+    if sender_tag:
+        caption_lines.append(f"Author: {sender_tag}")
+    if link:
+        caption_lines.append(f"Source: {link}")
+
+    caption = "\n\n".join(caption_lines).strip()
+
+    # Send to each target
+    for target in task.forward_to_entities:
+        try:
+            if msg_media:
+                # send_file will create an album if files is a list of medias
+                await client.send_file(target, msg_media, caption=caption or None, link_preview=False)
+            else:
+                # purely text messages
+                await client.send_message(target, caption or "", link_preview=False)
+
+            logger.info(f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}")
+            await asyncio.sleep(random.uniform(5, 10))
+        except FloodWaitError as e:
+            logger.warning(f"Flood wait {e.seconds}s while sending to {getattr(target, 'id', target)}")
+            await asyncio.sleep(e.seconds + random.uniform(5, 10))
+        except Exception as e:
+            logger.exception(f"Failed to send messages to {getattr(target, 'id', target)}: {e}")
+
 async def process_messages(messages, task: Task):
     """Process messages, group albums, check keywords, and forward matches.
 
     Args:
-        messages (list): List of Telethon Message objects.
+        messages (list[telethon.tl.custom.message.Message]): List of Telethon messages.
         task (Task): Task object with configuration for a specific channel.
     """
     if not messages:
         return
 
-    albums_msgs = {}
-    albums_txt = {}
+    msg_content = {}
 
     for msg in messages:
         try:
             group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
-            albums_msgs.setdefault(group_id, []).append(msg)
+
+            if group_id not in msg_content:
+                msg_content[group_id] = {'msg': msg, 'text': [], 'media': []}
+
             if getattr(msg, "message", None):
-                albums_txt.setdefault(group_id, []).append(msg.message)
-            elif getattr(msg, "media", None) and getattr(msg.media, "caption", None):
-                albums_txt.setdefault(group_id, []).append(msg.media.caption)
+                msg_content[group_id]['text'].append(msg.message)
+
+            if getattr(msg, "media", None):
+                if getattr(msg.media, "caption", None):
+                    msg_content[group_id]['text'].append(msg.media.caption)
+                msg_content[group_id]['media'].append(msg.media)
+
         except Exception as e:
-            logger.exception(f"Error while processing message {getattr(msg, 'id', None)} "
+            logger.exception(f"Error processing message {getattr(msg, 'id', None)} "
                              f"from {task.channel_name}: {e}")
 
-    for album_id, album_msgs in albums_msgs.items():
-        text = " ".join(albums_txt.get(album_id, []))
-        if text and any(search_match(text, kw) for kw in task.keywords):
-            logger.debug(f"Match found in message {album_id} from {task.channel_name}")
-            await forward_to_users(album_msgs, task)
+    for album_id, content in msg_content.items():
+        msg_text = "\n".join(content.get('text', []))
+        if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
+            logger.debug(f"Keyword match in {task.channel_name}, message {album_id}")
+            await forward_to_users(content['msg'], msg_text, content.get('media', []), task)
 
-
-async def forward_to_users(msgs, task: Task):
-    """Forward messages to the target users or groups.
-
-    Args:
-        msgs (list): List of Telethon Message objects to forward.
-        task (Task): Task object containing forwarding configuration.
-    """
-    for target in task.forward_to_entities:
-        try:
-            await client.forward_messages(target, msgs)
-            logger.info(f"{task.channel_name}: forwarded {len(msgs)} messages to {getattr(target, 'id', target)}")
-            await asyncio.sleep(random.uniform(5, 10))
-        except FloodWaitError as e:
-            logger.warning(f"Flood wait {e.seconds}s while forwarding to {getattr(target, 'id', target)}")
-            await asyncio.sleep(e.seconds + random.uniform(5, 10))
-        except Exception as e:
-            logger.exception(f"Failed to forward messages to {getattr(target, 'id', target)}: {e}")
 
 
 async def process_task(task: Task):
@@ -124,7 +197,7 @@ async def process_task(task: Task):
     if new_messages:
         await process_messages(new_messages, task)
         task.last_msg_id = max(msg.id for msg in new_messages)
-        logger.info(f"{task.channel_name}: {len(new_messages)} new messages are processed, "
+        logger.info(f"{task.channel_name}: {len(new_messages)} new messages processed, "
                     f"last_msg_id={task.last_msg_id}")
     else:
         logger.info(f"{task.channel_name}: no new messages found")
@@ -197,11 +270,13 @@ async def run_monitor():
     if await start_client():
         await main_loop()
 
+
 def launcher():
     try:
         asyncio.run(run_monitor())
     except KeyboardInterrupt:
-        logger.info("Мониторинг остановлен пользователем.")
+        logger.info("Monitoring stopped by user.")
+
 
 if __name__ == "__main__":
     launcher()
