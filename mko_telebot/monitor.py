@@ -84,7 +84,7 @@ async def forward_to_users(msgs, task: Task):
     for target in task.forward_to_entities:
         try:
             await client.forward_messages(target, msgs)
-            logger.info(f"Forwarded {len(msgs)} messages to {getattr(target, 'id', target)}")
+            logger.info(f"{task.channel_name}: forwarded {len(msgs)} messages to {getattr(target, 'id', target)}")
             await asyncio.sleep(random.uniform(5, 10))
         except FloodWaitError as e:
             logger.warning(f"Flood wait {e.seconds}s while forwarding to {getattr(target, 'id', target)}")
@@ -102,7 +102,6 @@ async def process_task(task: Task):
     logger.debug(f"{task.channel_name} is processed")
     min_id = max(1, task.last_msg_id - task.overlap + 1)
     new_messages = []
-
     try:
         messages_iter = client.iter_messages(
             task.channel_entity,
