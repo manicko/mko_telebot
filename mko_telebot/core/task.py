@@ -10,7 +10,7 @@ import aiofiles  # async I/O
 
 from mko_telebot.core import CONFIG, PATHS, utils
 
-logging.config.dictConfig(CONFIG.LOGGING)
+logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
 # Directory for persisting per-channel state files
@@ -64,7 +64,7 @@ class Task:
         # ensure last_msg_id is int and non-null
         self.last_msg_id = last_msg_id or 0
         self.overlap = overlap
-        self.state_file = None
+        self.state_file: Path | None = None
 
     async def resolve_targets_entities(self, client):
         """Resolve each forward target to a Telethon entity and store them."""
@@ -142,7 +142,7 @@ class Task:
     async def save_state(self):
         """Persist current last_msg_id to the state file."""
         try:
-            async with aiofiles.open(self.state_file, "w", encoding="utf-8") as f:
+            async with aiofiles.open(str(self.state_file), "w", encoding="utf-8") as f:
                 await f.write(json.dumps({"last_id": self.last_msg_id}))
             logger.debug(
                 f"State for channel {self.channel_name} saved (last_id={self.last_msg_id})"

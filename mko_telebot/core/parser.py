@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from mko_telebot.core import CONFIG
 
-logging.config.dictConfig(CONFIG.LOGGING)
+logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
 
@@ -250,7 +250,7 @@ class PatternParser:
 
 
 def ast_to_regex(node: ASTNode) -> str:
-    """Build a single regex string for a given AST node.
+    r"""Build a single regex string for a given AST node.
 
     The function converts basic AST node types to regex patterns:
       - ExactMatch -> r"\bword\b" (word boundaries used)
@@ -326,7 +326,7 @@ def patterns_for_node(node: ASTNode) -> list[str]:
 
 
 def search_match(text: str, query: str) -> bool:
-    """Evaluate whether the given text matches the query expression.
+    r"""Evaluate whether the given text matches the query expression.
 
     Semantics:
       - Space separates terms and acts as logical AND (all terms must be present,

@@ -8,7 +8,7 @@ from telethon.errors import FloodWaitError
 
 from mko_telebot.core import CONFIG, PATHS, Task, search_match, utils
 
-logging.config.dictConfig(CONFIG.LOGGING)
+logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
 is_user = CONFIG.TELETHON_API.is_user
@@ -23,9 +23,9 @@ if "session" in CONFIG.TELETHON_API.client:
     utils.ensure_path_exists(session_path)
     CONFIG.TELETHON_API.client["session"] = session_path
 
-client = TelegramClient(**CONFIG.TELETHON_API.client)
-task_queue = asyncio.Queue()
-process_lock = asyncio.Lock()
+client: TelegramClient = TelegramClient(**CONFIG.TELETHON_API.client)
+task_queue: asyncio.Queue[Task] = asyncio.Queue()
+process_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def start_client():
@@ -231,7 +231,7 @@ async def process_task(task: Task):
         logger.info(f"{task.channel_name}: no new messages found")
 
 
-async def reschedule_task(task: Task, queue: asyncio.Queue):
+async def reschedule_task(task: Task, queue: asyncio.Queue[Task]):
     """Schedule the next run for the given channel after its scan delay.
 
     Args:
@@ -245,7 +245,7 @@ async def reschedule_task(task: Task, queue: asyncio.Queue):
     logger.debug(f"{task.channel_name} returned to queue.")
 
 
-async def process_and_reschedule(task: Task, queue: asyncio.Queue):
+async def process_and_reschedule(task: Task, queue: asyncio.Queue[Task]):
     """Process a single task, save its state, and reschedule it asynchronously.
 
     Args:

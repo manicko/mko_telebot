@@ -1,3 +1,4 @@
+# mko_telebot/core/utils.py
 import logging
 from os import PathLike
 from pathlib import Path
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def list_files_in_directory(
-    path: str | PathLike,
+    path: str | PathLike[str],
     extensions: tuple[str, ...] = ("yaml", "json"),
     include_subfolders: bool = False,
 ) -> list[Path]:
@@ -25,7 +26,7 @@ def list_files_in_directory(
         List[Path]: A list of file paths matching the given extensions.
     """
     try:
-        files = []
+        files: list[Path] = []
         subfolder_pattern = "**/" if include_subfolders else ""
         for ext in extensions:
             files.extend(Path(path).glob(f'{subfolder_pattern}*.{ext.strip(".")}'))

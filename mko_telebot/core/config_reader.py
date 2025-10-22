@@ -105,7 +105,7 @@ class Config(BaseSettings):
         """
         Loads and merges configurations from `DEFAULT_SETTINGS_FOLDER` and `USER_SETTINGS_FOLDER`.
         """
-        merged_config = {}
+        merged_config: dict[str, Any] = {}
         for folder in (PATHS.root_dir, PATHS.user_folder):
             for file in PATHS.config_files.values():
                 path = Path.joinpath(folder, "settings", file)
