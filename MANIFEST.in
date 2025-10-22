@@ -1,0 +1,10 @@
+include README.md
+include LICENSE.txt
+include requirements.txt
+include tests
+include mko_telebot/settings/*
+recursive-include mko_telebot *.json *.yaml
+global-exclude secrets*.yaml
+exclude *.git
+global-exclude tests/.pytest_cache/*
+global-exclude *.pyc *.o *.session *.pytest_cache *.cache

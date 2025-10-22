@@ -1,0 +1,123 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61.0", "wheel>=0.37.1"]
+
+[project]
+name = "mko_telebot"
+version = "0.0.1"
+authors = [
+    { name = "mko", email = "manicko@yandex.ru" },
+]
+
+description = "A simple yet powerful Telegram classified monitor"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles>=25",
+    "platformdirs>=4",
+    "pydantic>=2",
+    "pydantic-settings>=2",
+    "PyYAML>=6",
+    "telethon>=1",
+]
+
+classifiers = [
+    "Programming Language :: Python",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/manicko/mko_telebot"
+Repository = "https://github.com/manicko/mko_telebot"
+Issues = "https://github.com/manicko/mko_telebot/issues"
+
+[tool.setuptools]
+platforms = ["Linux", "Windows"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mko_telebot*", "mko_telebot.settings", "mko_telebot.core"]
+exclude = ["tests/.pytest_cache*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q"
+#-ra: This combines two options: -r (report summary at the end) and
+# -a (all except passed). It means that Pytest will display a summary report
+# at the end of the test run and will show details for failed, skipped, and failed
+# (expected to fail) tests.
+# -q: This stands for "quiet" mode.
+# It suppresses most of the output, making the test run less verbose.
+
+console_output_style = "classic"
+
+# Black configuration
+[tool.black]
+line-length = 88
+skip-string-normalization = false
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.venv
+  | build
+  | dist
+  | migrations
+  | __pycache__
+)/
+'''
+[tool.isort]
+profile = "black"   # синхронизирует переносы строк с Black
+known_first_party = ["mko_telebot", "settings", "core"]
+combine_as_imports = true
+
+# Ruff configuration
+[tool.ruff]
+line-length = 88
+fix = false   # IMPORTANT: do NOT auto-fix by default
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".mypy_cache",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",  # PEP8 errors
+    "F",  # Pyflakes
+    "I",  # import sorting
+    "B",  # bugbear - best practices
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line length handled by Black
+]
+
+
+[tool.ruff.lint.isort]
+#profile = "Black"   # синхронизирует переносы строк с Black
+known-first-party = ["mko_telebot", "settings", "core"]
+combine-as-imports = true
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false

@@ -1,15 +1,18 @@
+import logging
 from os import PathLike
 from pathlib import Path
-import logging
-from typing import Any, Dict, Union, List, Tuple, Optional
+from typing import Any
+
 import yaml
 
 logger = logging.getLogger(__name__)
 
 
-def list_files_in_directory(path: Union[str, PathLike],
-                            extensions: Tuple[str, ...] = ('yaml', 'json'),
-                            include_subfolders: bool = False) -> List[Path]:
+def list_files_in_directory(
+    path: str | PathLike,
+    extensions: tuple[str, ...] = ("yaml", "json"),
+    include_subfolders: bool = False,
+) -> list[Path]:
     """
     Lists files in a directory with specific extensions.
 
@@ -23,13 +26,14 @@ def list_files_in_directory(path: Union[str, PathLike],
     """
     try:
         files = []
-        subfolder_pattern = '**/' if include_subfolders else ''
+        subfolder_pattern = "**/" if include_subfolders else ""
         for ext in extensions:
             files.extend(Path(path).glob(f'{subfolder_pattern}*.{ext.strip(".")}'))
         return files
     except Exception as err:
         logger.error(f"Error reading directory {path}: {err}")
         return []
+
 
 def ensure_path_exists(path: Path) -> None:
     """
@@ -49,10 +53,10 @@ def ensure_path_exists(path: Path) -> None:
         else:  # If it's a directory, create it
             path.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        raise ValueError(f"Failed to create path {path}: {e}")
+        raise ValueError(f"Failed to create path {path}: {e}") from e
 
 
-def resolve_path(path: Union[str, Path], base_dir: Union[Path, None] = None) -> Path:
+def resolve_path(path: str | Path, base_dir: Path | None = None) -> Path:
     """
     Resolves an absolute path, creating it if necessary.
 
@@ -87,7 +91,8 @@ def resolve_path(path: Union[str, Path], base_dir: Union[Path, None] = None) -> 
 
     return resolved_path
 
-def load_config(path: Path) -> Dict[str, Any]:
+
+def load_config(path: Path) -> dict[str, Any]:
     """
     Loads configuration from a YAML file.
 
@@ -102,7 +107,8 @@ def load_config(path: Path) -> Dict[str, Any]:
             return yaml.safe_load(f) or {}
     return {}
 
-def merge_dicts(dict1: Dict[Any, Any], dict2: Dict[Any, Any]) -> Dict[Any, Any]:
+
+def merge_dicts(dict1: dict[Any, Any], dict2: dict[Any, Any]) -> dict[Any, Any]:
     """
     Recursively merges two dictionaries.
 

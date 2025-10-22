@@ -1,23 +1,27 @@
 import asyncio
-import random
 import logging.config
+import random
+from pathlib import Path
+
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
-from pathlib import Path
+
 from mko_telebot.core import CONFIG, PATHS, Task, search_match, utils
 
 logging.config.dictConfig(CONFIG.LOGGING)
-logger = logging.getLogger('monitor')
+logger = logging.getLogger(__name__)
 
 is_user = CONFIG.TELETHON_API.is_user
 phone_or_token = CONFIG.TELETHON_API.phone_or_token
 
-if 'session' in CONFIG.TELETHON_API.client:
-    session_path = Path.joinpath(PATHS.session_dir, CONFIG.TELETHON_API.client['session'])
-    if session_path.suffix != '.session':
-        session_path = session_path.with_suffix('.session')
+if "session" in CONFIG.TELETHON_API.client:
+    session_path = Path.joinpath(
+        PATHS.session_dir, CONFIG.TELETHON_API.client["session"]
+    )
+    if session_path.suffix != ".session":
+        session_path = session_path.with_suffix(".session")
     utils.ensure_path_exists(session_path)
-    CONFIG.TELETHON_API.client['session'] = session_path
+    CONFIG.TELETHON_API.client["session"] = session_path
 
 client = TelegramClient(**CONFIG.TELETHON_API.client)
 task_queue = asyncio.Queue()
@@ -56,7 +60,8 @@ def build_message_link(msg):
         if chat and getattr(chat, "username", None):
             return f"https://t.me/{chat.username}/{msg.id}"
         return None
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Error while building message link: {e}")
         return None
 
 
@@ -75,9 +80,18 @@ async def build_sender_tag(msg):
             return ""
         if getattr(sender, "username", None):
             return f"@{sender.username}"
-        name = " ".join(filter(None, [getattr(sender, "first_name", None), getattr(sender, "last_name", None)]))
+        name = " ".join(
+            filter(
+                None,
+                [
+                    getattr(sender, "first_name", None),
+                    getattr(sender, "last_name", None),
+                ],
+            )
+        )
         return name.strip()
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Error while building sender tag: {e}")
         return ""
 
 
@@ -114,18 +128,27 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task):
         try:
             if msg_media:
                 # send_file will create an album if files is a list of medias
-                await client.send_file(target, msg_media, caption=caption or None, link_preview=False)
+                await client.send_file(
+                    target, msg_media, caption=caption or None, link_preview=False
+                )
             else:
                 # purely text messages
                 await client.send_message(target, caption or "", link_preview=False)
 
-            logger.info(f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}")
+            logger.info(
+                f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}"
+            )
             await asyncio.sleep(random.uniform(5, 10))
         except FloodWaitError as e:
-            logger.warning(f"Flood wait {e.seconds}s while sending to {getattr(target, 'id', target)}")
+            logger.warning(
+                f"Flood wait {e.seconds}s while sending to {getattr(target, 'id', target)}"
+            )
             await asyncio.sleep(e.seconds + random.uniform(5, 10))
         except Exception as e:
-            logger.exception(f"Failed to send messages to {getattr(target, 'id', target)}: {e}")
+            logger.exception(
+                f"Failed to send messages to {getattr(target, 'id', target)}: {e}"
+            )
+
 
 async def process_messages(messages, task: Task):
     """Process messages, group albums, check keywords, and forward matches.
@@ -144,26 +167,29 @@ async def process_messages(messages, task: Task):
             group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
 
             if group_id not in msg_content:
-                msg_content[group_id] = {'msg': msg, 'text': [], 'media': []}
+                msg_content[group_id] = {"msg": msg, "text": [], "media": []}
 
             if getattr(msg, "message", None):
-                msg_content[group_id]['text'].append(msg.message)
+                msg_content[group_id]["text"].append(msg.message)
 
             if getattr(msg, "media", None):
                 if getattr(msg.media, "caption", None):
-                    msg_content[group_id]['text'].append(msg.media.caption)
-                msg_content[group_id]['media'].append(msg.media)
+                    msg_content[group_id]["text"].append(msg.media.caption)
+                msg_content[group_id]["media"].append(msg.media)
 
         except Exception as e:
-            logger.exception(f"Error processing message {getattr(msg, 'id', None)} "
-                             f"from {task.channel_name}: {e}")
+            logger.exception(
+                f"Error processing message {getattr(msg, 'id', None)} "
+                f"from {task.channel_name}: {e}"
+            )
 
     for album_id, content in msg_content.items():
-        msg_text = "\n".join(content.get('text', []))
+        msg_text = "\n".join(content.get("text", []))
         if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
             logger.debug(f"Keyword match in {task.channel_name}, message {album_id}")
-            await forward_to_users(content['msg'], msg_text, content.get('media', []), task)
-
+            await forward_to_users(
+                content["msg"], msg_text, content.get("media", []), task
+            )
 
 
 async def process_task(task: Task):
@@ -181,7 +207,7 @@ async def process_task(task: Task):
             min_id=min_id,
             offset_date=task.offset_date,
             limit=task.history_limit,
-            reverse=True
+            reverse=True,
         )
         async for msg in messages_iter:
             if msg.id <= task.last_msg_id:
@@ -197,8 +223,10 @@ async def process_task(task: Task):
     if new_messages:
         await process_messages(new_messages, task)
         task.last_msg_id = max(msg.id for msg in new_messages)
-        logger.info(f"{task.channel_name}: {len(new_messages)} new messages processed, "
-                    f"last_msg_id={task.last_msg_id}")
+        logger.info(
+            f"{task.channel_name}: {len(new_messages)} new messages processed, "
+            f"last_msg_id={task.last_msg_id}"
+        )
     else:
         logger.info(f"{task.channel_name}: no new messages found")
 
@@ -234,8 +262,8 @@ async def main_loop():
     """Main monitoring loop that sequentially processes channels."""
     channels_delay = CONFIG.MONITORING.channels_delay
     channels_config = CONFIG.MONITORING.channels
-    defaults = channels_config.get('DEFAULTS', {})
-    channels = [ch for ch in channels_config if ch != 'DEFAULTS']
+    defaults = channels_config.get("DEFAULTS", {})
+    channels = [ch for ch in channels_config if ch != "DEFAULTS"]
 
     stagger_start_seconds = getattr(channels_config, "stagger_start_seconds", 3)
 
@@ -243,12 +271,12 @@ async def main_loop():
         channel_settings = {**defaults, **channels_config[channel]}
         task = Task(
             channel=channel,
-            forward_to=channel_settings.get('forward_to', []),
-            keywords=channel_settings.get('keywords', []),
-            scan_interval=channel_settings.get('scan_interval', 420),
-            history_limit=channel_settings.get('history_limit', 50),
-            history_days=channel_settings.get('history_days', None),
-            overlap=channel_settings.get('overlap', 5),
+            forward_to=channel_settings.get("forward_to", []),
+            keywords=channel_settings.get("keywords", []),
+            scan_interval=channel_settings.get("scan_interval", 420),
+            history_limit=channel_settings.get("history_limit", 50),
+            history_days=channel_settings.get("history_days", None),
+            overlap=channel_settings.get("overlap", 5),
         )
         await task.resolve_channel_entity(client)
         task.resolve_state_file()

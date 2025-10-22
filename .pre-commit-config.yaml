@@ -1,0 +1,48 @@
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-added-large-files
+
+  - repo: https://github.com/psf/black
+    rev: 25.9.0
+    hooks:
+      - id: black
+        name: black
+        # black will auto-format staged files (acceptable, safe)
+
+
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+      - id: isort
+        name: isort
+        # isort will auto-fix import ordering; profile configured via pyproject
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff-check         # RUN lint checks ONLY (no auto-fix)
+        name: ruff-check
+        # do not pass --fix here: we want to see warnings first
+
+  # Run pytest on pre-push (local, runs in your venv)
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+#        entry: pytest -q
+        language: system
+#        pass_filenames: false
+        types: [ python ]
+        files: ^tests/.*\.py$
+#        stages: [pre-push]

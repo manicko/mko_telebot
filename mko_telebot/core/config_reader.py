@@ -1,25 +1,26 @@
 from pathlib import Path
-from typing import Any, Dict, List
-from pydantic import BaseModel, Field, field_validator
-from pydantic_settings import BaseSettings
+from typing import Any
+
 from platformdirs import user_config_dir
-from mko_telebot.core.utils import (
-    load_config, resolve_path, merge_dicts
-)
+from pydantic import BaseModel, field_validator
+from pydantic_settings import BaseSettings
+
+from mko_telebot.core.utils import load_config, merge_dicts, resolve_path
 
 
 class WorkingPaths(BaseSettings):
     """
     Defines essential working paths for configuration and user data.
     """
+
     root_dir: Path = Path(__file__).resolve().parent.parent
     module_name: str = root_dir.name
     user_folder: Path = Path(user_config_dir(module_name))
 
-    default_settings: Path = Path.joinpath(root_dir, 'settings')
-    user_settings: Path = Path.joinpath(user_folder, 'settings')
-    state_dir: Path = Path.joinpath(user_settings, 'state')
-    session_dir: Path = Path.joinpath(user_settings, 'sessions')
+    default_settings: Path = Path.joinpath(root_dir, "settings")
+    user_settings: Path = Path.joinpath(user_folder, "settings")
+    state_dir: Path = Path.joinpath(user_settings, "state")
+    session_dir: Path = Path.joinpath(user_settings, "sessions")
 
     config_files: dict[str, str] = {
         "config": "config.yaml",
@@ -30,7 +31,7 @@ class WorkingPaths(BaseSettings):
     model_config = {
         "env_prefix": "APP_",
         "env_nested_delimiter": "__",
-        "extra": "ignore"
+        "extra": "ignore",
     }
 
 
@@ -42,22 +43,27 @@ class TelethonApiSettings(BaseModel):
     """
     Configuration for the Telethon API.
     """
+
     is_user: bool = True
     phone_or_token: str
     client: dict[str, Any]
+
 
 class MonitoringSettings(BaseSettings):
     """
     Configuration for the Telegram Channels Monitoring.
     """
+
     channels: dict[str, Any]
     channels_delay: int
+
 
 # Logging settings
 class LoggingSettings(BaseModel):
     """
     Logging configuration.
     """
+
     version: int = 1
     disable_existing_loggers: bool = False
     formatters: dict[str, Any]
@@ -91,7 +97,7 @@ class Config(BaseSettings):
     model_config = {
         "env_prefix": "APP_",
         "env_nested_delimiter": "__",
-        "extra": "ignore"
+        "extra": "ignore",
     }
 
     @classmethod
@@ -102,14 +108,15 @@ class Config(BaseSettings):
         merged_config = {}
         for folder in (PATHS.root_dir, PATHS.user_folder):
             for file in PATHS.config_files.values():
-                path = Path.joinpath(folder, 'settings', file)
+                path = Path.joinpath(folder, "settings", file)
                 data = load_config(path)  # Load YAML
                 merge_dicts(merged_config, data)  # Merge configs
 
         return cls.model_validate(merged_config)
 
+
 # Load the final configuration
 CONFIG = Config.load()
 
 
-# print(CONFIG.MONITORING.channels)
+# print(CONFIG.MONITORING)
