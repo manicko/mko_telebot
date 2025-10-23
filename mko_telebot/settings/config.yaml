@@ -1,0 +1,18 @@
+{
+  MONITORING: {
+    'channels_delay': 30,
+    channels: {
+      'DEFAULTS':
+        { 'scan_interval': 420,
+          'stagger_start_seconds': 5,
+          'history_limit': 50,
+          'history_days': 2,
+          'overlap': 5,
+          'forward_to': [],
+          'keywords': [
+          ],
+        },
+
+    },
+  },
+}

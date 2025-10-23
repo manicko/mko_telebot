@@ -184,20 +184,16 @@ cython_debug/
 **/user/*
 
 
-**user*.yaml
-!default_secrets.yaml
+**user*.yamls
+
 *.csv
 *token.json
 *.session*
 *.db
-*config.yaml
-*secrets.yaml
+
 !log_config.yaml
 
 
 # packages
 *.egg-info
 /dist
-test2.py
-
-
