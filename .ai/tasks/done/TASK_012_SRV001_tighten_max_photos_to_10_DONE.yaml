@@ -1,0 +1,71 @@
+id: task_012_srv001
+
+title: Tighten max_photos upper bound to Telegram's 10-photo album limit
+
+priority: high
+
+depends_on:
+  - TASK_011_TST004_strengthen_cli_tests
+
+source_reference: .ai/audit/99-validation/03-services-validated-findings.md
+source_section: SRV-001
+
+description: >
+  Tighten the max_photos upper bound from le=20 to le=10 in ChatDefaults
+  and ChatConfig.validate_max_photos to match Telegram's hard limit of
+  10 items per media group. Update spec and config documentation atomically.
+
+goals:
+  - reject invalid configurations at load time instead of per-post API failure
+  - update documentation to match the new bound
+
+files:
+  - path: src/mko_telepost/core/chat_models.py
+    targets:
+      - type: class
+        name: ChatDefaults
+    changes:
+      - action: edit_field
+        description: Change max_photos field from le=20 to le=10
+        code_hint: max_photos: int = Field(default=5, ge=1, le=10, ...)
+
+  - path: src/mko_telepost/core/chat_models.py
+    targets:
+      - type: function
+        name: validate_max_photos
+    changes:
+      - action: edit_code
+        description: Change upper bound check from v > 20 to v > 10
+        code_hint: if v < 1 or v > 10: raise ValueError(...)
+
+  - path: docs/SPEC.md
+    changes:
+      - action: edit_text
+        description: Change max_photos range from le=20 to le=10 at line 249
+        code_hint: s/le=20/le=10/
+
+  - path: docs/99-reference/config-reference.md
+    changes:
+      - action: edit_text
+        description: Change max_photos range from le=20 to le=10 at lines 188, 206
+        code_hint: s/le=20/le=10/
+
+  - path: docs/99-reference/error-reference.md
+    changes:
+      - action: edit_text
+        description: Update max_photos error reference at line 233
+        code_hint: s/le=20/le=10/
+
+  - path: tests/test_models.py
+    targets:
+      - type: function
+        name: test_max_photos_constraints
+    changes:
+      - action: edit_text
+        description: Update test docstring from le=20 to le=10
+
+acceptance_criteria:
+  - max_photos validated with le=10 in both ChatDefaults and ChatConfig
+  - docs/SPEC.md, config-reference.md, error-reference.md updated
+  - test docstring updated
+  - uv run pytest tests/test_models.py passes

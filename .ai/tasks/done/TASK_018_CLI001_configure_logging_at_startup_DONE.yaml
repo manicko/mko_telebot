@@ -1,0 +1,57 @@
+id: task_018_cli001
+
+title: Configure logging at CLI startup and fix logger name in template
+
+priority: high
+
+depends_on:
+  - TASK_017_SEC001_break_credential_leak_cause_chain
+
+source_reference: .ai/audit/99-validation/01-cli-validated-findings.md
+source_section: CLI-001
+also: .ai/audit/99-validation/02-config-validated-findings.md CFG-006
+
+description: >
+  Load log_config.yaml at CLI startup (call load_logging_config and
+  dictConfig) so the rotating file handler is active during runs.
+  Rename the dead "teleposter" logger to "mko_telepost" in log_config.yaml
+  so handler attachment is deterministic and matches the package root.
+
+  IMPORTANT: SEC-001 must be fixed BEFORE or atomically with this task.
+  See SEC-X01 — installing the RotatingFileHandler without the cause-chain
+  break escalates the credential leak from stderr to persistent disk.
+
+goals:
+  - enable logging at startup so logger.exception writes to configured handlers
+  - fix logger name in template to match package root
+
+files:
+  - path: src/mko_telepost/app.py
+    targets:
+      - type: function
+        name: _load_and_validate_config
+    semantic_anchors:
+      insert_before:
+        type: function_call
+        value: TelepostConfigReader
+    changes:
+      - action: add_code
+        description: Call load_logging_config and dictConfig at startup
+        code_hint: |
+          logging_config = reader.load_logging_config()
+          if logging_config:
+              logging.config.dictConfig(logging_config)
+
+  - path: src/mko_telepost/settings/log_config.yaml
+    changes:
+      - action: edit_text
+        description: Rename teleposter logger to mko_telepost
+        code_hint: s/"teleposter"/"mko_telepost"/
+
+acceptance_criteria:
+  - logging loaded at CLI startup via dictConfig
+  - log_config.yaml logger name matches package root mko_telepost
+  - rotating file handler receives records from mko_telepost.* loggers
+  - SEC-001 fix already applied (no credential persistence escalation)
+  - uv run ruff check passes
+  - tests pass

@@ -1,0 +1,39 @@
+id: task_036_tst001
+
+title: Fix non-hermetic GSheetsReader test that can hang or make real API calls
+
+priority: high
+
+depends_on:
+  - TASK_035_CFG001_fix_relative_config_path
+
+source_reference: .ai/audit/99-validation/07-tests-validated-findings.md
+source_section: TST-001
+
+description: >
+  Fix test_get_sheet_data_returns_empty_when_service_not_initialized by
+  patching GSheetsReader._initialize_service to return None (hermetic
+  approach, matching test intent). Alternatively use tmp_path-absolute
+  credential files.
+
+goals:
+  - make the test hermetic
+  - prevent hanging suite or real API calls on machines with real credentials
+
+files:
+  - path: tests/test_gsheets_reader.py
+    targets:
+      - type: function
+        name: test_get_sheet_data_returns_empty_when_service_not_initialized
+    changes:
+      - action: edit_code
+        description: Add @patch for _initialize_service to return None
+        code_hint: |
+          @patch.object(GSheetsReader, "_initialize_service", return_value=None)
+          def test_get_sheet_data_returns_empty_when_service_not_initialized(self, mock_init, ...):
+              ...
+
+acceptance_criteria:
+  - test no longer depends on host filesystem/network state
+  - test passes on any machine regardless of credential presence
+  - uv run pytest tests/test_gsheets_reader.py -k test_get_sheet_data_returns_empty passes

@@ -1,0 +1,192 @@
+tasks:
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 1 — Independent Low-Risk Fixes (chain for file-order safety)
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_001_CLI002_fix_command_name_docstrings
+    depends_on: []
+
+  - id: TASK_002_STR001_remove_bom_post_processor
+    depends_on:
+      - TASK_001_CLI002_fix_command_name_docstrings
+
+  - id: TASK_003_SEC002_delete_test_session
+    depends_on:
+      - TASK_002_STR001_remove_bom_post_processor
+
+  - id: TASK_004_QLT007_remove_stray_artifacts
+    depends_on:
+      - TASK_003_SEC002_delete_test_session
+
+  - id: TASK_005_TST003_remove_flaky_timing_assertion
+    depends_on:
+      - TASK_004_QLT007_remove_stray_artifacts
+
+  - id: TASK_006_TST005_normalize_indentation
+    depends_on:
+      - TASK_005_TST003_remove_flaky_timing_assertion
+
+  - id: TASK_007_CLI003_config_table_overflow
+    depends_on:
+      - TASK_006_TST005_normalize_indentation
+
+  - id: TASK_008_CFG005_api_id_sentinel_validator
+    depends_on:
+      - TASK_007_CLI003_config_table_overflow
+
+  - id: TASK_009_INT002_remove_dead_or_fallbacks
+    depends_on:
+      - TASK_008_CFG005_api_id_sentinel_validator
+
+  - id: TASK_010_CFG002_fix_docstrings_config_reader
+    depends_on:
+      - TASK_009_INT002_remove_dead_or_fallbacks
+
+  - id: TASK_011_TST004_strengthen_cli_tests
+    depends_on:
+      - TASK_010_CFG002_fix_docstrings_config_reader
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 2 — Model/Config Validation Fixes
+  # chat_models.py chain: SRV-001 → CFG-003 → CFG-007
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_012_SRV001_tighten_max_photos_to_10
+    depends_on:
+      - TASK_011_TST004_strengthen_cli_tests
+
+  - id: TASK_013_CFG003_add_base_max_delay_validator
+    depends_on:
+      - TASK_012_SRV001_tighten_max_photos_to_10
+
+  - id: TASK_014_CFG007_add_missing_bounds_humanization
+    depends_on:
+      - TASK_013_CFG003_add_base_max_delay_validator
+
+  - id: TASK_015_QLT009_log_exception_resize_image
+    depends_on:
+      - TASK_014_CFG007_add_missing_bounds_humanization
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 3 — SECURITY CRITICAL: SEC-001 → CLI-001 chain
+  # SEC-X01 mandates: SEC-001 MUST land before or atomically with CLI-001
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_016_research_SEC001_credential_leak
+    depends_on:
+      - TASK_015_QLT009_log_exception_resize_image
+
+  - id: TASK_017_SEC001_break_credential_leak_cause_chain
+    depends_on:
+      - TASK_016_research_SEC001_credential_leak
+
+  - id: TASK_018_CLI001_configure_logging_at_startup
+    depends_on:
+      - TASK_017_SEC001_break_credential_leak_cause_chain
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 4 — Post Model Typing Chain
+  # QLT-002 → SRV-003 → QLT-008 → QLT-001
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_019_QLT002_introduce_typed_post_model
+    depends_on:
+      - TASK_018_CLI001_configure_logging_at_startup
+
+  - id: TASK_020_SRV003_coerce_extract_text_value_to_str
+    depends_on:
+      - TASK_019_QLT002_introduce_typed_post_model
+
+  - id: TASK_021_QLT008_delete_type_ignore_post_model
+    depends_on:
+      - TASK_020_SRV003_coerce_extract_text_value_to_str
+
+  - id: TASK_022_QLT001_replace_any_with_concrete_types
+    depends_on:
+      - TASK_021_QLT008_delete_type_ignore_post_model
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 5 — TelegramService Coordinated Rewrite
+  # INT-001 + SRV-004 + SRV-005 + SEC-003 (single atomic block)
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_023_INT001_coordinated_rewrite_telegram_run
+    depends_on:
+      - TASK_022_QLT001_replace_any_with_concrete_types
+
+  - id: TASK_024_verify_INT001_telegram_run_rewrite
+    depends_on:
+      - TASK_023_INT001_coordinated_rewrite_telegram_run
+
+  - id: TASK_025_CFG004_keep_client_config_typed
+    depends_on:
+      - TASK_024_verify_INT001_telegram_run_rewrite
+
+  - id: TASK_026_QLT004_consume_coordinate_posting_return
+    depends_on:
+      - TASK_025_CFG004_keep_client_config_typed
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 6 — PostProcessor Chain: SEC-004 → DF-001
+  # Both edit _extract_photo_paths; must be sequential
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_027_SEC004_photo_path_containment_before_fs_access
+    depends_on:
+      - TASK_026_QLT004_consume_coordinate_posting_return
+
+  - id: TASK_028_DF001_widen_get_dir_content_extensions
+    depends_on:
+      - TASK_027_SEC004_photo_path_containment_before_fs_access
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 7 — SRV-002 + STR Structural Chain
+  # SRV-002 (image_cache) → STR-004 → STR-003 → STR-002
+  # STR-004 must be first: it extracts the sender module
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_029_SRV002_remove_dead_get_cache_path
+    depends_on:
+      - TASK_028_DF001_widen_get_dir_content_extensions
+
+  - id: TASK_030_STR004_extract_telegram_sender
+    depends_on:
+      - TASK_029_SRV002_remove_dead_get_cache_path
+
+  - id: TASK_031_STR003_split_try_send_message
+    depends_on:
+      - TASK_030_STR004_extract_telegram_sender
+
+  - id: TASK_032_STR002_flatten_send_posts
+    depends_on:
+      - TASK_031_STR003_split_try_send_message
+
+  - id: TASK_033_STR005_refactor_resize_image
+    depends_on:
+      - TASK_032_STR002_flatten_send_posts
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 8 — Remaining Independent Fixes
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_034_STR006_refactor_load_and_validate_config
+    depends_on:
+      - TASK_033_STR005_refactor_resize_image
+
+  - id: TASK_035_CFG001_fix_relative_config_path
+    depends_on:
+      - TASK_034_STR006_refactor_load_and_validate_config
+
+  # ═══════════════════════════════════════════════════════════════
+  # GROUP 9 — Test Improvements
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_036_TST001_fix_non_hermetic_gsheets_test
+    depends_on:
+      - TASK_035_CFG001_fix_relative_config_path
+
+  - id: TASK_037_TST002_add_oauth2_positive_path_tests
+    depends_on:
+      - TASK_036_TST001_fix_non_hermetic_gsheets_test
+
+  # ═══════════════════════════════════════════════════════════════
+  # VERIFICATION TASKS (run after their implementation tasks)
+  # ═══════════════════════════════════════════════════════════════
+  - id: TASK_038_verify_security_credential_leak
+    depends_on:
+      - TASK_017_SEC001_break_credential_leak_cause_chain
+
+  - id: TASK_039_verify_post_model_type_safety
+    depends_on:
+      - TASK_022_QLT001_replace_any_with_concrete_types

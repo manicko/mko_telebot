@@ -1,0 +1,28 @@
+id: task_024_verify_int001
+
+title: Verify — TelegramService.run() coordinated rewrite
+
+priority: high
+
+type: verification
+
+depends_on:
+  - TASK_023_INT001_coordinated_rewrite_telegram_run
+
+verifies:
+  - TASK_023_INT001_coordinated_rewrite_telegram_run
+
+verification_steps:
+  - build: uv run ruff check src/mko_telepost/core/telegram_service.py
+  - test: uv run pytest tests/test_telegram_service.py -v
+  - test: uv run mypy src/mko_telepost/core/telegram_service.py
+  - smoke_check: uv run python -c "from mko_telepost.core.telegram_service import TelegramService; print('import OK')"
+
+pass_criteria:
+  - ruff check passes
+  - all telegram_service tests pass
+  - mypy reports no issues
+  - import check succeeds
+  - no reference to old "Telegram authentication failed" string remains in source
+
+failure_action: return TASK_023 to rework

@@ -1,0 +1,35 @@
+id: task_002_str001
+
+title: Remove BOM from post_processor.py
+
+priority: low
+
+depends_on:
+  - TASK_001_CLI002_fix_command_name_docstrings
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-001
+
+description: >
+  Remove the UTF-8 BOM (b'\\xef\\xbb\\xbf') from post_processor.py which
+  causes radon to emit ERROR on the file.
+
+goals:
+  - make post_processor.py valid UTF-8 without BOM
+  - unblock radon analysis on the file
+
+files:
+  - path: src/mko_telepost/core/post_processor.py
+    targets:
+      - type: function
+        name: <module>
+    changes:
+      - action: edit_binary
+        description: Remove UTF-8 BOM bytes from start of file
+        code_hint: Re-save file as UTF-8 without BOM
+
+acceptance_criteria:
+  - BOM marker removed from post_processor.py
+  - uv run ruff check passes
+  - uv run mypy passes
+  - tests pass

@@ -1,0 +1,49 @@
+id: task_032_str002
+
+title: Flatten _send_posts via _process_post helper extraction
+
+priority: low
+
+depends_on:
+  - TASK_031_STR003_split_try_send_message
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-002
+
+description: >
+  Extract a _process_post helper from _send_posts to reduce nesting depth.
+  The micro-break check (if chat_config:) at depth 5-6 should be extracted
+  so each method has a single clear responsibility.
+
+goals:
+  - reduce nesting depth of _send_posts
+  - extract _process_post for single-post processing
+  - clear separation between queue management and post sending
+
+files:
+  - path: src/mko_telepost/core/telegram_service.py
+    targets:
+      - type: function
+        name: _send_posts
+    changes:
+      - action: edit_code
+        description: Extract _process_post helper from the inner loop body
+        code_hint: |
+          async def _process_post(self, client, post, chat, used_cache_files) -> bool:
+              """Handle a single post: resolve photos, apply delay, send, handle result."""
+              ...
+
+  - path: src/mko_telepost/core/telegram_service.py
+    targets:
+      - type: function
+        name: _send_posts
+    changes:
+      - action: edit_code
+        description: Replace inner loop body with await self._process_post(...) call
+
+acceptance_criteria:
+  - _process_post extracted from _send_posts inner loop
+  - _send_posts nesting depth reduced
+  - micro-break logic correctly handled in extracted helper
+  - all existing tests pass
+  - uv run mypy passes

@@ -1,0 +1,30 @@
+id: task_039_verify_post_model
+
+title: Verify — Post model and type safety chain
+
+priority: medium
+
+type: verification
+
+depends_on:
+  - TASK_022_QLT001_replace_any_with_concrete_types
+
+verifies:
+  - TASK_019_QLT002_introduce_typed_post_model
+  - TASK_020_SRV003_coerce_extract_text_value_to_str
+  - TASK_021_QLT008_delete_type_ignore_post_model
+  - TASK_022_QLT001_replace_any_with_concrete_types
+
+verification_steps:
+  - build: uv run ruff check src/mko_telepost
+  - test: uv run pytest tests/ -v
+  - test: uv run mypy src/mko_telepost
+
+pass_criteria:
+  - ruff check passes
+  - all tests pass
+  - mypy reports no issues in 21+ source files
+  - no Any remains in post_processor.py, telegram_service.py, gsheets_reader.py type signatures
+  - no # type: ignore[arg-type] remaining
+
+failure_action: return TASK_019 - TASK_022 to rework

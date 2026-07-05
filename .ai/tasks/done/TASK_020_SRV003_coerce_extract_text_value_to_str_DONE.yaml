@@ -1,0 +1,45 @@
+id: task_020_srv003
+
+title: Coerce _extract_text_value output to str for type contract
+
+priority: medium
+
+depends_on:
+  - TASK_019_QLT002_introduce_typed_post_model
+
+source_reference: .ai/audit/99-validation/03-services-validated-findings.md
+source_section: SRV-003
+also: .ai/audit/99-validation/06-data-flow-validated-findings.md DF-002
+
+description: >
+  Coerce the return value of _extract_text_value to str so Task.txt: str
+  contract is upheld. Return str(row[txt_col]) for non-None values and
+  "" for None/empty cells. This removes the Any-leak and makes the truthiness
+  filter in get_posts behave correctly (only "" is falsy among strings).
+
+goals:
+  - enforce str contract on Task.txt
+  - prevent non-string cell values reaching Telethon
+  - eliminate silent row drop for falsy non-string values
+
+files:
+  - path: src/mko_telepost/core/post_processor.py
+    targets:
+      - type: function
+        name: _extract_text_value
+    changes:
+      - action: edit_code
+        description: Return str(row[txt_col]) for non-None, "" for None
+        code_hint: |
+          if txt_col >= len(row):
+              logger.warning(...)
+              return ""
+          value = row[txt_col]
+          return "" if value is None else str(value)
+
+acceptance_criteria:
+  - _extract_text_value returns str, not Any
+  - None cells result in "" (preserving falsy skip behavior)
+  - int/float/bool cells coerced to str (e.g., 42 -> "42")
+  - uv run mypy passes
+  - uv run pytest tests/ passes

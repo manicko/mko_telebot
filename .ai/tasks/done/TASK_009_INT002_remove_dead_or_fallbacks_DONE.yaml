@@ -1,0 +1,45 @@
+id: task_009_int002
+
+title: Remove dead or fallbacks in GSheetsReader.get_sheet_data
+
+priority: low
+
+depends_on:
+  - TASK_008_CFG005_api_id_sentinel_validator
+
+source_reference: .ai/audit/99-validation/05-integrations-validated-findings.md
+source_section: INT-002
+also: .ai/audit/99-validation/08-quality-validated-findings.md QLT-005
+
+description: >
+  Remove the dead `or` fallback lines and misleading `# Use config values
+  if not provided` comment in get_sheet_data. Both parameters are required
+  and never pass falsy values. Also correct the docstring to match reality.
+
+goals:
+  - remove dead code branches
+  - fix misleading docstring
+  - eliminate invented Sheet1!A1:Z100 default
+
+files:
+  - path: src/mko_telepost/core/gsheets_reader.py
+    targets:
+      - type: function
+        name: get_sheet_data
+    changes:
+      - action: delete_code
+        description: Remove spreadsheet_id or self.config.spreadsheet_id and range_name or Sheet1!A1:Z100 fallbacks
+        code_hint: Delete lines 243-244 (the `or` fallback reassignments)
+
+      - action: edit_text
+        description: Fix docstring to state both params are required, no config fallback
+        code_hint: |
+          spreadsheet_id: Spreadsheet ID (required)
+          range_name: Range to retrieve (e.g., 'Sheet1!A1:Z100') (required)
+
+acceptance_criteria:
+  - dead `or` fallback branches removed
+  - docstring correctly states both parameters are required
+  - uv run ruff check passes
+  - uv run mypy passes
+  - tests pass

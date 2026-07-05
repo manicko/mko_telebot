@@ -1,0 +1,309 @@
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\app.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.app
+  layer: unknown
+  imports:
+  - pathlib
+  - rich.console
+  - rich.table
+  - mko_telepost.core
+  - importlib.metadata
+  classes: []
+  functions:
+  - _validate_and_categorize_errors
+  - _load_and_validate_config
+  - _run_posting_flow
+  - init
+  - run
+  - config
+  - version
+  - _show_config_summary
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\__init__.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.__init__
+  layer: unknown
+  imports:
+  - mko_telepost.core
+  classes: []
+  functions: []
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\chat_models.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.chat_models
+  layer: unknown
+  imports:
+  - __future__
+  - pydantic
+  classes:
+  - HumanizationConfig
+  - ChatDefaults
+  - ChatsConfig
+  - ChatConfig
+  functions:
+  - validate_delay_bounds
+  - validate_chat_id_not_placeholder
+  - validate_min_delay_minutes
+  - validate_delay_jitter_percent
+  - validate_max_photos
+  - validate_max_width
+  - validate_max_height
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\config_reader.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.config_reader
+  layer: unknown
+  imports:
+  - pathlib
+  - typing
+  - mko_telepost.core.errors
+  - mko_telepost.core.models
+  - mko_telepost.core.paths
+  - mko_telepost.core.utils
+  classes:
+  - TelepostConfigReader
+  functions:
+  - __init__
+  - _resolve_path
+  - _load_yaml
+  - load
+  - _resolve_settings_paths
+  - _validate_settings
+  - load_logging_config
+  - _resolve_log_paths
+  - _default_logging_config
+  - validate_files
+  - from_user_dir
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\delay_engine.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.delay_engine
+  layer: unknown
+  imports:
+  - math
+  - random
+  - mko_telepost.core.models
+  classes:
+  - DelayEngine
+  functions:
+  - _clamp
+  - __init__
+  - get_per_chat_delay
+  - get_human_jitter_delay
+  - get_effective_delay
+  - record_action
+  - should_micro_break
+  - get_micro_break_delay
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\errors.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.errors
+  layer: unknown
+  imports: []
+  classes:
+  - ConfigError
+  - GoogleSheetsServiceError
+  functions: []
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\file_permissions.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.file_permissions
+  layer: unknown
+  imports:
+  - pathlib
+  classes: []
+  functions:
+  - set_restrictive_permissions
+  - _set_windows_acl
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\google_scope.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.google_scope
+  layer: unknown
+  imports:
+  - enum
+  classes:
+  - GoogleScope
+  functions: []
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\google_sheets_models.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.google_sheets_models
+  layer: unknown
+  imports:
+  - __future__
+  - pathlib
+  - mko_telepost.core.google_scope
+  - pydantic
+  classes:
+  - GoogleSheetsConfig
+  functions:
+  - validate_spreadsheet_id
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\gsheets_reader.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.gsheets_reader
+  layer: unknown
+  imports:
+  - pathlib
+  - typing
+  - google.auth.transport.requests
+  - google.oauth2.credentials
+  - google_auth_oauthlib.flow
+  - googleapiclient.discovery
+  - googleapiclient.errors
+  - mko_telepost.core.errors
+  - mko_telepost.core.file_permissions
+  - mko_telepost.core.paths
+  - mko_telepost.core.google_scope
+  - mko_telepost.core.models
+  classes:
+  - GSheetsReader
+  functions:
+  - __init__
+  - _resolve_path
+  - _initialize_service
+  - _try_load_token
+  - _try_refresh_token
+  - _get_credentials
+  - _authorize_new_token
+  - _save_token
+  - get_sheet_data
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\image_cache.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.image_cache
+  layer: unknown
+  imports:
+  - datetime
+  - pathlib
+  - PIL
+  - platformdirs
+  classes:
+  - ImageCache
+  functions:
+  - __init__
+  - get_cache_path
+  - resize_image
+  - cleanup_unused
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\init_service.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.init_service
+  layer: unknown
+  imports:
+  - pathlib
+  - mko_telepost.core.paths
+  classes: []
+  functions:
+  - _copy_templates
+  - init_project
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\models.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.models
+  layer: unknown
+  imports:
+  - __future__
+  - pathlib
+  - pydantic
+  - mko_telepost.core.chat_models
+  - mko_telepost.core.google_sheets_models
+  - mko_telepost.core.telethon_models
+  - mko_telepost.core.telethon_models
+  classes:
+  - TelepostSettings
+  functions:
+  - resolve_chat_defaults
+  - get_all_range_names
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\paths.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.paths
+  layer: unknown
+  imports:
+  - pathlib
+  - platformdirs
+  - pydantic
+  classes:
+  - PathResolver
+  - AppPaths
+  functions:
+  - __init__
+  - resolve
+  - ensure_dir
+  - ensure_file_parent
+  - user_settings_dir
+  - app_settings_dir
+  - app_config
+  - log_config
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\task.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.task
+  layer: unknown
+  imports:
+  - pathlib
+  - dataclasses
+  classes:
+  - Task
+  functions: []
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\telegram_poster.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.telegram_poster
+  layer: unknown
+  imports:
+  - pathlib
+  - typing
+  - mko_telepost.core.file_permissions
+  - mko_telepost.core.paths
+  - telethon
+  - mko_telepost.core.models
+  classes:
+  - TelegramPoster
+  functions:
+  - __init__
+  - create_client
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\telegram_service.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.telegram_service
+  layer: unknown
+  imports:
+  - datetime
+  - pathlib
+  - random
+  - typing
+  - telethon
+  - telethon.types
+  - mko_telepost.core.delay_engine
+  - mko_telepost.core.errors
+  - mko_telepost.core.file_permissions
+  - mko_telepost.core.gsheets_reader
+  - mko_telepost.core.image_cache
+  - mko_telepost.core.models
+  - mko_telepost.core.paths
+  - mko_telepost.core.post_processor
+  - mko_telepost.core.task
+  - mko_telepost.core.telegram_poster
+  classes:
+  - TelegramService
+  functions:
+  - __init__
+  - _resolve_photo_paths
+  - _make_start_kwargs
+  - _cleanup_session
+  - run_posting
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\telethon_models.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.telethon_models
+  layer: unknown
+  imports:
+  - __future__
+  - pydantic
+  classes:
+  - ClientConfig
+  - TelethonConfig
+  functions:
+  - validate_api_hash
+  - validate_not_placeholder
+  - validate_phone_or_token
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\utils.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.utils
+  layer: unknown
+  imports:
+  - os
+  - pathlib
+  - typing
+  classes: []
+  functions:
+  - yaml_to_dict
+  - get_dir_content
+- path: C:\py_dev\mko_telepost\.ai\builders\..\..\src\mko_telepost\core\__init__.py
+  module: C:_dev.mko_telepost..ai.builders.......src.mko_telepost.core.__init__
+  layer: unknown
+  imports:
+  - config_reader
+  - delay_engine
+  - errors
+  - file_permissions
+  - google_scope
+  - gsheets_reader
+  - image_cache
+  - init_service
+  - models
+  - paths
+  - post_processor
+  - task
+  - telegram_poster
+  - telegram_service
+  - utils
+  classes: []
+  functions: []

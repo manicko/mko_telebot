@@ -1,0 +1,40 @@
+id: task_034_str006
+
+title: Refactor _load_and_validate_config to reduce length
+
+priority: low
+
+depends_on:
+  - TASK_033_STR005_refactor_resize_image
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-006
+
+description: >
+  Refactor _load_and_validate_config in app.py (currently 58 total lines,
+  47 non-blank, depth=4) by extracting the logging-injection step and
+  error-handling into dedicated helpers.
+
+goals:
+  - reduce function length
+  - extract error-handling pipeline step
+
+files:
+  - path: src/mko_telepost/app.py
+    targets:
+      - type: function
+        name: _load_and_validate_config
+    changes:
+      - action: edit_code
+        description: Extract logging injection and error handling into helpers
+        code_hint: |
+          Extract:
+          - _inject_logging(reader) -> None
+          - _handle_config_errors(errors, console) -> None
+
+acceptance_criteria:
+  - _load_and_validate_config shorter than 40 non-blank lines
+  - extracted helpers have single responsibility
+  - uv run ruff check passes
+  - uv run mypy passes
+  - tests pass

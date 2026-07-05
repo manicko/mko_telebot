@@ -39,7 +39,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["mko_telebot*", "mko_telebot.settings", "mko_telebot.core"]
+include = ["src/*"]
 exclude = ["tests/.pytest_cache*"]
 namespaces = false
 
@@ -62,7 +62,7 @@ exclude = '''
 # isort configuration (used by isort hook)
 [tool.isort]
 profile = "black"
-known_first_party = ["mko_telebot", "settings", "core"]
+known_first_party = ["src"]
 combine_as_imports = true
 
 # Ruff top-level global settings
@@ -110,7 +110,7 @@ ignore = [
 # Specific ruff.isort-related options (only ruff-supported keys)
 # Note: do NOT set profile here (ruff doesn't accept "profile" key)
 [tool.ruff.lint.isort]
-known-first-party = ["mko_telebot", "settings", "core"]
+known-first-party = ["src"]
 combine-as-imports = true
 
 # Ruff formatting section

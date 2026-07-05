@@ -1,0 +1,47 @@
+id: task_011_tst004
+
+title: Strengthen mock-call-only CLI tests
+
+priority: low
+
+depends_on:
+  - TASK_010_CFG002_fix_docstrings_config_reader
+
+source_reference: .ai/audit/99-validation/07-tests-validated-findings.md
+source_section: TST-004
+
+description: >
+  Remove the redundant test_init_command_calls_init_project (covered by
+  test_init_command_success_output) and strengthen test_run_command_loads_config
+  with exit-code, downstream-invocation, and stdout assertions.
+
+goals:
+  - eliminate redundant test that only asserts mock call
+  - strengthen remaining test to verify actual outcomes
+
+files:
+  - path: tests/test_app.py
+    targets:
+      - type: function
+        name: test_init_command_calls_init_project
+    changes:
+      - action: delete_code
+        description: Remove the redundant test function (lines 14-18)
+
+  - path: tests/test_app.py
+    targets:
+      - type: function
+        name: test_run_command_loads_config
+    changes:
+      - action: edit_code
+        description: Add exit_code, stdout, and mock_posting assertions
+        code_hint: |
+          Add:
+          assert result.exit_code == 0
+          assert "Configuration loaded" in result.stdout
+          mock_posting.assert_called_once()
+
+acceptance_criteria:
+  - test_init_command_calls_init_project removed
+  - test_run_command_loads_config asserts exit_code, stdout, downstream call
+  - uv run pytest tests/test_app.py passes

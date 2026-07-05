@@ -1,0 +1,34 @@
+id: task_005_tst003
+
+title: Remove flaky wall-clock timing assertion in cache-hit test
+
+priority: low
+
+depends_on:
+  - TASK_004_QLT007_remove_stray_artifacts
+
+source_reference: .ai/audit/99-validation/07-tests-validated-findings.md
+source_section: TST-003
+
+description: >
+  Remove the elapsed < 0.1 wall-clock assertion from
+  test_resize_image_cache_hit to eliminate environment-dependent flakiness.
+
+goals:
+  - eliminate non-deterministic test assertion
+  - keep the correctness assertion (result2 == result1)
+
+files:
+  - path: tests/test_image_cache.py
+    targets:
+      - type: function
+        name: test_resize_image_cache_hit
+    changes:
+      - action: delete_code
+        description: Remove start_time/time.time()/elapsed/assert elapsed < 0.1 block
+        code_hint: Remove the timing measurement lines but keep assert result2 == result1
+
+acceptance_criteria:
+  - test_resize_image_cache_hit no longer uses time.time() or asserts wall-clock timing
+  - assert result2 == result1 is preserved
+  - uv run pytest tests/test_image_cache.py passes

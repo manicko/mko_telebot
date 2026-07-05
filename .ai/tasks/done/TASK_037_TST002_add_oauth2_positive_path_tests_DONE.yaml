@@ -1,0 +1,50 @@
+id: task_037_tst002
+
+title: Add positive-path tests for OAuth2 credential lifecycle
+
+priority: medium
+
+depends_on:
+  - TASK_036_TST001_fix_non_hermetic_gsheets_test
+
+source_reference: .ai/audit/99-validation/07-tests-validated-findings.md
+source_section: TST-002
+
+description: >
+  Add focused unit tests for the untested positive-path branches in
+  GSheetsReader OAuth2 credential lifecycle: refresh success, valid token
+  load with matching scopes, and _save_token with real tmp_path file write.
+
+goals:
+  - cover refresh-success, load-valid, and save+permissions paths
+  - security-adjacent token-file permissioning currently never exercised
+
+files:
+  - path: tests/test_gsheets_reader.py
+    changes:
+      - action: add_code
+        description: Add test for _try_refresh_token success path
+        code_hint: |
+          def test_try_refresh_token_success(self):
+              mock_creds = MagicMock(spec=OAuth2Credentials)
+              mock_creds.refresh.return_value = None
+              with patch.object(self.reader, '_try_load_token', return_value=mock_creds):
+                  result = self.reader._try_refresh_token(mock_creds)
+                  assert result is mock_creds
+                  mock_creds.refresh.assert_called_once()
+
+      - action: add_code
+        description: Add test for _try_load_token returns valid token
+        code_hint: Test that valid token with matching scopes returns without calling _authorize_new_token
+
+      - action: add_code
+        description: Add test for _save_token writes file and sets permissions
+        code_hint: |
+          Use tmp_path to create a real token file path.
+          Assert file is written and set_restrictive_permissions is called.
+
+acceptance_criteria:
+  - refresh-succeeds test asserts creds.refresh called and creds returned
+  - load-valid test asserts returned without calling _authorize_new_token
+  - save-token test asserts file written and permissions set
+  - uv run pytest tests/test_gsheets_reader.py passes

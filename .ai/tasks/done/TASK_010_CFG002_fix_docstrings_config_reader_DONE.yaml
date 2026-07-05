@@ -1,0 +1,41 @@
+id: task_010_cfg002
+
+title: Correct load() and _validate_settings docstrings in config_reader.py
+
+priority: low
+
+depends_on:
+  - TASK_009_INT002_remove_dead_or_fallbacks
+
+source_reference: .ai/audit/99-validation/02-config-validated-findings.md
+source_section: CFG-002
+
+description: >
+  Correct the load() and _validate_settings docstrings that falsely claim
+  model_validate skips after-validators. Remove or deprecate the no-op
+  validate flag parameter.
+
+goals:
+  - documented behavior matches Pydantic v2 semantics
+  - clarify that full validation pipeline runs
+
+files:
+  - path: src/mko_telepost/core/config_reader.py
+    targets:
+      - type: class
+        name: TelepostConfigReader
+      - type: function
+        name: load
+      - type: function
+        name: _validate_settings
+    changes:
+      - action: edit_text
+        description: Correct docstring claims about model_validate skipping after-validators
+        code_hint: |
+          load() docstring: Remove claim that use_full_validation=False skips after-validators.
+          _validate_settings docstring: Same correction.
+
+acceptance_criteria:
+  - docstrings no longer claim after-validators are skipped
+  - uv run ruff check passes
+  - tests pass

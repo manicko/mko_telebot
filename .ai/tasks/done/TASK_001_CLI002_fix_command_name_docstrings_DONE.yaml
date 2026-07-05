@@ -1,0 +1,56 @@
+id: task_001_cli002
+
+title: Fix command name references mko -> mko-telepost in docstrings
+
+priority: high
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/01-cli-validated-findings.md
+source_section: CLI-002
+
+description: >
+  Replace 5 source-code docstring references from `mko` to `mko-telepost`
+  so user-facing help/error text matches the actual CLI entry point.
+
+goals:
+  - fix all incorrect command name references in .py files
+  - no production logic changes
+
+files:
+  - path: src/mko_telepost/__init__.py
+    targets:
+      - type: function
+        name: <module>
+    changes:
+      - action: edit_text
+        description: Replace `mko ` with `mko-telepost ` in module docstring Usage block
+        code_hint: s/mko /mko-telepost / in module docstring
+
+  - path: src/mko_telepost/core/config_reader.py
+    targets:
+      - type: class
+        name: TelepostConfigReader
+    changes:
+      - action: edit_text
+        description: Replace `mko telepost` with `mko-telepost` in ConfigError message
+        code_hint: s/mko telepost/mko-telepost/ in ConfigError message
+
+  - path: src/mko_telepost/core/init_service.py
+    changes:
+      - action: edit_text
+        description: Replace `mko` with `mko-telepost` in module docstring
+
+  - path: src/mko_telepost/core/paths.py
+    targets:
+      - type: class
+        name: PathResolver
+    changes:
+      - action: edit_text
+        description: Replace `mko` with `mko-telepost` in ensure_dir docstring
+
+acceptance_criteria:
+  - all 5 docstring locations updated to mko-telepost
+  - uv run ruff check passes
+  - uv run mypy passes
+  - tests pass

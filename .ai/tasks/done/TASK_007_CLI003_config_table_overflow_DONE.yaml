@@ -1,0 +1,40 @@
+id: task_007_cli003
+
+title: Set overflow=fold on config command Table
+
+priority: low
+
+depends_on:
+  - TASK_006_TST005_normalize_indentation
+
+source_reference: .ai/audit/99-validation/01-cli-validated-findings.md
+source_section: CLI-003
+
+description: >
+  Set overflow="fold" (or widen/weight the Path column) on the config
+  command's Rich Table so USER_DIR and user_settings_dir remain visually
+  distinct on narrow terminals.
+
+goals:
+  - improve CLI output readability on narrow terminals
+  - no behavioral change
+
+files:
+  - path: src/mko_telepost/app.py
+    targets:
+      - type: function
+        name: config
+    semantic_anchors:
+      insert_before:
+        type: function_call
+        value: Table
+    changes:
+      - action: edit_code
+        description: Add overflow="fold" to config table column or table constructor
+        code_hint: Table(..., overflow="fold") or add Column(overflow="fold") for path column
+
+acceptance_criteria:
+  - config command output does not truncate path strings on narrow terminals
+  - uv run ruff check passes
+  - uv run mypy passes
+  - tests pass

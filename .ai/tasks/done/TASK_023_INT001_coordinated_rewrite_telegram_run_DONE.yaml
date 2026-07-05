@@ -1,0 +1,81 @@
+id: task_023_int001
+
+title: Replace async with client: with explicit start/disconnect for credential pass-through
+
+priority: high
+
+depends_on:
+  - TASK_022_QLT001_replace_any_with_concrete_types
+
+source_reference: .ai/audit/99-validation/05-integrations-validated-findings.md
+source_section: INT-001
+also: .ai/audit/99-validation/03-services-validated-findings.md SRV-004, SRV-005
+also: .ai/audit/99-validation/04-security-validated-findings.md SEC-003
+
+description: >
+  COORDINATED REWRITE — Combined fix for INT-001 (credentials bypassed
+  by __aenter__), SRV-004 (inaccurate log message), SRV-005 (session perms
+  timing), and SEC-003 (session-journal hardening). Replace the async with
+  client: block with explicit try/except/finally that passes credentials
+  to the first and only start() call, hardens session files immediately,
+  and uses stage-accurate logging.
+
+goals:
+  - configured credentials reach _start() on first and only start() call
+  - session files hardened in finally block regardless of success/failure
+  - .session-journal also hardened
+  - error message is stage-accurate
+  - _cleanup_session runs in finally
+
+files:
+  - path: src/mko_telepost/core/telegram_service.py
+    targets:
+      - type: function
+        name: run
+    semantic_anchors:
+      insert_before:
+        type: function_call
+        value: async with client
+    changes:
+      - action: edit_code
+        description: Replace async with client: block with explicit try/except/finally structure
+        code_hint: |
+          # Before:
+          async with client:
+              await client.start(**self._make_start_kwargs())
+              self._cleanup_session(session_path)
+              await self._coordinate_posting(client, granges_data, used_cache_files)
+
+          # After:
+          try:
+              await client.start(**self._make_start_kwargs())
+              self._harden_session_files(session_path)
+              await self._coordinate_posting(client, granges_data, used_cache_files)
+          except Exception:
+              logger.exception("Telegram run failed")
+              raise
+          finally:
+              await client.disconnect()
+              self._cleanup_session(session_path)
+
+  - path: src/mko_telepost/core/telegram_service.py
+    targets:
+      - type: function
+        name: _cleanup_session
+    changes:
+      - action: add_code
+        description: Extend _cleanup_session to also harden .session-journal
+        code_hint: |
+          for suffix in (".session", ".session-journal"):
+              f = Path(str(session_path) + suffix)
+              if f.exists():
+                  set_restrictive_permissions(f)
+
+acceptance_criteria:
+  - async with client: replaced with explicit try/except/finally
+  - self._make_start_kwargs() values reach the only start() call
+  - session files hardened in finally (both .session and .session-journal)
+  - error message is "Telegram run failed" not "authentication failed"
+  - client.disconnect() called in finally
+  - uv run mypy passes
+  - uv run pytest tests/ passes

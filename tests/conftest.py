@@ -1,6 +1,6 @@
 import pytest
 
-from mko_telebot.core.parser import search_match
+from src.mko_telebot.core.parser import search_match
 
 
 @pytest.fixture

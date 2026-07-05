@@ -1,0 +1,39 @@
+id: task_006_tst005
+
+title: Normalize indentation in test_image_cache.py
+
+priority: low
+
+depends_on:
+  - TASK_005_TST003_remove_flaky_timing_assertion
+
+source_reference: .ai/audit/99-validation/07-tests-validated-findings.md
+source_section: TST-005
+
+description: >
+  Run ruff format on tests/test_image_cache.py to normalize 12-space method
+  bodies to project-standard 8-space indentation, and add ruff format --check
+  to the documented lint workflow.
+
+goals:
+  - consistent indentation across test file
+  - document ruff format --check in command reference
+
+files:
+  - path: tests/test_image_cache.py
+    changes:
+      - action: format
+        description: Run uv run ruff format tests/test_image_cache.py
+        code_hint: uv run ruff format tests/test_image_cache.py
+
+  - path: .ai/context/commands.md
+    changes:
+      - action: add_code
+        description: Add ruff format --check to documented lint workflow
+        code_hint: |
+          | Validate formatting | `uv run ruff format --check <path>` |
+
+acceptance_criteria:
+  - tests/test_image_cache.py uses consistent 8-space body indentation
+  - uv run ruff format --check tests/test_image_cache.py passes
+  - .ai/context/commands.md includes ruff format --check entry
