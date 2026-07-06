@@ -1,4 +1,4 @@
-# task.py
+﻿# task.py
 import asyncio
 import json
 import logging
@@ -10,11 +10,13 @@ import aiofiles  # async I/O
 
 from mko_telebot.core import utils
 from mko_telebot.core.paths import APP_PATHS
+from mko_telebot.core.errors import TelegramServiceError, StateError
+from mko_telebot.core.chats_config import ChannelConfig
 
 logger = logging.getLogger(__name__)
 
 # Directory for persisting per-channel state files
-state_dir = Path(APP_PATHS.state_dir)
+state_dir = APP_PATHS.state_dir
 
 
 class Task:
@@ -39,31 +41,21 @@ class Task:
         state_file: Path to the JSON file used for persisting last_msg_id.
     """
 
-    def __init__(
-        self,
-        channel,
-        forward_to,
-        keywords,
-        scan_interval,
-        history_limit=None,
-        history_days=None,
-        last_msg_id=0,
-        overlap=5,
-    ):
-        """Initialize Task with configuration values."""
-        self.channel_name = channel
+    def __init__(self, config: ChannelConfig, last_msg_id: int = 0) -> None:
+        """Initialize Task from a ChannelConfig instance."""
+        self.channel_name = config.name
         self.channel_entity = None
-        self.forward_to = forward_to or []
-        self.forward_to_entities = []
-        self.keywords = keywords or []
-        self.scan_interval = scan_interval
-        self.history_limit = history_limit
-        self.history_days = history_days
+        self.forward_to = config.forward_to
+        self.forward_to_entities: list[object] = []
+        self.keywords = config.keywords
+        self.scan_interval = config.scan_interval
+        self.history_limit = config.history_limit
+        self.history_days = config.history_days
         # offset_date computed from history_days (if provided)
         self.offset_date = self.set_offset_date()
         # ensure last_msg_id is int and non-null
         self.last_msg_id = last_msg_id or 0
-        self.overlap = overlap
+        self.overlap = config.overlap
         self.state_file: Path | None = None
 
     async def resolve_targets_entities(self, client):
@@ -79,6 +71,9 @@ class Task:
                 logger.error(
                     f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
                 )
+                raise TelegramServiceError(
+                    f"Failed to resolve entity for target {ent}"
+                ) from e
 
     async def resolve_channel_entity(self, client):
         """Resolve channel_name to a Telethon channel entity."""
@@ -88,6 +83,9 @@ class Task:
             logger.error(
                 f"Failed to resolve entity for channel {self.channel_name}: {e}"
             )
+            raise TelegramServiceError(
+                f"Failed to resolve entity for channel {self.channel_name}"
+            ) from e
 
     def resolve_state_file(self):
         """Determine and create (if needed) the path to the state file for this channel."""
@@ -101,6 +99,9 @@ class Task:
             logger.error(
                 f"Failed to create or verify state file path {self.state_file}: {e}"
             )
+            raise StateError(
+                f"Failed to create or verify state file for channel {self.channel_name}"
+            ) from e
 
     def set_offset_date(self) -> datetime | None:
         """Compute and store offset_date as (now - history_days) in UTC."""
@@ -136,6 +137,9 @@ class Task:
                 logger.error(
                     f"Error loading state for channel {self.channel_name}: {e}"
                 )
+                raise StateError(
+                    f"Failed to load state for channel {self.channel_name}"
+                ) from e
         else:
             logger.debug(f"No saved state for {self.channel_name}, starting fresh")
 
@@ -149,3 +153,6 @@ class Task:
             )
         except Exception as e:
             logger.error(f"Error saving state for channel {self.channel_name}: {e}")
+            raise StateError(
+                f"Failed to save state for channel {self.channel_name}"
+            ) from e

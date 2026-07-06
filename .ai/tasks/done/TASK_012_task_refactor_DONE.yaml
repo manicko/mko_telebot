@@ -1,0 +1,58 @@
+id: TASK_012_task_refactor
+title: "Wave 3 — Refactor task.py to use new config system"
+priority: high
+depends_on:
+  - TASK_005_paths_module
+  - TASK_007_chats_config
+source_reference: .ai/plans/01/PLAN_01_WAVE_03.md
+source_section: "Task 3.3 — Refactor task.py to use new config system"
+
+description: >
+  Refactor `src/mko_telebot/core/task.py` to use APP_PATHS from paths.py instead of PATHS,
+  use custom exception types instead of bare except Exception, and accept ChannelConfig
+  instance in __init__. Cross-wave note: monitor.py caller is updated in Wave 4.
+
+goals:
+  - replace PATHS.state_dir with APP_PATHS.state_dir
+  - replace bare except Exception with specific error types (TelegramServiceError, StateError, TelegramAuthError)
+  - Task.__init__ accepts ChannelConfig instance
+  - add imports from paths, errors, chats_config
+
+files:
+  - path: src/mko_telebot/core/task.py
+    targets:
+      - type: import
+        name: from mko_telebot.core import PATHS
+      - type: variable
+        name: state_dir = Path(PATHS.state_dir)
+      - type: method
+        name: __init__
+    semantic_anchors:
+      - type: class
+        name: Task
+    changes:
+      - action: remove
+        description: Remove old PATHS import
+      - action: add
+        description: Add APP_PATHS import from paths module
+      - action: add
+        description: Add custom exception imports from errors
+      - action: add
+        description: Add ChannelConfig import from chats_config
+      - action: replace
+        description: Replace state_dir with APP_PATHS.state_dir
+      - action: update
+        description: Update __init__ to accept ChannelConfig instance
+      - action: replace
+        description: Replace bare except Exception with specific error types
+
+acceptance_criteria:
+  - Task.__init__ accepts ChannelConfig instance instead of individual params
+  - state_dir references APP_PATHS.state_dir
+  - bare except Exception replaced with TelegramServiceError, StateError, TelegramAuthError
+  - ruff check passes with no errors
+  - mypy passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/task.py
+  - uv run mypy src/mko_telebot/core/task.py
