@@ -1,0 +1,51 @@
+id: TASK_002_create_errors
+title: "Wave 1 — Create exception hierarchy"
+priority: high
+depends_on: []
+source_reference: .ai/plans/01/PLAN_01_WAVE_01.md
+source_section: "Task 1.2 — Create exception hierarchy"
+
+description: >
+  Create `src/mko_telebot/core/errors.py` with the exception hierarchy:
+  MkoTelebotError (base), ConfigError, TelegramAuthError, TelegramServiceError, StateError.
+  Each class must have a docstring. ConfigError accepts optional `path: Path | None`.
+
+goals:
+  - create exception hierarchy in core/errors.py
+  - all five exception classes with proper inheritance
+  - ConfigError accepts optional path parameter
+  - ruff and mypy pass on the new file
+
+files:
+  - path: src/mko_telebot/core/errors.py
+    targets:
+      - type: module
+        name: mko_telebot.core.errors
+    semantic_anchors:
+      - type: class
+        name: MkoTelebotError
+      - type: class
+        name: ConfigError
+      - type: class
+        name: TelegramAuthError
+      - type: class
+        name: TelegramServiceError
+      - type: class
+        name: StateError
+    changes:
+      - action: create
+        description: Create errors.py with exception hierarchy
+
+acceptance_criteria:
+  - MkoTelebotError(Exception) is base class
+  - ConfigError(MkoTelebotError) with optional path parameter
+  - TelegramAuthError(MkoTelebotError) exists
+  - TelegramServiceError(MkoTelebotError) exists
+  - StateError(MkoTelebotError) exists
+  - all classes have docstrings
+  - ruff check passes with no errors
+  - mypy passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/errors.py
+  - uv run mypy src/mko_telebot/core/errors.py

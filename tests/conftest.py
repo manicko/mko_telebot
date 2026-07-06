@@ -1,6 +1,14 @@
+import sys
+from pathlib import Path
+
 import pytest
 
-from src.mko_telebot.core.parser import search_match
+# Add src directory to Python path so the package can be imported
+_src_dir = Path(__file__).resolve().parent.parent / "src"
+if str(_src_dir) not in sys.path:
+    sys.path.insert(0, str(_src_dir))
+
+from mko_telebot.core.parser import search_match
 
 
 @pytest.fixture
