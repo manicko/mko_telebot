@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 app: typer.Typer = typer.Typer(
     name="mko-telebot",
-    help="Publish content from Google Sheets to Telegram.",
+    help="Scans Telegram channels for new messages matching your keywords and forwards them automatically.",
 )
 console: Console = Console()
 

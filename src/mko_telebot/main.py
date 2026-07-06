@@ -1,8 +1,12 @@
-import logging
+"""Entry point for mko_telebot."""
 
-from mko_telebot.monitor import launcher
+from mko_telebot.cli import app
 
-logger = logging.getLogger(__name__)
+
+def main() -> None:
+    """Run the CLI application."""
+    app()
+
 
 if __name__ == "__main__":
-    launcher()
+    main()
