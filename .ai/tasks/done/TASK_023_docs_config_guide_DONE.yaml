@@ -1,0 +1,31 @@
+id: TASK_023_docs_config_guide
+title: "Wave 5 — Create configuration guide"
+priority: low
+depends_on:
+  - TASK_010_config_reader_refactor
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Task 5.8 — Create configuration guide"
+
+description: >
+  Create `docs/11-guides/configuration.md` with configuration file reference:
+  file locations, all fields for config.yaml (MONITORING), secrets.yaml (TELETHON_API),
+  log_config.yaml, example files, path resolution rules, SecretStr handling.
+
+goals:
+  - document config.yaml (MONITORING) fields
+  - document secrets.yaml (TELETHON_API) fields
+  - document log_config.yaml structure
+  - provide example config files
+  - document path resolution and SecretStr handling
+
+files:
+  - path: docs/11-guides/configuration.md
+    changes:
+      - action: create
+        description: Create configuration guide document
+
+acceptance_criteria:
+  - docs/11-guides/configuration.md exists
+  - all three config file types documented
+  - example configs provided
+  - path resolution and SecretStr handling documented
