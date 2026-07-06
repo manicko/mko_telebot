@@ -1,0 +1,33 @@
+id: TASK_026_verify_wave_2
+title: "Verify — Wave 2 Infrastructure"
+type: verification
+status: pending
+depends_on:
+  - TASK_005_paths_module
+  - TASK_006_telethon_models
+  - TASK_007_chats_config
+  - TASK_008_root_model
+source_reference: .ai/plans/01/PLAN_01_WAVE_02.md
+source_section: "Wave 2 Validation"
+
+description: >
+  Verify all Wave 2 tasks completed. Run lint, type check, and verify new modules.
+
+verifies:
+  - TASK_005_paths_module
+  - TASK_006_telethon_models
+  - TASK_007_chats_config
+  - TASK_008_root_model
+
+verification_steps:
+  - test: uv run ruff check src/mko_telebot/core/ --no-errors
+  - test: uv run mypy src/mko_telebot/core/ --no-errors
+  - test: uv run pytest tests/ -x
+
+pass_criteria:
+  - ruff check passes on core/ with no errors
+  - mypy passes on core/ with no errors
+  - all four new files exist (paths.py, telethon_models.py, chats_config.py, models.py)
+  - no module-level I/O or logging init in any new file
+
+failure_action: return affected Wave 2 tasks to rework

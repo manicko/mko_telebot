@@ -1,0 +1,40 @@
+id: TASK_020_update_parser_tests
+title: "Wave 5 — Update existing parser tests (verify compatibility)"
+priority: low
+depends_on:
+  - TASK_003_parser_no_sidefx
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Task 5.4 — Update existing parser tests"
+
+description: >
+  Verify existing tests still pass after parser.py import-time side effect removal.
+  Check tests/conftest.py and tests/test_parser.py. Production code is king —
+  only fix tests if they need updates.
+
+goals:
+  - verify test_parser.py passes after parser.py changes
+  - fix test code if needed (NOT production code)
+  - no changes to parser.py
+
+files:
+  - path: tests/conftest.py
+    targets:
+      - type: module
+        name: tests.conftest
+    changes:
+      - action: verify
+        description: Verify conftest.py still works with refactored parser.py
+  - path: tests/test_parser.py
+    targets:
+      - type: module
+        name: tests.test_parser
+    changes:
+      - action: verify
+        description: Verify test_parser.py passes with refactored parser.py
+
+acceptance_criteria:
+  - all parser tests pass (including slow/fuzz tests)
+  - no changes to parser.py
+
+tests_to_run:
+  - uv run pytest tests/test_parser.py -v

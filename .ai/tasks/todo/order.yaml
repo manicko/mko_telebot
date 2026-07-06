@@ -1,192 +1,364 @@
-tasks:
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 1 — Independent Low-Risk Fixes (chain for file-order safety)
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_001_CLI002_fix_command_name_docstrings
+# Phase 01 — Monitoring CLI Refactor
+# Execution DAG: waves execute sequentially, tasks within waves can parallelize
+# as indicated by depends_on. File-level dependency constraint: tasks modifying the
+# same file must execute sequentially (enforced via depends_on chain).
+#
+# Task numbering matches rollout order:
+#   001-004  Wave 1 — Foundation
+#   005-008  Wave 2 — Infrastructure
+#   009-012  Wave 3 — Core Refactoring (with research gate)
+#   013-016  Wave 4 — Monitor & CLI
+#   017-024  Wave 5 — Tests & Documentation
+#   025-029  Wave Verification (wave boundaries)
+
+waves:
+  - id: wave_01
+    title: "Foundation — Dependencies & Error Hierarchy"
+    plan: .ai/plans/01/PLAN_01_WAVE_01.md
     depends_on: []
+    tasks:
+      - TASK_001_add_deps
+      - TASK_002_create_errors
+      - TASK_003_parser_no_sidefx
+      - TASK_004_task_no_sidefx
 
-  - id: TASK_002_STR001_remove_bom_post_processor
+  - id: wave_02
+    title: "Infrastructure — Path Management & Pydantic Models"
+    plan: .ai/plans/01/PLAN_01_WAVE_02.md
     depends_on:
-      - TASK_001_CLI002_fix_command_name_docstrings
+      - wave_01
+    tasks:
+      - TASK_005_paths_module
+      - TASK_006_telethon_models
+      - TASK_007_chats_config
+      - TASK_008_root_model
 
-  - id: TASK_003_SEC002_delete_test_session
+  - id: wave_03
+    title: "Core Refactoring — Config Reader, Task, __init__"
+    plan: .ai/plans/01/PLAN_01_WAVE_03.md
     depends_on:
-      - TASK_002_STR001_remove_bom_post_processor
+      - wave_02
+    tasks:
+      - TASK_009_research_config_reader
+      - TASK_010_config_reader_refactor
+      - TASK_011_core_init_update
+      - TASK_012_task_refactor
 
-  - id: TASK_004_QLT007_remove_stray_artifacts
+  - id: wave_04
+    title: "Monitor Refactoring & CLI Entry Point"
+    plan: .ai/plans/01/PLAN_01_WAVE_04.md
     depends_on:
-      - TASK_003_SEC002_delete_test_session
+      - wave_03
+    tasks:
+      - TASK_013_monitor_refactor
+      - TASK_014_logging_setup
+      - TASK_015_cli_entry
+      - TASK_016_main_update
 
-  - id: TASK_005_TST003_remove_flaky_timing_assertion
+  - id: wave_05
+    title: "Tests & Documentation"
+    plan: .ai/plans/01/PLAN_01_WAVE_05.md
     depends_on:
-      - TASK_004_QLT007_remove_stray_artifacts
+      - wave_04
+    tasks:
+      - TASK_017_test_errors
+      - TASK_018_test_config_reader
+      - TASK_019_test_cli
+      - TASK_020_update_parser_tests
+      - TASK_021_cleanup_examples
+      - TASK_022_docs_cli_reference
+      - TASK_023_docs_config_guide
+      - TASK_024_update_readme
 
-  - id: TASK_006_TST005_normalize_indentation
+  - id: wave_verify
+    title: "Wave Verification Tasks"
+    plan: null
     depends_on:
-      - TASK_005_TST003_remove_flaky_timing_assertion
+      - wave_01
+      - wave_02
+      - wave_03
+      - wave_04
+      - wave_05
+    tasks:
+      - TASK_025_verify_wave_1
+      - TASK_026_verify_wave_2
+      - TASK_027_verify_wave_3
+      - TASK_028_verify_wave_4
+      - TASK_029_verify_wave_5
 
-  - id: TASK_007_CLI003_config_table_overflow
-    depends_on:
-      - TASK_006_TST005_normalize_indentation
+tasks:
+  # ── Wave 1: Foundation (parallel) ──
+  - id: TASK_001_add_deps
+    depends_on: []
+    files_modified:
+      - pyproject.toml
+    risk: low
+    description: Add typer and rich to pyproject.toml dependencies
 
-  - id: TASK_008_CFG005_api_id_sentinel_validator
-    depends_on:
-      - TASK_007_CLI003_config_table_overflow
+  - id: TASK_002_create_errors
+    depends_on: []
+    files_modified:
+      - src/mko_telebot/core/errors.py
+    risk: low
+    description: Create exception hierarchy in core/errors.py
 
-  - id: TASK_009_INT002_remove_dead_or_fallbacks
-    depends_on:
-      - TASK_008_CFG005_api_id_sentinel_validator
+  - id: TASK_003_parser_no_sidefx
+    depends_on: []
+    files_modified:
+      - src/mko_telebot/core/parser.py
+    risk: medium
+    description: Remove import-time side effects from parser.py
 
-  - id: TASK_010_CFG002_fix_docstrings_config_reader
-    depends_on:
-      - TASK_009_INT002_remove_dead_or_fallbacks
+  - id: TASK_004_task_no_sidefx
+    depends_on: []
+    files_modified:
+      - src/mko_telebot/core/task.py
+    risk: medium
+    description: Remove import-time side effects from task.py
 
-  - id: TASK_011_TST004_strengthen_cli_tests
+  # ── Wave 2: Infrastructure ──
+  - id: TASK_005_paths_module
     depends_on:
-      - TASK_010_CFG002_fix_docstrings_config_reader
+      - TASK_002_create_errors
+    files_modified:
+      - src/mko_telebot/core/paths.py
+    risk: low
+    description: Create AppPaths, APP_PATHS, PathResolver in core/paths.py
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 2 — Model/Config Validation Fixes
-  # chat_models.py chain: SRV-001 → CFG-003 → CFG-007
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_012_SRV001_tighten_max_photos_to_10
+  - id: TASK_006_telethon_models
     depends_on:
-      - TASK_011_TST004_strengthen_cli_tests
+      - TASK_002_create_errors
+    files_modified:
+      - src/mko_telebot/core/telethon_models.py
+    risk: low
+    description: Create ClientConfig and TelethonConfig models
 
-  - id: TASK_013_CFG003_add_base_max_delay_validator
+  - id: TASK_007_chats_config
     depends_on:
-      - TASK_012_SRV001_tighten_max_photos_to_10
+      - TASK_002_create_errors
+    files_modified:
+      - src/mko_telebot/core/chats_config.py
+    risk: low
+    description: Create ChannelConfig, ChannelDefaults, ChatsConfig models
 
-  - id: TASK_014_CFG007_add_missing_bounds_humanization
+  - id: TASK_008_root_model
     depends_on:
-      - TASK_013_CFG003_add_base_max_delay_validator
+      - TASK_006_telethon_models
+      - TASK_007_chats_config
+    files_modified:
+      - src/mko_telebot/core/models.py
+    risk: low
+    description: Create TelepostSettings root model with validation_aliases
 
-  - id: TASK_015_QLT009_log_exception_resize_image
+  # ── Wave 3: Core Refactoring ──
+  # Research gate: TASK_009 blocks TASK_010 until go/no-go is determined
+  - id: TASK_009_research_config_reader
     depends_on:
-      - TASK_014_CFG007_add_missing_bounds_humanization
+      - TASK_005_paths_module
+      - TASK_008_root_model
+    files_modified: []
+    risk: low
+    type: research_gate
+    description: RESEARCH — Assess config_reader refactoring impact and consumers
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 3 — SECURITY CRITICAL: SEC-001 → CLI-001 chain
-  # SEC-X01 mandates: SEC-001 MUST land before or atomically with CLI-001
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_016_research_SEC001_credential_leak
+  # TASK_010 is BLOCKED by TASK_009 until research recommends "go"
+  # Both TASK_010 (config_reader) and TASK_012 (task.py) modify different files,
+  # so they CAN run in parallel after their respective dependencies are met.
+  # However, TASK_010 is blocked by TASK_009, so it effectively serializes.
+  - id: TASK_010_config_reader_refactor
     depends_on:
-      - TASK_015_QLT009_log_exception_resize_image
+      - TASK_005_paths_module
+      - TASK_008_root_model
+      - TASK_009_research_config_reader
+    files_modified:
+      - src/mko_telebot/core/config_reader.py
+    risk: high
+    blocked_by: TASK_009_research_config_reader
+    description: Rewrite config_reader.py with TelepostConfigReader lazy loading
 
-  - id: TASK_017_SEC001_break_credential_leak_cause_chain
+  - id: TASK_011_core_init_update
     depends_on:
-      - TASK_016_research_SEC001_credential_leak
+      - TASK_010_config_reader_refactor
+    files_modified:
+      - src/mko_telebot/core/__init__.py
+    risk: low
+    description: Update core/__init__.py exports for new modules
 
-  - id: TASK_018_CLI001_configure_logging_at_startup
+  - id: TASK_012_task_refactor
     depends_on:
-      - TASK_017_SEC001_break_credential_leak_cause_chain
+      - TASK_005_paths_module
+      - TASK_007_chats_config
+    files_modified:
+      - src/mko_telebot/core/task.py
+    risk: medium
+    description: Update task.py to use APP_PATHS, custom exceptions, ChannelConfig param
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 4 — Post Model Typing Chain
-  # QLT-002 → SRV-003 → QLT-008 → QLT-001
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_019_QLT002_introduce_typed_post_model
+  # ── Wave 4: Monitor & CLI ──
+  - id: TASK_013_monitor_refactor
     depends_on:
-      - TASK_018_CLI001_configure_logging_at_startup
+      - TASK_010_config_reader_refactor
+      - TASK_012_task_refactor
+    files_modified:
+      - src/mko_telebot/monitor.py
+    risk: high
+    description: Refactor monitor.py — remove import-time side effects
 
-  - id: TASK_020_SRV003_coerce_extract_text_value_to_str
+  - id: TASK_014_logging_setup
     depends_on:
-      - TASK_019_QLT002_introduce_typed_post_model
+      - TASK_010_config_reader_refactor
+    files_modified:
+      - src/mko_telebot/logging_setup.py
+    risk: low
+    description: Create logging_setup.py with setup_logging function
 
-  - id: TASK_021_QLT008_delete_type_ignore_post_model
+  - id: TASK_015_cli_entry
     depends_on:
-      - TASK_020_SRV003_coerce_extract_text_value_to_str
+      - TASK_013_monitor_refactor
+      - TASK_014_logging_setup
+    files_modified:
+      - src/mko_telebot/cli.py
+      - pyproject.toml
+    risk: medium
+    description: Create Typer CLI with init, validate, run, config, version commands
 
-  - id: TASK_022_QLT001_replace_any_with_concrete_types
+  - id: TASK_016_main_update
     depends_on:
-      - TASK_021_QLT008_delete_type_ignore_post_model
+      - TASK_015_cli_entry
+    files_modified:
+      - src/mko_telebot/main.py
+    risk: low
+    description: Update main.py to delegate to CLI entry point
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 5 — TelegramService Coordinated Rewrite
-  # INT-001 + SRV-004 + SRV-005 + SEC-003 (single atomic block)
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_023_INT001_coordinated_rewrite_telegram_run
+  # ── Wave 5: Tests & Documentation ──
+  - id: TASK_017_test_errors
     depends_on:
-      - TASK_022_QLT001_replace_any_with_concrete_types
+      - TASK_002_create_errors
+    files_modified:
+      - tests/test_errors.py
+    risk: low
+    description: Create error hierarchy tests
 
-  - id: TASK_024_verify_INT001_telegram_run_rewrite
+  - id: TASK_018_test_config_reader
     depends_on:
-      - TASK_023_INT001_coordinated_rewrite_telegram_run
+      - TASK_010_config_reader_refactor
+      - TASK_011_core_init_update
+    files_modified:
+      - tests/test_config_reader.py
+    risk: medium
+    description: Create TelepostConfigReader tests with tmp_path
 
-  - id: TASK_025_CFG004_keep_client_config_typed
+  - id: TASK_019_test_cli
     depends_on:
-      - TASK_024_verify_INT001_telegram_run_rewrite
+      - TASK_015_cli_entry
+    files_modified:
+      - tests/test_cli.py
+    risk: medium
+    description: Create CLI tests with CliRunner
 
-  - id: TASK_026_QLT004_consume_coordinate_posting_return
+  - id: TASK_020_update_parser_tests
     depends_on:
-      - TASK_025_CFG004_keep_client_config_typed
+      - TASK_003_parser_no_sidefx
+    files_modified:
+      - tests/conftest.py
+      - tests/test_parser.py
+    risk: low
+    description: Verify parser tests pass after side-effect removal
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 6 — PostProcessor Chain: SEC-004 → DF-001
-  # Both edit _extract_photo_paths; must be sequential
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_027_SEC004_photo_path_containment_before_fs_access
+  - id: TASK_021_cleanup_examples
     depends_on:
-      - TASK_026_QLT004_consume_coordinate_posting_return
+      - TASK_015_cli_entry
+    files_modified:
+      - src/mko_telebot/core/example.errors.py
+      - src/mko_telebot/core/example.models.py
+      - src/mko_telebot/core/example.paths.py
+      - src/mko_telebot/core/example.init_service.py
+      - src/mko_telebot/core/examples.config_reader.py
+      - src/mko_telebot/core/examples.task.py
+      - src/mko_telebot/core/examples.telethon_models.py
+      - src/mko_telebot/core/examples.types.py
+      - src/mko_telebot/example.app.py
+    risk: low
+    description: Remove reference example files
 
-  - id: TASK_028_DF001_widen_get_dir_content_extensions
+  - id: TASK_022_docs_cli_reference
     depends_on:
-      - TASK_027_SEC004_photo_path_containment_before_fs_access
+      - TASK_015_cli_entry
+    files_modified:
+      - docs/99-reference/cli-reference.md
+    risk: low
+    description: Create CLI reference documentation
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 7 — SRV-002 + STR Structural Chain
-  # SRV-002 (image_cache) → STR-004 → STR-003 → STR-002
-  # STR-004 must be first: it extracts the sender module
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_029_SRV002_remove_dead_get_cache_path
+  - id: TASK_023_docs_config_guide
     depends_on:
-      - TASK_028_DF001_widen_get_dir_content_extensions
+      - TASK_010_config_reader_refactor
+    files_modified:
+      - docs/11-guides/configuration.md
+    risk: low
+    description: Create configuration guide
 
-  - id: TASK_030_STR004_extract_telegram_sender
+  - id: TASK_024_update_readme
     depends_on:
-      - TASK_029_SRV002_remove_dead_get_cache_path
+      - TASK_015_cli_entry
+    files_modified:
+      - README.md
+    risk: low
+    description: Update README with CLI and installation docs
 
-  - id: TASK_031_STR003_split_try_send_message
+  # ── Wave Verification Tasks ──
+  - id: TASK_025_verify_wave_1
+    type: verification
     depends_on:
-      - TASK_030_STR004_extract_telegram_sender
+      - TASK_001_add_deps
+      - TASK_002_create_errors
+      - TASK_003_parser_no_sidefx
+      - TASK_004_task_no_sidefx
+    files_modified: []
+    risk: low
+    description: Verify Wave 1 — lint, type check, test suite
 
-  - id: TASK_032_STR002_flatten_send_posts
+  - id: TASK_026_verify_wave_2
+    type: verification
     depends_on:
-      - TASK_031_STR003_split_try_send_message
+      - TASK_005_paths_module
+      - TASK_006_telethon_models
+      - TASK_007_chats_config
+      - TASK_008_root_model
+    files_modified: []
+    risk: low
+    description: Verify Wave 2 — lint, type check, module existence
 
-  - id: TASK_033_STR005_refactor_resize_image
+  - id: TASK_027_verify_wave_3
+    type: verification
     depends_on:
-      - TASK_032_STR002_flatten_send_posts
+      - TASK_010_config_reader_refactor
+      - TASK_011_core_init_update
+      - TASK_012_task_refactor
+    files_modified: []
+    risk: low
+    description: Verify Wave 3 — lint, type check, no module-level side effects
 
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 8 — Remaining Independent Fixes
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_034_STR006_refactor_load_and_validate_config
+  - id: TASK_028_verify_wave_4
+    type: verification
     depends_on:
-      - TASK_033_STR005_refactor_resize_image
+      - TASK_013_monitor_refactor
+      - TASK_014_logging_setup
+      - TASK_015_cli_entry
+      - TASK_016_main_update
+    files_modified: []
+    risk: low
+    description: Verify Wave 4 — lint, type check, CLI smoke tests
 
-  - id: TASK_035_CFG001_fix_relative_config_path
+  - id: TASK_029_verify_wave_5
+    type: verification
     depends_on:
-      - TASK_034_STR006_refactor_load_and_validate_config
-
-  # ═══════════════════════════════════════════════════════════════
-  # GROUP 9 — Test Improvements
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_036_TST001_fix_non_hermetic_gsheets_test
-    depends_on:
-      - TASK_035_CFG001_fix_relative_config_path
-
-  - id: TASK_037_TST002_add_oauth2_positive_path_tests
-    depends_on:
-      - TASK_036_TST001_fix_non_hermetic_gsheets_test
-
-  # ═══════════════════════════════════════════════════════════════
-  # VERIFICATION TASKS (run after their implementation tasks)
-  # ═══════════════════════════════════════════════════════════════
-  - id: TASK_038_verify_security_credential_leak
-    depends_on:
-      - TASK_017_SEC001_break_credential_leak_cause_chain
-
-  - id: TASK_039_verify_post_model_type_safety
-    depends_on:
-      - TASK_022_QLT001_replace_any_with_concrete_types
+      - TASK_017_test_errors
+      - TASK_018_test_config_reader
+      - TASK_019_test_cli
+      - TASK_020_update_parser_tests
+      - TASK_021_cleanup_examples
+      - TASK_022_docs_cli_reference
+      - TASK_023_docs_config_guide
+      - TASK_024_update_readme
+    files_modified: []
+    risk: low
+    description: Verify Wave 5 — full test suite, lint, doc existence

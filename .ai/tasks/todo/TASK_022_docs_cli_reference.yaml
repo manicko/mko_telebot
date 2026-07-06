@@ -1,0 +1,29 @@
+id: TASK_022_docs_cli_reference
+title: "Wave 5 — Create CLI reference documentation"
+priority: low
+depends_on:
+  - TASK_015_cli_entry
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Task 5.7 — Create CLI reference documentation"
+
+description: >
+  Create `docs/99-reference/cli-reference.md` with detailed CLI command reference:
+  command descriptions, all options and flags, exit codes, examples, config file locations.
+
+goals:
+  - document all five CLI commands
+  - include options, flags, exit codes
+  - provide usage examples
+  - document config file locations
+
+files:
+  - path: docs/99-reference/cli-reference.md
+    changes:
+      - action: create
+        description: Create CLI command reference document
+
+acceptance_criteria:
+  - docs/99-reference/cli-reference.md exists
+  - all five CLI commands documented
+  - options and flags documented
+  - exit codes documented

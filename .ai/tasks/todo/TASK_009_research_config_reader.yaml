@@ -1,0 +1,45 @@
+id: TASK_009_research_config_reader
+title: "RESEARCH GATE — Assess config_reader.py refactoring impact"
+priority: high
+depends_on:
+  - TASK_005_paths_module
+  - TASK_008_root_model
+type: research_gate
+blocked: false
+source_reference: .ai/plans/01/PLAN_01_WAVE_03.md
+source_section: "Task 3.1 — Refactor config_reader.py — HIGH RISK"
+
+description: >
+  Research the impact of rewriting the config loading pipeline in config_reader.py.
+  The current file creates PATHS = WorkingPaths() and CONFIG = Config.load() at module level.
+  These must be replaced with lazy loading via TelepostConfigReader.load().
+
+goals:
+  - identify all consumers of Config, CONFIG, PATHS, WorkingPaths from config_reader.py
+  - verify the merged config.yaml + secrets.yaml format matches TelepostSettings field expectations (validation_alias)
+  - assess handling of missing files, malformed YAML, and edge cases
+  - assess path resolution for log handlers
+  - produce go/no-go recommendation
+
+research_questions:
+  - question: "What modules currently import CONFIG or PATHS from mko_telebot.core?"
+  - question: "Does the existing config.yaml MONITORING section format match ChatsConfig field names?"
+  - question: "Does the existing secrets.yaml TELETHON_API section format match TelethonConfig field names?"
+  - question: "What is the expected logging config format (log_config.yaml)?"
+  - question: "Are there any test fixtures that depend on the old Config class?"
+
+deliverables:
+  - List of all consumers of old Config/CONFIG/PATHS
+  - Config format compatibility matrix
+  - Go/no-go recommendation for Task 010
+  - Edge case analysis (missing files, malformed YAML, permission errors)
+
+acceptance_criteria:
+  - all consumers identified
+  - config format compatibility verified
+  - go/no-go recommendation clear
+  - edge cases documented
+
+tests_to_run:
+  - uv run grep -rn "from mko_telebot.core.config_reader import" src/ tests/
+  - uv run grep -rn "from mko_telebot.core import CONFIG\|from mko_telebot.core import PATHS" src/ tests/

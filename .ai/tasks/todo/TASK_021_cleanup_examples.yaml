@@ -1,0 +1,64 @@
+id: TASK_021_cleanup_examples
+title: "Wave 5 — Clean up example/reference files"
+priority: low
+depends_on:
+  - TASK_015_cli_entry
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Task 5.5 — Clean up example files"
+
+description: >
+  Remove reference example files from src/mko_telebot/core/ and src/mko_telebot/
+  that were pre-existing documentation from the mko_telepost project.
+  Their patterns have been implemented in the new code.
+
+goals:
+  - remove all 9 example files
+  - verify no imports reference deleted files
+  - ruff checks pass after deletion
+
+files:
+  - path: src/mko_telebot/core/example.errors.py
+    changes:
+      - action: delete
+        description: Replace by core/errors.py
+  - path: src/mko_telebot/core/example.models.py
+    changes:
+      - action: delete
+        description: Replaced by core/models.py + core/telethon_models.py + core/chats_config.py
+  - path: src/mko_telebot/core/example.paths.py
+    changes:
+      - action: delete
+        description: Replaced by core/paths.py
+  - path: src/mko_telebot/core/example.init_service.py
+    changes:
+      - action: delete
+        description: Pattern absorbed into cli.py init command
+  - path: src/mko_telebot/core/examples.config_reader.py
+    changes:
+      - action: delete
+        description: Replaced by core/config_reader.py
+  - path: src/mko_telebot/core/examples.task.py
+    changes:
+      - action: delete
+        description: Replaced by core/task.py
+  - path: src/mko_telebot/core/examples.telethon_models.py
+    changes:
+      - action: delete
+        description: Replaced by core/telethon_models.py
+  - path: src/mko_telebot/core/examples.types.py
+    changes:
+      - action: delete
+        description: Not needed, types in telethon_models.py
+  - path: src/mko_telebot/example.app.py
+    changes:
+      - action: delete
+        description: Replaced by cli.py
+
+acceptance_criteria:
+  - all 9 example files deleted
+  - no imports reference deleted files
+  - ruff check on src/ passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/
+  - uv run python -c "import mko_telebot"

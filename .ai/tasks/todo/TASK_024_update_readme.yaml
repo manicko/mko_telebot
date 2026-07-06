@@ -1,0 +1,36 @@
+id: TASK_024_update_readme
+title: "Wave 5 — Update README with CLI and configuration docs"
+priority: low
+depends_on:
+  - TASK_015_cli_entry
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Task 5.6 — Update README"
+
+description: >
+  Update README.md with installation instructions (uv-based), CLI commands reference,
+  configuration section with file locations. Preserve existing keyword grammar,
+  forwarding, state persistence content.
+
+goals:
+  - add uv-based installation instructions
+  - add CLI commands reference (init, validate, run, config, version)
+  - add configuration section with file locations
+  - preserve existing keyword grammar content
+  - add troubleshooting section
+
+files:
+  - path: README.md
+    semantic_anchors:
+      - type: section
+        name: "## Key Features"
+      - type: section
+        name: "## ⚙️ Setup Instructions"
+    changes:
+      - action: update
+        description: Add CLI commands, installation, configuration sections
+
+acceptance_criteria:
+  - README.md has CLI commands section after existing content
+  - all five CLI commands documented
+  - keyword grammar section preserved
+  - installation instructions present

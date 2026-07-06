@@ -1,0 +1,41 @@
+id: TASK_006_telethon_models
+title: "Wave 2 — Create Telethon config models"
+priority: high
+depends_on:
+  - TASK_002_create_errors
+source_reference: .ai/plans/01/PLAN_01_WAVE_02.md
+source_section: "Task 2.2 — Create Telethon config models"
+
+description: >
+  Create `src/mko_telebot/core/telethon_models.py` with ClientConfig and TelethonConfig
+  Pydantic models. SecretStr for secrets, ConfigDict(extra="forbid") on both models,
+  validators to reject placeholder values.
+
+goals:
+  - create ClientConfig model with api_id, api_hash (SecretStr), session, and optional fields
+  - create TelethonConfig model with is_user, phone_or_token (SecretStr), max_retries, client
+  - validators reject placeholder values (YOUR_*, 12345)
+  - both models use ConfigDict(extra="forbid")
+
+files:
+  - path: src/mko_telebot/core/telethon_models.py
+    targets:
+      - type: class
+        name: ClientConfig
+      - type: class
+        name: TelethonConfig
+    changes:
+      - action: create
+        description: Create telethon_models.py with ClientConfig and TelethonConfig
+
+acceptance_criteria:
+  - ClientConfig has 8 fields with proper types (api_id: int, api_hash: SecretStr, etc.)
+  - TelethonConfig has is_user, phone_or_token (SecretStr), max_retries (ge=1, le=20), client
+  - ConfigDict(extra="forbid") on both models
+  - placeholder validators reject YOUR_* and 12345 patterns
+  - ruff check passes with no errors
+  - mypy passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/telethon_models.py
+  - uv run mypy src/mko_telebot/core/telethon_models.py

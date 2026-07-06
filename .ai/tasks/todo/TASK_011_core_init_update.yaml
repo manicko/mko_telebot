@@ -1,0 +1,39 @@
+id: TASK_011_core_init_update
+title: "Wave 3 — Update core/__init__.py exports"
+priority: high
+depends_on:
+  - TASK_010_config_reader_refactor
+source_reference: .ai/plans/01/PLAN_01_WAVE_03.md
+source_section: "Task 3.2 — Update core/__init__.py"
+
+description: >
+  Update `src/mko_telebot/core/__init__.py` to export new symbols from the refactored modules.
+  Remove CONFIG from exports. Add exports for new paths, models, errors, config_reader modules.
+
+goals:
+  - export new symbols from paths, models, errors, config_reader
+  - remove old CONFIG export
+  - refresh all import paths
+
+files:
+  - path: src/mko_telebot/core/__init__.py
+    targets:
+      - type: module
+        name: mko_telebot.core
+    changes:
+      - action: rewrite
+        description: Rewrite __init__.py with new exports
+
+acceptance_criteria:
+  - from mko_telebot.core import TelepostConfigReader resolves
+  - from mko_telebot.core import APP_PATHS resolves
+  - from mko_telebot.core import TelepostSettings resolves
+  - from mko_telebot.core import MkoTelebotError, ConfigError resolves
+  - from mko_telebot.core import Task resolves
+  - from mko_telebot.core import search_match resolves
+  - from mko_telebot.core import CONFIG no longer resolves (ImportError)
+  - ruff check passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/__init__.py
+  - uv run python -c "from mko_telebot.core import TelepostConfigReader, APP_PATHS, TelepostSettings, MkoTelebotError, Task, search_match; print('OK')"
