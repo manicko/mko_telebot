@@ -1,0 +1,42 @@
+id: TASK_014_logging_setup
+title: "Wave 4 — Create logging setup module"
+priority: medium
+depends_on:
+  - TASK_010_config_reader_refactor
+source_reference: .ai/plans/01/PLAN_01_WAVE_04.md
+source_section: "Task 4.2 — Create logging setup module"
+
+description: >
+  Create `src/mko_telebot/logging_setup.py` with a centralized setup_logging() function
+  that loads log_config.yaml via TelepostConfigReader.load_logging_config() and calls
+  logging.config.dictConfig(). Falls back to basicConfig if config file missing.
+
+goals:
+  - create setup_logging(config_path=None) function
+  - load log_config.yaml via TelepostConfigReader
+  - strip LOGGING wrapper key before passing to dictConfig
+  - fallback to basicConfig on missing file
+
+files:
+  - path: src/mko_telebot/logging_setup.py
+    targets:
+      - type: function
+        name: setup_logging
+    semantic_anchors:
+      - type: function
+        name: setup_logging
+    changes:
+      - action: create
+        description: Create logging_setup.py with setup_logging function
+
+acceptance_criteria:
+  - src/mko_telebot/logging_setup.py exists
+  - setup_logging function exists accepting optional Path
+  - uses TelepostConfigReader to load logging config
+  - falls back to basicConfig on missing file
+  - ruff check passes with no errors
+  - mypy passes with no errors
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/logging_setup.py
+  - uv run mypy src/mko_telebot/logging_setup.py
