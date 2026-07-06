@@ -1,0 +1,181 @@
+"""Tests for the mko-telebot CLI commands.
+
+Uses typer.testing.CliRunner to invoke CLI commands and verify output.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from mko_telebot.cli import app
+
+runner: CliRunner = CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# --help
+# ---------------------------------------------------------------------------
+
+
+class TestCliHelp:
+    """Tests for the --help option."""
+
+    def test_help_shows_all_commands(self):
+        """--help should display all five CLI commands."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        for cmd in ("init", "validate", "run", "config", "version"):
+            assert cmd in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# version
+# ---------------------------------------------------------------------------
+
+
+class TestCliVersion:
+    """Tests for the version command."""
+
+    def test_version_shows_version_string(self):
+        """version should display a version string."""
+        result = runner.invoke(app, ["version"])
+        assert result.exit_code == 0
+        assert "version" in result.stdout.lower()
+        # The installed version from pyproject.toml is 0.0.1
+        assert "0.0.1" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# config
+# ---------------------------------------------------------------------------
+
+
+class TestCliConfig:
+    """Tests for the config command."""
+
+    def test_config_shows_path_table(self):
+        """config should display a table with application paths."""
+        result = runner.invoke(app, ["config"])
+        assert result.exit_code == 0
+        # The table should reference file paths
+        assert "Config file" in result.stdout
+        assert "Secrets file" in result.stdout
+        assert "Log directory" in result.stdout
+        assert "User settings dir" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# validate
+# ---------------------------------------------------------------------------
+
+
+class TestCliValidate:
+    """Tests for the validate command."""
+
+    def test_validate_exits_code_1_when_config_missing(self, tmp_path: Path):
+        """validate should exit code 1 when config files are missing."""
+        from mko_telebot.core.paths import APP_PATHS
+
+        # Temporarily point APP_PATHS to a dir that has no config files
+        original_user_dir = APP_PATHS.user_dir
+        original_app_dir = APP_PATHS.app_dir
+
+        try:
+            # Reassign private attributes on the model to point to tmp_path
+            APP_PATHS.__dict__["user_dir"] = tmp_path
+            APP_PATHS.__dict__["app_dir"] = tmp_path
+
+            result = runner.invoke(app, ["validate"])
+            assert result.exit_code == 1
+            assert "Configuration error" in result.stdout
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_user_dir
+            APP_PATHS.__dict__["app_dir"] = original_app_dir
+
+
+# ---------------------------------------------------------------------------
+# init
+# ---------------------------------------------------------------------------
+
+
+class TestCliInit:
+    """Tests for the init command."""
+
+    def test_init_creates_config_directory(self, tmp_path: Path):
+            """init should copy template files to the user config directory."""
+            from mko_telebot.core.paths import APP_PATHS
+
+            original_user_dir = APP_PATHS.user_dir
+            original_app_dir = APP_PATHS.app_dir
+
+            try:
+                # Point app_settings_dir to the real source, user_settings_dir to tmp
+                APP_PATHS.__dict__["app_dir"] = (
+                    Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+                )
+                APP_PATHS.__dict__["user_dir"] = tmp_path
+
+                result = runner.invoke(app, ["init"])
+                assert result.exit_code == 0
+                assert "Copied" in result.stdout
+
+                # Check that files were actually copied
+                settings_dir = tmp_path.joinpath("settings")
+                assert settings_dir.exists()
+                assert len(list(settings_dir.iterdir())) > 0
+            finally:
+                APP_PATHS.__dict__["user_dir"] = original_user_dir
+                APP_PATHS.__dict__["app_dir"] = original_app_dir
+
+    def test_init_skips_existing_without_force(self, tmp_path: Path):
+        """init without --force should skip existing files."""
+        from mko_telebot.core.paths import APP_PATHS
+
+        original_user_dir = APP_PATHS.user_dir
+        original_app_dir = APP_PATHS.app_dir
+
+        try:
+            src_dir = (
+                Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            )
+            APP_PATHS.__dict__["app_dir"] = src_dir
+            APP_PATHS.__dict__["user_dir"] = tmp_path
+
+            # First init
+            runner.invoke(app, ["init"])
+
+            # Second init without force
+            result = runner.invoke(app, ["init"])
+            assert result.exit_code == 0
+            assert "Skipped" in result.stdout
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_user_dir
+            APP_PATHS.__dict__["app_dir"] = original_app_dir
+
+    def test_init_force_overwrites_existing(self, tmp_path: Path):
+        """init --force should overwrite existing files."""
+        from mko_telebot.core.paths import APP_PATHS
+
+        original_user_dir = APP_PATHS.user_dir
+        original_app_dir = APP_PATHS.app_dir
+
+        try:
+            src_dir = (
+                Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            )
+            APP_PATHS.__dict__["app_dir"] = src_dir
+            APP_PATHS.__dict__["user_dir"] = tmp_path
+
+            # First init
+            runner.invoke(app, ["init"])
+
+            # Force init
+            result = runner.invoke(app, ["init", "--force"])
+            assert result.exit_code == 0
+            assert "Copied" in result.stdout
+            assert "Skipped" not in result.stdout
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_user_dir
+            APP_PATHS.__dict__["app_dir"] = original_app_dir
