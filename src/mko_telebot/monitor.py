@@ -1,4 +1,12 @@
+"""
+Telegram channel monitoring and forwarding module.
+
+Provides functions to create a Telegram client, monitor channels,
+process messages, and forward matched content to configured targets.
+"""
+
 import asyncio
+import logging
 import logging.config
 import random
 from pathlib import Path
@@ -6,47 +14,57 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 
-from mko_telebot.core import Task, search_match, utils
+from mko_telebot.core import APP_PATHS, Task, search_match
 from mko_telebot.core.config_reader import TelepostConfigReader
+from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
+from mko_telebot.core.models import TelepostSettings
 
 logger = logging.getLogger(__name__)
 
-reader = TelepostConfigReader.from_user_dir()
-settings = reader.load()
-logging.config.dictConfig(reader.load_logging_config())
 
-is_user = settings.telethon.is_user
-phone_or_token = settings.telethon.phone_or_token.get_secret_value()
-telethon_client_config = settings.telethon.client.model_dump()
+def create_client(settings: TelepostSettings) -> TelegramClient:
+    """Create a Telethon client from settings.
 
-if "session" in telethon_client_config:
-    session_path = Path(
-        telethon_client_config["session"]
-    )
-    if not session_path.suffix:
-        session_path = session_path.with_suffix(".session")
-    utils.ensure_path_exists(session_path)
-    telethon_client_config["session"] = session_path
+    Session files are stored in APP_PATHS.session_dir.
 
-client: TelegramClient = TelegramClient(**telethon_client_config)
-task_queue: asyncio.Queue[Task] = asyncio.Queue()
-process_lock: asyncio.Lock = asyncio.Lock()
-
-
-async def start_client():
-    """Initialize and start the Telethon client.
+    Args:
+        settings: Application settings with Telethon configuration.
 
     Returns:
-        bool: True if client started successfully, False otherwise.
+        Configured TelegramClient instance.
+    """
+    client_config = settings.telethon.client.model_dump()
+
+    session = client_config.get("session", "first_session")
+    session_path = Path(session)
+    if not session_path.suffix:
+        session_path = session_path.with_suffix(".session")
+
+    session_path = APP_PATHS.session_dir / session_path.name
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+    client_config["session"] = str(session_path)
+
+    return TelegramClient(**client_config)
+
+
+async def start_client(client: TelegramClient, settings: TelepostSettings) -> bool:
+    """Initialize and start the Telethon client.
+
+    Args:
+        client: The Telethon client instance.
+        settings: Application settings with auth configuration.
+
+    Returns:
+        True if client started successfully, False otherwise.
     """
     try:
-        if is_user:
-            await client.start(phone=phone_or_token)
+        if settings.telethon.is_user:
+            await client.start(phone=settings.telethon.phone_or_token.get_secret_value())
         else:
-            await client.start(bot_token=phone_or_token)
+            await client.start(bot_token=settings.telethon.phone_or_token.get_secret_value())
         logger.info("Telethon client started successfully.")
         return True
-    except Exception as e:
+    except (TelegramAuthError, TelegramServiceError) as e:
         logger.error(f"Failed to start Telethon client: {e}")
         return False
 
@@ -58,14 +76,14 @@ def build_message_link(msg):
         msg: telethon.tl.custom.message.Message
 
     Returns:
-        Optional[str]: URL like 'https://t.me/username/123' or None.
+        URL like 'https://t.me/username/123' or None.
     """
     try:
         chat = getattr(msg, "chat", None)
         if chat and getattr(chat, "username", None):
             return f"https://t.me/{chat.username}/{msg.id}"
         return None
-    except Exception as e:
+    except TelegramServiceError as e:
         logger.exception(f"Error while building message link: {e}")
         return None
 
@@ -77,7 +95,7 @@ async def build_sender_tag(msg):
         msg: telethon.tl.custom.message.Message
 
     Returns:
-        str: '@username' if available, otherwise 'First Last' or empty string.
+        '@username' if available, otherwise 'First Last' or empty string.
     """
     try:
         sender = await msg.get_sender()
@@ -95,12 +113,12 @@ async def build_sender_tag(msg):
             )
         )
         return name.strip()
-    except Exception as e:
+    except TelegramServiceError as e:
         logger.exception(f"Error while building sender tag: {e}")
         return ""
 
 
-async def forward_to_users(msg, msg_text, msg_media, task: Task):
+async def forward_to_users(msg, msg_text, msg_media, task: Task, client: TelegramClient):
     """Forward message or album to targets, appending author and link.
 
     Behavior:
@@ -113,6 +131,7 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task):
         msg_text (str): Text content (combined text and captions).
         msg_media (list): List of message.media objects, if any.
         task (Task): Task configuration including forwarding targets.
+        client (TelegramClient): The Telethon client instance.
     """
 
     link = build_message_link(msg)
@@ -132,12 +151,10 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task):
     for target in task.forward_to_entities:
         try:
             if msg_media:
-                # send_file will create an album if files is a list of medias
                 await client.send_file(
                     target, msg_media, caption=caption or None, link_preview=False
                 )
             else:
-                # purely text messages
                 await client.send_message(target, caption or "", link_preview=False)
 
             logger.info(
@@ -149,18 +166,19 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task):
                 f"Flood wait {e.seconds}s while sending to {getattr(target, 'id', target)}"
             )
             await asyncio.sleep(e.seconds + random.uniform(5, 10))
-        except Exception as e:
+        except TelegramServiceError as e:
             logger.exception(
                 f"Failed to send messages to {getattr(target, 'id', target)}: {e}"
             )
 
 
-async def process_messages(messages, task: Task):
+async def process_messages(messages, task: Task, client: TelegramClient):
     """Process messages, group albums, check keywords, and forward matches.
 
     Args:
         messages (list[telethon.tl.custom.message.Message]): List of Telethon messages.
         task (Task): Task object with configuration for a specific channel.
+        client (TelegramClient): The Telethon client instance.
     """
     if not messages:
         return
@@ -182,7 +200,7 @@ async def process_messages(messages, task: Task):
                     msg_content[group_id]["text"].append(msg.media.caption)
                 msg_content[group_id]["media"].append(msg.media)
 
-        except Exception as e:
+        except TelegramServiceError as e:
             logger.exception(
                 f"Error processing message {getattr(msg, 'id', None)} "
                 f"from {task.channel_name}: {e}"
@@ -193,15 +211,16 @@ async def process_messages(messages, task: Task):
         if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
             logger.debug(f"Keyword match in {task.channel_name}, message {album_id}")
             await forward_to_users(
-                content["msg"], msg_text, content.get("media", []), task
+                content["msg"], msg_text, content.get("media", []), task, client
             )
 
 
-async def process_task(task: Task):
+async def process_task(task: Task, client: TelegramClient):
     """Fetch and process recent messages from a specific Telegram channel.
 
     Args:
         task (Task): Task object representing the channel to process.
+        client (TelegramClient): The Telethon client instance.
     """
     logger.debug(f"{task.channel_name} is processed")
     min_id = max(1, task.last_msg_id - task.overlap + 1)
@@ -221,12 +240,12 @@ async def process_task(task: Task):
     except FloodWaitError as e:
         logger.warning(f"Flood wait {e.seconds}s while fetching {task.channel_name}")
         await asyncio.sleep(e.seconds + random.uniform(10, 15))
-    except Exception as e:
+    except TelegramServiceError as e:
         logger.error(f"Error fetching messages in {task.channel_name}: {e}")
         return
 
     if new_messages:
-        await process_messages(new_messages, task)
+        await process_messages(new_messages, task, client)
         task.last_msg_id = max(msg.id for msg in new_messages)
         logger.info(
             f"{task.channel_name}: {len(new_messages)} new messages processed, "
@@ -250,21 +269,40 @@ async def reschedule_task(task: Task, queue: asyncio.Queue[Task]):
     logger.debug(f"{task.channel_name} returned to queue.")
 
 
-async def process_and_reschedule(task: Task, queue: asyncio.Queue[Task]):
+async def process_and_reschedule(
+    task: Task,
+    client: TelegramClient,
+    queue: asyncio.Queue[Task],
+    lock: asyncio.Lock,
+):
     """Process a single task, save its state, and reschedule it asynchronously.
 
     Args:
         task (Task): Task object to process.
+        client (TelegramClient): The Telethon client instance.
         queue (asyncio.Queue): Queue used for scheduling tasks.
+        lock (asyncio.Lock): Lock to serialize task processing.
     """
-    async with process_lock:
-        await process_task(task)
+    async with lock:
+        await process_task(task, client)
         await task.save_state()
     asyncio.create_task(reschedule_task(task, queue))
 
 
-async def main_loop():
-    """Main monitoring loop that sequentially processes channels."""
+async def main_loop(
+    settings: TelepostSettings,
+    client: TelegramClient,
+    queue: asyncio.Queue[Task],
+    lock: asyncio.Lock,
+):
+    """Main monitoring loop that sequentially processes channels.
+
+    Args:
+        settings (TelepostSettings): Application settings.
+        client (TelegramClient): The Telethon client instance.
+        queue (asyncio.Queue): Queue for scheduling tasks.
+        lock (asyncio.Lock): Lock to serialize task processing.
+    """
     channels_delay = settings.monitoring.channels_delay
     channels = settings.monitoring.channels
     channels_list = list(channels.keys())
@@ -273,39 +311,43 @@ async def main_loop():
 
     for channel_name in channels_list:
         channel_settings = channels[channel_name]
-        task = Task(
-            channel=channel_name,
-            forward_to=channel_settings.forward_to,
-            keywords=channel_settings.keywords,
-            scan_interval=channel_settings.scan_interval,
-            history_limit=channel_settings.history_limit,
-            history_days=channel_settings.history_days,
-            overlap=channel_settings.overlap,
-        )
+        task = Task(config=channel_settings)
         await task.resolve_channel_entity(client)
         task.resolve_state_file()
         await task.load_state()
         await task.resolve_targets_entities(client)
         await asyncio.sleep(random.uniform(0, stagger_start_seconds))
-        await task_queue.put(task)
+        await queue.put(task)
 
     logger.info("Monitoring loop started.")
 
     while True:
-        task = await task_queue.get()
-        asyncio.create_task(process_and_reschedule(task, task_queue))
+        task = await queue.get()
+        asyncio.create_task(process_and_reschedule(task, client, queue, lock))
         await asyncio.sleep(channels_delay)
 
 
-async def run_monitor():
-    """Run the monitoring system."""
-    if await start_client():
-        await main_loop()
+async def run_monitor(settings: TelepostSettings, client: TelegramClient):
+    """Run the monitoring system.
+
+    Args:
+        settings (TelepostSettings): Application settings.
+        client (TelegramClient): The Telethon client instance.
+    """
+    if await start_client(client, settings):
+        queue: asyncio.Queue[Task] = asyncio.Queue()
+        lock: asyncio.Lock = asyncio.Lock()
+        await main_loop(settings, client, queue, lock)
 
 
 def launcher():
+    """Entry point: load settings, create client, and run the monitor."""
     try:
-        asyncio.run(run_monitor())
+        reader = TelepostConfigReader.from_user_dir()
+        settings = reader.load()
+        logging.config.dictConfig(reader.load_logging_config())
+        client = create_client(settings)
+        asyncio.run(run_monitor(settings, client))
     except KeyboardInterrupt:
         logger.info("Monitoring stopped by user.")
 
