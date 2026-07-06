@@ -1,0 +1,81 @@
+id: TASK_015_cli_entry
+title: "Wave 4 — Create CLI entry point (cli.py)"
+priority: high
+depends_on:
+  - TASK_013_monitor_refactor
+  - TASK_014_logging_setup
+source_reference: .ai/plans/01/PLAN_01_WAVE_04.md
+source_section: "Task 4.3 — Create CLI entry point"
+
+description: >
+  Create `src/mko_telebot/cli.py` with Typer CLI application. Five commands:
+  init, validate, run, config, version. Add [project.scripts] to pyproject.toml.
+  Use Rich Console for output. Handle errors gracefully with typer.Exit.
+
+goals:
+  - create Typer app with init, validate, run, config, version commands
+  - init: copies template files from app_settings_dir to user_settings_dir
+  - validate: loads config via TelepostConfigReader, calls validate_files()
+  - run: calls setup_logging(), creates client, runs monitor
+  - config: shows Rich Table with all path locations
+  - version: shows version from importlib.metadata
+  - add [project.scripts] to pyproject.toml
+
+files:
+  - path: src/mko_telebot/cli.py
+    targets:
+      - type: variable
+        name: app
+      - type: function
+        name: init
+      - type: function
+        name: validate
+      - type: function
+        name: run
+      - type: function
+        name: config
+      - type: function
+        name: version
+      - type: function
+        name: main
+    semantic_anchors:
+      - type: variable
+        name: app
+      - type: function
+        name: run
+      - type: function
+        name: init
+      - type: function
+        name: validate
+    changes:
+      - action: create
+        description: Create cli.py with Typer app and five commands
+
+  - path: pyproject.toml
+    targets:
+      - type: config_key
+        name: project.scripts
+    changes:
+      - action: add
+        description: Add [project.scripts] with mko-telebot entry point
+        code_hint: |
+          [project.scripts]
+          mko-telebot = "mko_telebot.cli:app"
+
+acceptance_criteria:
+  - cli.py exists with app = typer.Typer()
+  - init command copies template files, has --force flag
+  - validate command loads config, exits 0/1
+  - run command calls setup_logging, creates client, runs monitor
+  - config command shows Rich Table with paths
+  - version command shows version string
+  - [project.scripts] entry point in pyproject.toml
+  - ruff check passes with no errors
+  - mypy passes with no errors
+  - uv run mko-telebot --help shows all five commands
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/cli.py
+  - uv run mypy src/mko_telebot/cli.py
+  - uv run mko-telebot --help
+  - uv run mko-telebot version
