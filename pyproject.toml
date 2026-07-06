@@ -20,6 +20,8 @@ dependencies = [
     "pydantic-settings>=2",
     "PyYAML>=6",
     "telethon>=1",
+    "typer>=0.12",
+    "rich>=13",
 ]
 
 classifiers = [
@@ -141,4 +143,10 @@ console_output_style = "classic"
 # register custom markers to avoid PytestUnknownMarkWarning
 markers = [
   "slow: marks tests as slow (use -m slow to run)",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
 ]
