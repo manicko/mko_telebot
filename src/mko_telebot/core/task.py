@@ -1,16 +1,15 @@
 # task.py
 import asyncio
 import json
-import logging.config
+import logging
 import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import aiofiles  # async I/O
 
-from mko_telebot.core import CONFIG, PATHS, utils
+from mko_telebot.core import PATHS, utils
 
-logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
 # Directory for persisting per-channel state files
