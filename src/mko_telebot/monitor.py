@@ -6,24 +6,29 @@ from pathlib import Path
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 
-from mko_telebot.core import CONFIG, PATHS, Task, search_match, utils
+from mko_telebot.core import Task, search_match, utils
+from mko_telebot.core.config_reader import TelepostConfigReader
 
-logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
-is_user = CONFIG.TELETHON_API.is_user
-phone_or_token = CONFIG.TELETHON_API.phone_or_token
+reader = TelepostConfigReader.from_user_dir()
+settings = reader.load()
+logging.config.dictConfig(reader.load_logging_config())
 
-if "session" in CONFIG.TELETHON_API.client:
-    session_path = Path.joinpath(
-        PATHS.session_dir, CONFIG.TELETHON_API.client["session"]
+is_user = settings.telethon.is_user
+phone_or_token = settings.telethon.phone_or_token.get_secret_value()
+telethon_client_config = settings.telethon.client.model_dump()
+
+if "session" in telethon_client_config:
+    session_path = Path(
+        telethon_client_config["session"]
     )
-    if session_path.suffix != ".session":
+    if not session_path.suffix:
         session_path = session_path.with_suffix(".session")
     utils.ensure_path_exists(session_path)
-    CONFIG.TELETHON_API.client["session"] = session_path
+    telethon_client_config["session"] = session_path
 
-client: TelegramClient = TelegramClient(**CONFIG.TELETHON_API.client)
+client: TelegramClient = TelegramClient(**telethon_client_config)
 task_queue: asyncio.Queue[Task] = asyncio.Queue()
 process_lock: asyncio.Lock = asyncio.Lock()
 
@@ -215,7 +220,7 @@ async def process_task(task: Task):
             new_messages.append(msg)
     except FloodWaitError as e:
         logger.warning(f"Flood wait {e.seconds}s while fetching {task.channel_name}")
-        await asyncio.sleep(e.seconds + random.uniform(5, 15))
+        await asyncio.sleep(e.seconds + random.uniform(10, 15))
     except Exception as e:
         logger.error(f"Error fetching messages in {task.channel_name}: {e}")
         return
@@ -260,23 +265,22 @@ async def process_and_reschedule(task: Task, queue: asyncio.Queue[Task]):
 
 async def main_loop():
     """Main monitoring loop that sequentially processes channels."""
-    channels_delay = CONFIG.MONITORING.channels_delay
-    channels_config = CONFIG.MONITORING.channels
-    defaults = channels_config.get("DEFAULTS", {})
-    channels = [ch for ch in channels_config if ch != "DEFAULTS"]
+    channels_delay = settings.monitoring.channels_delay
+    channels = settings.monitoring.channels
+    channels_list = list(channels.keys())
 
-    stagger_start_seconds = getattr(channels_config, "stagger_start_seconds", 3)
+    stagger_start_seconds = settings.monitoring.stagger_start_seconds
 
-    for channel in channels:
-        channel_settings = {**defaults, **channels_config[channel]}
+    for channel_name in channels_list:
+        channel_settings = channels[channel_name]
         task = Task(
-            channel=channel,
-            forward_to=channel_settings.get("forward_to", []),
-            keywords=channel_settings.get("keywords", []),
-            scan_interval=channel_settings.get("scan_interval", 420),
-            history_limit=channel_settings.get("history_limit", 50),
-            history_days=channel_settings.get("history_days", None),
-            overlap=channel_settings.get("overlap", 5),
+            channel=channel_name,
+            forward_to=channel_settings.forward_to,
+            keywords=channel_settings.keywords,
+            scan_interval=channel_settings.scan_interval,
+            history_limit=channel_settings.history_limit,
+            history_days=channel_settings.history_days,
+            overlap=channel_settings.overlap,
         )
         await task.resolve_channel_entity(client)
         task.resolve_state_file()

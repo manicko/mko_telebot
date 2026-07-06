@@ -1,122 +1,223 @@
+"""Configuration reader for mko_telebot.
+
+Provides TelepostConfigReader for lazy-loading Pydantic-validated configuration
+from config.yaml, secrets.yaml, and log_config.yaml files.
+
+Usage:
+    reader = TelepostConfigReader.from_user_dir()
+    settings = reader.load()
+    logging_config = reader.load_logging_config()
+"""
+
+from __future__ import annotations
+
+import logging
 from pathlib import Path
 from typing import Any
 
-from platformdirs import user_config_dir
-from pydantic import BaseModel, field_validator
-from pydantic_settings import BaseSettings
+import yaml
 
-from mko_telebot.core.utils import load_config, merge_dicts, resolve_path
+from mko_telebot.core.errors import ConfigError
+from mko_telebot.core.models import TelepostSettings
+from mko_telebot.core.paths import APP_PATHS
+
+logger = logging.getLogger(__name__)
 
 
-class WorkingPaths(BaseSettings):
+def resolve_path(path: str | Path, base_dir: Path | None = None) -> Path:
+    """Resolve a path, handling relative paths and home-directory expansion.
+
+    If a relative path is given, it is resolved against `base_dir`.
+
+    Args:
+        path: Path to resolve (can be absolute or relative).
+        base_dir: Base directory for resolving relative paths.
+            Defaults to the app settings directory.
+
+    Returns:
+        Resolved absolute Path.
+
+    Raises:
+        ConfigError: If the path cannot be resolved.
     """
-    Defines essential working paths for configuration and user data.
+    path = Path(path).expanduser()
+    if path.is_absolute():
+        return path
+    base = base_dir or APP_PATHS.app_settings_dir
+    return (base / path).resolve()
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    """Load and parse a YAML file, returning a dict.
+
+    Args:
+        path: Path to the YAML file.
+
+    Returns:
+        Parsed dictionary.
+
+    Raises:
+        ConfigError: If the file cannot be read or parsed.
+    """
+    if not path.exists():
+        raise ConfigError("Configuration file not found", path=path)
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ConfigError(
+                "Expected a top-level mapping in YAML file", path=path
+            )
+        return data
+    except yaml.YAMLError as e:
+        raise ConfigError("Malformed YAML in configuration file", path=path) from e
+    except OSError as e:
+        raise ConfigError("Cannot read configuration file", path=path) from e
+
+
+def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge overlay into base, returning a new dict.
+
+    Args:
+        base: Base dictionary.
+        overlay: Dictionary to merge in (overlay values win).
+
+    Returns:
+        New merged dictionary.
+    """
+    result = base.copy()
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _merge_dicts(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+class TelepostConfigReader:
+    """Lazy configuration reader that loads and validates YAML config files.
+
+    Reads config.yaml (monitoring) and secrets.yaml (Telethon API credentials),
+    merges them, and validates the result against TelepostSettings.
+
+    Attributes:
+        config_path: Path to config.yaml.
+        secrets_path: Path to secrets.yaml.
+        log_config_path: Optional path to log_config.yaml.
     """
 
-    root_dir: Path = Path(__file__).resolve().parent.parent
-    module_name: str = root_dir.name
-    user_folder: Path = Path(user_config_dir(module_name))
+    def __init__(
+        self,
+        config_path: Path,
+        secrets_path: Path,
+        log_config_path: Path | None = None,
+    ) -> None:
+        """Initialize with explicit paths to config files.
 
-    default_settings: Path = Path.joinpath(root_dir, "settings")
-    user_settings: Path = Path.joinpath(user_folder, "settings")
-    state_dir: Path = Path.joinpath(user_settings, "state")
-    session_dir: Path = Path.joinpath(user_settings, "sessions")
+        Args:
+            config_path: Path to config.yaml.
+            secrets_path: Path to secrets.yaml.
+            log_config_path: Optional path to log_config.yaml.
+        """
+        self.config_path = config_path
+        self.secrets_path = secrets_path
+        self.log_config_path = log_config_path
+        self._settings: TelepostSettings | None = None
 
-    config_files: dict[str, str] = {
-        "config": "config.yaml",
-        "log_config": "log_config.yaml",
-        "secrets": "secrets.yaml",
-    }
-
-    model_config = {
-        "env_prefix": "APP_",
-        "env_nested_delimiter": "__",
-        "extra": "ignore",
-    }
-
-
-PATHS = WorkingPaths()
-
-
-# Telethon API settings
-class TelethonApiSettings(BaseModel):
-    """
-    Configuration for the Telethon API.
-    """
-
-    is_user: bool = True
-    phone_or_token: str
-    client: dict[str, Any]
-
-
-class MonitoringSettings(BaseSettings):
-    """
-    Configuration for the Telegram Channels Monitoring.
-    """
-
-    channels: dict[str, Any]
-    channels_delay: int
-
-
-# Logging settings
-class LoggingSettings(BaseModel):
-    """
-    Logging configuration.
-    """
-
-    version: int = 1
-    disable_existing_loggers: bool = False
-    formatters: dict[str, Any]
-    handlers: dict[str, Any]
-    loggers: dict[str, Any]
-    root: dict[str, Any]
-
-    @field_validator("handlers", mode="before")
     @classmethod
-    def validate_paths(cls, handlers: dict[str, Any]) -> dict[str, Any]:
+    def from_user_dir(cls, user_dir: Path | None = None) -> TelepostConfigReader:
+        """Create a TelepostConfigReader from a user config directory.
+
+        Args:
+            user_dir: User config directory. Defaults to
+                APP_PATHS.user_settings_dir.
+
+        Returns:
+            A new TelepostConfigReader instance.
         """
-        Ensures log file paths exist before validation.
+        base = user_dir or APP_PATHS.user_settings_dir
+        return cls(
+            config_path=base / "config.yaml",
+            secrets_path=base / "secrets.yaml",
+            log_config_path=base / "log_config.yaml",
+        )
+
+    def validate_files(self) -> None:
+        """Validate that all required config files exist.
+
+        Raises:
+            ConfigError: If any required file is missing.
         """
+        if not self.config_path.exists():
+            raise ConfigError("Required config file not found", path=self.config_path)
+        if not self.secrets_path.exists():
+            raise ConfigError(
+                "Required secrets file not found", path=self.secrets_path
+            )
+
+    def load(self) -> TelepostSettings:
+        """Load and merge config.yaml + secrets.yaml, validate against TelepostSettings.
+
+        Returns:
+            Validated TelepostSettings instance.
+
+        Raises:
+            ConfigError: If files are missing, malformed, or validation fails.
+        """
+        self.validate_files()
+        config_data = _load_yaml(self.config_path)
+        secrets_data = _load_yaml(self.secrets_path)
+        merged = _merge_dicts(config_data, secrets_data)
+        try:
+            self._settings = TelepostSettings.model_validate(merged)
+        except Exception as e:
+            raise ConfigError(
+                f"Configuration validation failed: {e}"
+            ) from e
+        return self._settings
+
+    def load_logging_config(self) -> dict[str, Any]:
+        """Load logging configuration from log_config.yaml.
+
+        Resolves relative log file paths against APP_PATHS.log_dir.
+
+        Returns:
+            Logging config dict ready for logging.config.dictConfig().
+
+        Raises:
+            ConfigError: If the logging config file is missing or invalid.
+        """
+        path = self.log_config_path or APP_PATHS.log_config_file
+        if not path.exists():
+            raise ConfigError(
+                "Logging configuration file not found", path=path
+            )
+        data = _load_yaml(path)
+        # Handle LOGGING wrapper key if present
+        logging_data: dict[str, Any] = data.get("LOGGING", data)
+        # Resolve relative log file paths
+        handlers = logging_data.get("handlers", {})
         for handler in handlers.values():
             if isinstance(handler, dict) and "filename" in handler:
                 filename = handler["filename"]
-                handler["filename"] = resolve_path(filename, PATHS.user_folder / "logs")
-        return handlers
+                handler["filename"] = str(
+                    resolve_path(filename, APP_PATHS.log_dir)
+                )
+        return logging_data
 
+    @property
+    def settings(self) -> TelepostSettings:
+        """Return the loaded settings.
 
-# Main configuration class
-class Config(BaseSettings):
-    """
-    Main configuration class that loads and merges all configurations.
-    """
+        Returns:
+            The loaded TelepostSettings instance.
 
-    TELETHON_API: TelethonApiSettings
-    LOGGING: LoggingSettings
-    MONITORING: MonitoringSettings
-
-    model_config = {
-        "env_prefix": "APP_",
-        "env_nested_delimiter": "__",
-        "extra": "ignore",
-    }
-
-    @classmethod
-    def load(cls) -> "Config":
+        Raises:
+            ConfigError: If settings have not been loaded yet.
         """
-        Loads and merges configurations from `DEFAULT_SETTINGS_FOLDER` and `USER_SETTINGS_FOLDER`.
-        """
-        merged_config: dict[str, Any] = {}
-        for folder in (PATHS.root_dir, PATHS.user_folder):
-            for file in PATHS.config_files.values():
-                path = Path.joinpath(folder, "settings", file)
-                data = load_config(path)  # Load YAML
-                merge_dicts(merged_config, data)  # Merge configs
-
-        return cls.model_validate(merged_config)
+        if self._settings is None:
+            raise ConfigError("Settings not loaded. Call load() first.")
+        return self._settings
 
 
-# Load the final configuration
-CONFIG = Config.load()
-
-
-# print(CONFIG.MONITORING)
+__all__ = ["TelepostConfigReader", "resolve_path"]

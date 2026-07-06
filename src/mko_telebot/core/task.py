@@ -8,12 +8,13 @@ from pathlib import Path
 
 import aiofiles  # async I/O
 
-from mko_telebot.core import PATHS, utils
+from mko_telebot.core import utils
+from mko_telebot.core.paths import APP_PATHS
 
 logger = logging.getLogger(__name__)
 
 # Directory for persisting per-channel state files
-state_dir = Path(PATHS.state_dir)
+state_dir = Path(APP_PATHS.state_dir)
 
 
 class Task:
