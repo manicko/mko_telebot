@@ -1,0 +1,47 @@
+id: TASK_029_verify_wave_5
+title: "Verify — Wave 5 Tests & Documentation"
+type: verification
+status: pending
+depends_on:
+  - TASK_017_test_errors
+  - TASK_018_test_config_reader
+  - TASK_019_test_cli
+  - TASK_020_update_parser_tests
+  - TASK_021_cleanup_examples
+  - TASK_022_docs_cli_reference
+  - TASK_023_docs_config_guide
+  - TASK_024_update_readme
+source_reference: .ai/plans/01/PLAN_01_WAVE_05.md
+source_section: "Wave 5 Validation"
+
+description: >
+  Verify all Wave 5 tests and documentation tasks. Run full test suite, lint,
+  type check, and verify all new files exist.
+
+verifies:
+  - TASK_017_test_errors
+  - TASK_018_test_config_reader
+  - TASK_019_test_cli
+  - TASK_020_update_parser_tests
+  - TASK_021_cleanup_examples
+  - TASK_022_docs_cli_reference
+  - TASK_023_docs_config_guide
+  - TASK_024_update_readme
+
+verification_steps:
+  - test: uv run ruff check . --no-errors
+  - test: uv run mypy src/mko_telebot/ --no-errors
+  - test: uv run pytest tests/ -v
+  - smoke_check: uv run python -c "import mko_telebot; print('import OK')"
+
+pass_criteria:
+  - ruff check passes with no errors
+  - mypy passes on src/mko_telebot/ with no errors
+  - all tests pass
+  - tests/test_errors.py, tests/test_config_reader.py, tests/test_cli.py exist
+  - all 9 example files removed
+  - README.md has CLI commands section
+  - docs/99-reference/cli-reference.md exists
+  - docs/11-guides/configuration.md exists
+
+failure_action: return affected Wave 5 tasks to rework

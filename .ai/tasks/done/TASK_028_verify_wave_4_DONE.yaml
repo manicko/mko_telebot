@@ -1,0 +1,40 @@
+id: TASK_028_verify_wave_4
+title: "Verify — Wave 4 Monitor Refactoring & CLI"
+type: verification
+status: pending
+depends_on:
+  - TASK_013_monitor_refactor
+  - TASK_014_logging_setup
+  - TASK_015_cli_entry
+  - TASK_016_main_update
+source_reference: .ai/plans/01/PLAN_01_WAVE_04.md
+source_section: "Wave 4 Validation"
+
+description: >
+  Verify Wave 4 monitor refactoring, logging setup, CLI entry point, and main.py update.
+  Run full lint, type check, test suite, and smoke tests on CLI.
+
+verifies:
+  - TASK_013_monitor_refactor
+  - TASK_014_logging_setup
+  - TASK_015_cli_entry
+  - TASK_016_main_update
+
+verification_steps:
+  - test: uv run ruff check src/mko_telebot/ --no-errors
+  - test: uv run mypy src/mko_telebot/ --no-errors
+  - test: uv run pytest tests/ -x
+  - smoke_check: uv run mko-telebot --help | findstr "init validate run config version"
+  - smoke_check: uv run mko-telebot version | findstr "[0-9]"
+
+pass_criteria:
+  - ruff check passes on src/mko_telebot/ with no errors
+  - mypy passes on src/mko_telebot/ with no errors
+  - all tests pass
+  - mko-telebot --help shows all five commands
+  - mko-telebot version shows version
+  - mko-telebot config shows table
+  - monitor.py has no module-level side effects (no CONFIG, no client creation, no dictConfig)
+  - cli.py has all five commands with correct signatures
+
+failure_action: return affected Wave 4 tasks to rework
