@@ -1,10 +1,7 @@
-import logging.config
 import re
 from dataclasses import dataclass
+import logging
 
-from mko_telebot.core import CONFIG
-
-logging.config.dictConfig(CONFIG.LOGGING.model_dump())
 logger = logging.getLogger(__name__)
 
 
