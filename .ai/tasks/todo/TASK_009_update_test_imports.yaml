@@ -1,0 +1,121 @@
+id: TASK_009_update_test_imports
+
+title: Update test_config_reader.py for module rename and MONITORING alias
+
+priority: high
+
+depends_on:
+  - TASK_004_rename_config_reader
+  - TASK_008_update_core_models
+
+source_reference: .ai/plans/FILE_NAMING_RESEARCH.md
+source_section: "7 — Verification Commands"
+
+extra_context: |
+  The test file (tests/test_config_reader.py, 399 lines) needs three
+  categories of changes:
+
+  1. Import path update (line 12):
+     from mko_telebot.core.config_reader → from mko_telebot.core.config
+
+  2. MONITORING YAML key references in test data (6 occurrences):
+     - Line 25: "MONITORING": { → "CHANNELS": {
+     - Line 239: "MONITORING": { → "CHANNELS": {
+     - Line 248: "MONITORING": { → "CHANNELS": {
+     - Line 230: comment "# MONITORING section" → "# CHANNELS section"
+     - Line 222: docstring "MONITORING and TELETHON_API" →
+                 "CHANNELS and TELETHON_API"
+
+  3. Field access update (lines 190, 231, 268, 270):
+     settings.monitoring → settings.channels
+
+description: >
+  Update tests/test_config_reader.py to reflect all renamed modules
+  and the new "CHANNELS" validation_alias:
+  1. Import: config_reader → config
+  2. YAML test data: "MONITORING" → "CHANNELS"
+  3. Field access: settings.monitoring → settings.channels
+  4. Comments and docstrings: MONITORING → CHANNELS
+
+goals:
+  - update import path from core.config_reader to core.config
+  - update all test data dicts: "MONITORING" → "CHANNELS"
+  - update all field accesses: settings.monitoring → settings.channels
+  - update related comments and docstrings
+  - ensure all existing assertions remain valid
+
+files:
+  - path: tests/test_config_reader.py
+
+    targets:
+      - type: import
+        name: config_reader
+
+      - type: dict_key
+        name: MONITORING
+
+      - type: field_access
+        name: settings.monitoring
+
+    semantic_anchors:
+      line_12: from mko_telebot.core.config_reader import TelepostConfigReader
+      line_25: "MONITORING": {
+      line_190: settings.monitoring
+      line_231: settings.monitoring
+      line_268: settings.monitoring
+      line_270: settings.monitoring
+
+changes:
+  - action: update_import
+
+    description: >
+      Update the import to use the renamed config module.
+
+    old: from mko_telebot.core.config_reader import TelepostConfigReader
+    new: from mko_telebot.core.config import TelepostConfigReader
+
+  - action: replace_all
+
+    description: >
+      Replace all occurrences of the YAML key "MONITORING" (in test data
+      dicts and comments) with "CHANNELS".
+
+    file: tests/test_config_reader.py
+    old: '"MONITORING"'
+    new: '"CHANNELS"'
+    occurrences: 3
+
+  - action: replace_all
+
+    description: >
+      Replace all occurrences of the string MONITORING in comments and
+      docstrings with CHANNELS.
+
+    file: tests/test_config_reader.py
+    old: MONITORING
+    new: CHANNELS
+    occurrences: 4
+
+  - action: replace_all
+
+    description: >
+      Replace all occurrences of settings.monitoring with
+      settings.channels.
+
+    file: tests/test_config_reader.py
+    old: settings.monitoring
+    new: settings.channels
+    occurrences: 4
+
+risk_assessment:
+  level: low
+  reason: >
+    All changes are straightforward text replacements following the
+    same pattern. No test logic or assertions change — only module
+    paths and key names.
+
+acceptance_criteria:
+  - from mko_telebot.core.config import TelepostConfigReader
+  - no "MONITORING" string in test data or comments (only "CHANNELS")
+  - all settings.monitoring → settings.channels field accesses
+  - uv run pytest tests/test_config_reader.py -v passes

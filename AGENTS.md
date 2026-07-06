@@ -1,10 +1,10 @@
 ---
 name: Agent Guidelines
-description: Mandatory rules and context for the mko_telepost project
+description: Mandatory rules and context for the project
 alwaysApply: true
 ---
 
-# mko_telepost — Agent Guidelines
+# Agent Guidelines
 
 CLI tool for publishing content from Google Sheets to Telegram. Python 3.14+, Typer, Pydantic v2, Telethon, uv.
 
@@ -19,16 +19,13 @@ CLI tool for publishing content from Google Sheets to Telegram. Python 3.14+, Ty
 
 ## Architecture
 
-- **Layers**: `app.py` (CLI) → `telegram_service.py` (service) → `gsheets_reader.py` (reader). No cross-layer imports.
-- **Config**: Pydantic v2 models only — never raw dicts in business logic. `TelepostSettings` is the root model.
-- **Paths**: `APP_PATHS` from `core/paths.py` is the single source of truth. User config lives in `~/.config/mko_telepost/`.
 - **Fixed values**: `StrEnum` only — never plain strings, dicts, or lists for constants.
 - **Small modules and functions** — short, focused files and functions give higher ROI in maintenance; easier to edit, review, and less prone to corruption.
 
 ## Rules
 
 - Type hints on all public functions. `logger = logging.getLogger(__name__)` — never `print()`.
-- `console.print()` (Rich) for CLI output in `app.py` only.
+- `console.print()` (Rich) for CLI output in `cli.py` only.
 - Use custom exceptions from `core/errors.py`. Never silently swallow errors.
 - Clean up temp files with `try/finally` — never leave orphaned cache files.
 - English only in code, comments, logs.

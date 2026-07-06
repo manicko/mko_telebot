@@ -1,364 +1,49 @@
-# Phase 01 — Monitoring CLI Refactor
-# Execution DAG: waves execute sequentially, tasks within waves can parallelize
-# as indicated by depends_on. File-level dependency constraint: tasks modifying the
-# same file must execute sequentially (enforced via depends_on chain).
-#
-# Task numbering matches rollout order:
-#   001-004  Wave 1 — Foundation
-#   005-008  Wave 2 — Infrastructure
-#   009-012  Wave 3 — Core Refactoring (with research gate)
-#   013-016  Wave 4 — Monitor & CLI
-#   017-024  Wave 5 — Tests & Documentation
-#   025-029  Wave Verification (wave boundaries)
-
-waves:
-  - id: wave_01
-    title: "Foundation — Dependencies & Error Hierarchy"
-    plan: .ai/plans/01/PLAN_01_WAVE_01.md
-    depends_on: []
-    tasks:
-      - TASK_001_add_deps
-      - TASK_002_create_errors
-      - TASK_003_parser_no_sidefx
-      - TASK_004_task_no_sidefx
-
-  - id: wave_02
-    title: "Infrastructure — Path Management & Pydantic Models"
-    plan: .ai/plans/01/PLAN_01_WAVE_02.md
-    depends_on:
-      - wave_01
-    tasks:
-      - TASK_005_paths_module
-      - TASK_006_telethon_models
-      - TASK_007_chats_config
-      - TASK_008_root_model
-
-  - id: wave_03
-    title: "Core Refactoring — Config Reader, Task, __init__"
-    plan: .ai/plans/01/PLAN_01_WAVE_03.md
-    depends_on:
-      - wave_02
-    tasks:
-      - TASK_009_research_config_reader
-      - TASK_010_config_reader_refactor
-      - TASK_011_core_init_update
-      - TASK_012_task_refactor
-
-  - id: wave_04
-    title: "Monitor Refactoring & CLI Entry Point"
-    plan: .ai/plans/01/PLAN_01_WAVE_04.md
-    depends_on:
-      - wave_03
-    tasks:
-      - TASK_013_monitor_refactor
-      - TASK_014_logging_setup
-      - TASK_015_cli_entry
-      - TASK_016_main_update
-
-  - id: wave_05
-    title: "Tests & Documentation"
-    plan: .ai/plans/01/PLAN_01_WAVE_05.md
-    depends_on:
-      - wave_04
-    tasks:
-      - TASK_017_test_errors
-      - TASK_018_test_config_reader
-      - TASK_019_test_cli
-      - TASK_020_update_parser_tests
-      - TASK_021_cleanup_examples
-      - TASK_022_docs_cli_reference
-      - TASK_023_docs_config_guide
-      - TASK_024_update_readme
-
-  - id: wave_verify
-    title: "Wave Verification Tasks"
-    plan: null
-    depends_on:
-      - wave_01
-      - wave_02
-      - wave_03
-      - wave_04
-      - wave_05
-    tasks:
-      - TASK_025_verify_wave_1
-      - TASK_026_verify_wave_2
-      - TASK_027_verify_wave_3
-      - TASK_028_verify_wave_4
-      - TASK_029_verify_wave_5
-
 tasks:
-  # ── Wave 1: Foundation (parallel) ──
-  - id: TASK_001_add_deps
+  - id: TASK_001_rename_logging_setup
     depends_on: []
-    files_modified:
-      - pyproject.toml
-    risk: low
-    description: Add typer and rich to pyproject.toml dependencies
 
-  - id: TASK_002_create_errors
+  - id: TASK_002_rename_telethon_models
     depends_on: []
-    files_modified:
-      - src/mko_telebot/core/errors.py
-    risk: low
-    description: Create exception hierarchy in core/errors.py
 
-  - id: TASK_003_parser_no_sidefx
+  - id: TASK_003_rename_channels_file_and_class
     depends_on: []
-    files_modified:
-      - src/mko_telebot/core/parser.py
-    risk: medium
-    description: Remove import-time side effects from parser.py
 
-  - id: TASK_004_task_no_sidefx
+  - id: TASK_004_rename_config_reader
     depends_on: []
-    files_modified:
-      - src/mko_telebot/core/task.py
-    risk: medium
-    description: Remove import-time side effects from task.py
 
-  # ── Wave 2: Infrastructure ──
-  - id: TASK_005_paths_module
-    depends_on:
-      - TASK_002_create_errors
-    files_modified:
-      - src/mko_telebot/core/paths.py
-    risk: low
-    description: Create AppPaths, APP_PATHS, PathResolver in core/paths.py
+  - id: TASK_005_documentation_update
+    depends_on: []
 
-  - id: TASK_006_telethon_models
+  - id: TASK_006_update_cli_imports
     depends_on:
-      - TASK_002_create_errors
-    files_modified:
-      - src/mko_telebot/core/telethon_models.py
-    risk: low
-    description: Create ClientConfig and TelethonConfig models
+      - TASK_001_rename_logging_setup
+      - TASK_004_rename_config_reader
 
-  - id: TASK_007_chats_config
+  - id: TASK_007_update_core_init_imports
     depends_on:
-      - TASK_002_create_errors
-    files_modified:
-      - src/mko_telebot/core/chats_config.py
-    risk: low
-    description: Create ChannelConfig, ChannelDefaults, ChatsConfig models
+      - TASK_002_rename_telethon_models
+      - TASK_003_rename_channels_file_and_class
+      - TASK_004_rename_config_reader
 
-  - id: TASK_008_root_model
+  - id: TASK_008_update_core_models
     depends_on:
-      - TASK_006_telethon_models
-      - TASK_007_chats_config
-    files_modified:
-      - src/mko_telebot/core/models.py
-    risk: low
-    description: Create TelepostSettings root model with validation_aliases
+      - TASK_002_rename_telethon_models
+      - TASK_003_rename_channels_file_and_class
 
-  # ── Wave 3: Core Refactoring ──
-  # Research gate: TASK_009 blocks TASK_010 until go/no-go is determined
-  - id: TASK_009_research_config_reader
+  - id: TASK_009_update_test_imports
     depends_on:
-      - TASK_005_paths_module
-      - TASK_008_root_model
-    files_modified: []
-    risk: low
-    type: research_gate
-    description: RESEARCH — Assess config_reader refactoring impact and consumers
+      - TASK_004_rename_config_reader
+      - TASK_008_update_core_models
 
-  # TASK_010 is BLOCKED by TASK_009 until research recommends "go"
-  # Both TASK_010 (config_reader) and TASK_012 (task.py) modify different files,
-  # so they CAN run in parallel after their respective dependencies are met.
-  # However, TASK_010 is blocked by TASK_009, so it effectively serializes.
-  - id: TASK_010_config_reader_refactor
+  - id: TASK_010_update_yaml_templates
     depends_on:
-      - TASK_005_paths_module
-      - TASK_008_root_model
-      - TASK_009_research_config_reader
-    files_modified:
-      - src/mko_telebot/core/config_reader.py
-    risk: high
-    blocked_by: TASK_009_research_config_reader
-    description: Rewrite config_reader.py with TelepostConfigReader lazy loading
+      - TASK_003_rename_channels_file_and_class
 
-  - id: TASK_011_core_init_update
+  - id: TASK_011_verification
     depends_on:
-      - TASK_010_config_reader_refactor
-    files_modified:
-      - src/mko_telebot/core/__init__.py
-    risk: low
-    description: Update core/__init__.py exports for new modules
-
-  - id: TASK_012_task_refactor
-    depends_on:
-      - TASK_005_paths_module
-      - TASK_007_chats_config
-    files_modified:
-      - src/mko_telebot/core/task.py
-    risk: medium
-    description: Update task.py to use APP_PATHS, custom exceptions, ChannelConfig param
-
-  # ── Wave 4: Monitor & CLI ──
-  - id: TASK_013_monitor_refactor
-    depends_on:
-      - TASK_010_config_reader_refactor
-      - TASK_012_task_refactor
-    files_modified:
-      - src/mko_telebot/monitor.py
-    risk: high
-    description: Refactor monitor.py — remove import-time side effects
-
-  - id: TASK_014_logging_setup
-    depends_on:
-      - TASK_010_config_reader_refactor
-    files_modified:
-      - src/mko_telebot/logging_setup.py
-    risk: low
-    description: Create logging_setup.py with setup_logging function
-
-  - id: TASK_015_cli_entry
-    depends_on:
-      - TASK_013_monitor_refactor
-      - TASK_014_logging_setup
-    files_modified:
-      - src/mko_telebot/cli.py
-      - pyproject.toml
-    risk: medium
-    description: Create Typer CLI with init, validate, run, config, version commands
-
-  - id: TASK_016_main_update
-    depends_on:
-      - TASK_015_cli_entry
-    files_modified:
-      - src/mko_telebot/main.py
-    risk: low
-    description: Update main.py to delegate to CLI entry point
-
-  # ── Wave 5: Tests & Documentation ──
-  - id: TASK_017_test_errors
-    depends_on:
-      - TASK_002_create_errors
-    files_modified:
-      - tests/test_errors.py
-    risk: low
-    description: Create error hierarchy tests
-
-  - id: TASK_018_test_config_reader
-    depends_on:
-      - TASK_010_config_reader_refactor
-      - TASK_011_core_init_update
-    files_modified:
-      - tests/test_config_reader.py
-    risk: medium
-    description: Create TelepostConfigReader tests with tmp_path
-
-  - id: TASK_019_test_cli
-    depends_on:
-      - TASK_015_cli_entry
-    files_modified:
-      - tests/test_cli.py
-    risk: medium
-    description: Create CLI tests with CliRunner
-
-  - id: TASK_020_update_parser_tests
-    depends_on:
-      - TASK_003_parser_no_sidefx
-    files_modified:
-      - tests/conftest.py
-      - tests/test_parser.py
-    risk: low
-    description: Verify parser tests pass after side-effect removal
-
-  - id: TASK_021_cleanup_examples
-    depends_on:
-      - TASK_015_cli_entry
-    files_modified:
-      - src/mko_telebot/core/example.errors.py
-      - src/mko_telebot/core/example.models.py
-      - src/mko_telebot/core/example.paths.py
-      - src/mko_telebot/core/example.init_service.py
-      - src/mko_telebot/core/examples.config_reader.py
-      - src/mko_telebot/core/examples.task.py
-      - src/mko_telebot/core/examples.telethon_models.py
-      - src/mko_telebot/core/examples.types.py
-      - src/mko_telebot/example.app.py
-    risk: low
-    description: Remove reference example files
-
-  - id: TASK_022_docs_cli_reference
-    depends_on:
-      - TASK_015_cli_entry
-    files_modified:
-      - docs/99-reference/cli-reference.md
-    risk: low
-    description: Create CLI reference documentation
-
-  - id: TASK_023_docs_config_guide
-    depends_on:
-      - TASK_010_config_reader_refactor
-    files_modified:
-      - docs/11-guides/configuration.md
-    risk: low
-    description: Create configuration guide
-
-  - id: TASK_024_update_readme
-    depends_on:
-      - TASK_015_cli_entry
-    files_modified:
-      - README.md
-    risk: low
-    description: Update README with CLI and installation docs
-
-  # ── Wave Verification Tasks ──
-  - id: TASK_025_verify_wave_1
-    type: verification
-    depends_on:
-      - TASK_001_add_deps
-      - TASK_002_create_errors
-      - TASK_003_parser_no_sidefx
-      - TASK_004_task_no_sidefx
-    files_modified: []
-    risk: low
-    description: Verify Wave 1 — lint, type check, test suite
-
-  - id: TASK_026_verify_wave_2
-    type: verification
-    depends_on:
-      - TASK_005_paths_module
-      - TASK_006_telethon_models
-      - TASK_007_chats_config
-      - TASK_008_root_model
-    files_modified: []
-    risk: low
-    description: Verify Wave 2 — lint, type check, module existence
-
-  - id: TASK_027_verify_wave_3
-    type: verification
-    depends_on:
-      - TASK_010_config_reader_refactor
-      - TASK_011_core_init_update
-      - TASK_012_task_refactor
-    files_modified: []
-    risk: low
-    description: Verify Wave 3 — lint, type check, no module-level side effects
-
-  - id: TASK_028_verify_wave_4
-    type: verification
-    depends_on:
-      - TASK_013_monitor_refactor
-      - TASK_014_logging_setup
-      - TASK_015_cli_entry
-      - TASK_016_main_update
-    files_modified: []
-    risk: low
-    description: Verify Wave 4 — lint, type check, CLI smoke tests
-
-  - id: TASK_029_verify_wave_5
-    type: verification
-    depends_on:
-      - TASK_017_test_errors
-      - TASK_018_test_config_reader
-      - TASK_019_test_cli
-      - TASK_020_update_parser_tests
-      - TASK_021_cleanup_examples
-      - TASK_022_docs_cli_reference
-      - TASK_023_docs_config_guide
-      - TASK_024_update_readme
-    files_modified: []
-    risk: low
-    description: Verify Wave 5 — full test suite, lint, doc existence
+      - TASK_005_documentation_update
+      - TASK_006_update_cli_imports
+      - TASK_007_update_core_init_imports
+      - TASK_008_update_core_models
+      - TASK_009_update_test_imports
+      - TASK_010_update_yaml_templates

@@ -1,0 +1,119 @@
+id: TASK_008_update_core_models
+
+title: Update core/models.py — imports, field name, and validation alias
+
+priority: high
+
+depends_on:
+  - TASK_002_rename_telethon_models
+  - TASK_003_rename_channels_file_and_class
+
+source_reference: .ai/plans/MODELS_RESEARCH.md
+source_section: "Recommendation 1 — Fix Naming Inconsistency (Priority: HIGH - REQUIRED)"
+
+extra_context: |
+  All three changes touch the TelepostSettings class in
+  src/mko_telebot/core/models.py:
+
+  1. Import path: .chats_config → .channels
+     Imported symbol: ChatsConfig → ChannelsConfig
+
+  2. Field name and type annotation:
+     monitoring: ChatsConfig → channels: ChannelsConfig
+
+  3. Validation alias:
+     validation_alias="MONITORING" → validation_alias="CHANNELS"
+
+  4. Docstring update:
+     "monitoring: Channel monitoring configuration" →
+     "channels: Channel monitoring configuration"
+
+  Combined into one task because all changes are within the same class
+  in the same file and must execute atomically.
+
+description: >
+  Update src/mko_telebot/core/models.py for the ChatsConfig →
+  ChannelsConfig rename. This task updates:
+  - The import path from .chats_config to .channels
+  - The field name from "monitoring" to "channels" (matching its
+    actual purpose)
+  - The validation_alias from "MONITORING" to "CHANNELS" (affects
+    YAML key parsing)
+  - The docstring to reference "channels" instead of "monitoring"
+
+goals:
+  - update import line 7: from .channels import ChannelsConfig
+  - rename field: monitoring → channels
+  - update type annotation: ChannelsConfig
+  - update validation_alias: "MONITORING" → "CHANNELS"
+  - update docstring: monitoring → channels
+  - keep TelethonConfig import (telethon_models→telethon handled by TASK_002)
+
+files:
+  - path: src/mko_telebot/core/models.py
+
+    targets:
+      - type: class
+        name: TelepostSettings
+
+      - type: field
+        name: monitoring
+
+    semantic_anchors:
+      line_7: from .chats_config import ChatsConfig
+      line_19: docstring: "monitoring: Channel monitoring configuration."
+      line_29_33: "monitoring: ChatsConfig = Field(... validation_alias=\"MONITORING\" ...)"
+
+changes:
+  - action: update_import
+
+    description: >
+      Update import to reference renamed module and class.
+
+    old: from .chats_config import ChatsConfig
+    new: from .channels import ChannelsConfig
+
+  - action: update_field
+
+    description: >
+      Rename field from "monitoring" to "channels", update type
+      annotation, and update validation_alias from MONITORING to CHANNELS.
+
+    class: TelepostSettings
+    old_field_block: |
+        monitoring: ChatsConfig = Field(
+            ...,
+            validation_alias="MONITORING",
+            description="Channel monitoring configuration",
+        )
+    new_field_block: |
+        channels: ChannelsConfig = Field(
+            ...,
+            validation_alias="CHANNELS",
+            description="Channel monitoring configuration",
+        )
+
+  - action: update_docstring
+
+    description: >
+      Update the TelepostSettings docstring to reflect the renamed field.
+
+    old: "        monitoring: Channel monitoring configuration."
+    new: "        channels: Channel monitoring configuration."
+
+risk_assessment:
+  level: medium
+  reason: >
+    Changing the validation_alias from "MONITORING" to "CHANNELS" is a
+    BREAKING CHANGE for users who have existing config.yaml files with
+    the old "MONITORING" key. All YAML template files and test fixtures
+    must be updated in sync (handled by TASK_009 and TASK_010). Ensure
+    the config.yaml templates are updated BEFORE users upgrade.
+
+acceptance_criteria:
+  - models.py imports ChannelsConfig from .channels
+  - TelepostSettings has field "channels" (not "monitoring")
+  - validation_alias is "CHANNELS" (not "MONITORING")
+  - TelethonConfig import still works (from telethon_models rename)
+  - uv run ruff check on models.py passes
+  - uv run mypy on models.py passes
