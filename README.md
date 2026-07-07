@@ -98,7 +98,7 @@ Copy the default configuration templates to your user config directory:
 mko-telebot init
 ```
 
-This creates the following files in `~/.config/mko_telepost/settings/`:
+This creates the following files in `~/.config/mko_telebot/settings/`:
 
 * `config.yaml` — main configuration (channels, keywords, intervals)
 * `secrets.yaml` — Telegram API credentials (API ID, API hash, phone/token)
@@ -112,7 +112,7 @@ mko-telebot init --force
 
 ### 3️⃣ Edit Configuration
 
-Edit the three configuration files in `~/.config/mko_telepost/settings/`:
+Edit the three configuration files in `~/.config/mko_telebot/settings/`:
 
 * Set your **Telegram API credentials** (`api_id`, `api_hash`, `phone` or `bot_token`) in `secrets.yaml`.
 * Define **channels to monitor**, **keywords**, and **scan intervals** in `config.yaml`.
@@ -187,7 +187,7 @@ Prints the installed package version number from PyPI metadata.
 
 ## 🔧 Configuration Files
 
-All configuration files live under `~/.config/mko_telepost/settings/` (the exact path varies by platform — run `mko-telebot config` to see your system paths).
+All configuration files live under `~/.config/mko_telebot/settings/` (the exact path varies by platform — run `mko-telebot config` to see your system paths).
 
 | File | Purpose | Required |
 |------|---------|----------|
@@ -236,11 +236,11 @@ Controls:
 | No messages forwarded | Keywords too restrictive, channel not scanned yet, or wrong channel ID | Start with a broad keyword expression. Check logs at your configured log level. Use `mko-telebot validate` first. |
 | Duplicate messages on restart | State file corrupted or deleted | The state directory is auto-managed; ensure it is not inside a temporary or cleaned directory. |
 | Telegram blocks the account | Too-frequent scanning | Increase scan intervals. Use a dedicated account or bot token. Never use your primary personal account. |
-| Permission / access errors | Config directory not readable/writable | Ensure `~/.config/mko_telepost/settings/` exists and is writable. Run with the correct user. |
+| Permission / access errors | Config directory not readable/writable | Ensure `~/.config/mko_telebot/settings/` exists and is writable. Run with the correct user. |
 
 ### Logs
 
-Logs are stored according to your `log_config.yaml` settings. By default they go to `~/.config/mko_telepost/logs/`. See actual paths with:
+Logs are stored according to your `log_config.yaml` settings. By default they go to `~/.config/mko_telebot/logs/`. See actual paths with:
 
 ```bash
 mko-telebot config
