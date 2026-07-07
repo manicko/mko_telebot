@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .chats_config import ChatsConfig
-from .telethon_models import TelethonConfig
+from .telethon import TelethonConfig
+from .channels import ChannelsConfig
 
 
 class TelepostSettings(BaseModel):
@@ -16,7 +16,7 @@ class TelepostSettings(BaseModel):
 
     Attributes:
         telethon: Telegram client configuration (Telethon).
-        monitoring: Channel monitoring configuration.
+        channels: Channel monitoring configuration.
     """
 
     model_config = ConfigDict(populate_by_name=True)
@@ -26,9 +26,9 @@ class TelepostSettings(BaseModel):
         validation_alias="TELETHON_API",
         description="Telegram client configuration",
     )
-    monitoring: ChatsConfig = Field(
+    channels: ChannelsConfig = Field(
         ...,
-        validation_alias="MONITORING",
+        validation_alias="CHANNELS",
         description="Channel monitoring configuration",
     )
 
