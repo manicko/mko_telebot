@@ -12,7 +12,7 @@ import logging.config
 from pathlib import Path
 from typing import Any
 
-from mko_telebot.core.config_reader import TelepostConfigReader
+from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import ConfigError
 from mko_telebot.core.paths import APP_PATHS
 

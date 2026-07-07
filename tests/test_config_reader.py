@@ -1,4 +1,4 @@
-"""Tests for the TelepostConfigReader configuration reader.
+﻿"""Tests for the TelepostConfigReader configuration reader.
 
 Tests cover construction, file validation, loading of YAML config files,
 logging config loading, and merging of config.yaml + secrets.yaml.
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from mko_telebot.core.config_reader import TelepostConfigReader
+from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import ConfigError
 from mko_telebot.core.models import TelepostSettings
 
@@ -20,9 +20,9 @@ from mko_telebot.core.models import TelepostSettings
 
 
 def _valid_config_yaml() -> dict[str, object]:
-    """Return a minimal valid MONITORING config dict."""
+    """Return a minimal valid CHANNELS config dict."""
     return {
-        "MONITORING": {
+        "CHANNELS": {
             "channels": {
                 "test_channel": {
                     "name": "@test_channel",
@@ -72,7 +72,7 @@ def _write_yaml(path: Path, data: dict[str, object]) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — from_user_dir
+# TelepostConfigReader â€” from_user_dir
 # ---------------------------------------------------------------------------
 
 
@@ -99,7 +99,7 @@ class TestFromUserDir:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — validate_files
+# TelepostConfigReader â€” validate_files
 # ---------------------------------------------------------------------------
 
 
@@ -139,7 +139,7 @@ class TestValidateFiles:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — load
+# TelepostConfigReader â€” load
 # ---------------------------------------------------------------------------
 
 
@@ -187,7 +187,7 @@ class TestLoad:
         )
         settings = reader.load()
         assert isinstance(settings, TelepostSettings)
-        assert settings.monitoring.channels["test_channel"].name == "@test_channel"
+        assert settings.channels.channels["test_channel"].name == "@test_channel"
 
     def test_load_populates_settings_property(self, tmp_path: Path):
         """load() should populate the settings property after loading."""
@@ -211,7 +211,7 @@ class TestLoad:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — merged config
+# TelepostConfigReader â€” merged config
 # ---------------------------------------------------------------------------
 
 
@@ -219,7 +219,7 @@ class TestMergedConfig:
     """Tests for merging config.yaml + secrets.yaml."""
 
     def test_merged_config_contains_both_sections(self, tmp_path: Path):
-        """Merged config should contain both MONITORING and TELETHON_API data."""
+        """Merged config should contain both CHANNELS and TELETHON_API data."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
         _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
         reader = TelepostConfigReader(
@@ -227,8 +227,8 @@ class TestMergedConfig:
             secrets_path=tmp_path / "secrets.yaml",
         )
         settings = reader.load()
-        # MONITORING section
-        assert settings.monitoring.channels["test_channel"].name == "@test_channel"
+        # CHANNELS section
+        assert settings.channels.channels["test_channel"].name == "@test_channel"
         # TELETHON_API section
         assert settings.telethon.is_user is True
         assert settings.telethon.client.api_id == 123456
@@ -236,7 +236,7 @@ class TestMergedConfig:
     def test_secrets_overlay_config_defaults(self, tmp_path: Path):
         """Secrets values should overlay config values when keys overlap."""
         config_data: dict[str, object] = {
-            "MONITORING": {
+            "CHANNELS": {
                 "channels": {
                     "test_channel": {
                         "name": "@test_channel",
@@ -245,7 +245,7 @@ class TestMergedConfig:
             },
         }
         secrets_data: dict[str, object] = {
-            "MONITORING": {
+            "CHANNELS": {
                 "channels_delay": 60,
             },
             "TELETHON_API": {
@@ -265,15 +265,15 @@ class TestMergedConfig:
         )
         settings = reader.load()
         # Overlay value from secrets
-        assert settings.monitoring.channels_delay == 60
+        assert settings.channels.channels_delay == 60
         # Original value from config still present
-        assert settings.monitoring.channels["test_channel"].name == "@test_channel"
+        assert settings.channels.channels["test_channel"].name == "@test_channel"
         # Bot token from secrets
         assert settings.telethon.is_user is False
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — load_logging_config
+# TelepostConfigReader â€” load_logging_config
 # ---------------------------------------------------------------------------
 
 
@@ -365,7 +365,7 @@ class TestLoadLoggingConfig:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader — malformed / edge cases
+# TelepostConfigReader â€” malformed / edge cases
 # ---------------------------------------------------------------------------
 
 

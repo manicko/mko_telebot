@@ -15,7 +15,7 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 
 from mko_telebot.core import APP_PATHS, Task, search_match
-from mko_telebot.core.config_reader import TelepostConfigReader
+from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 

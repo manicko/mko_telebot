@@ -1,4 +1,4 @@
-﻿# task.py
+# task.py
 import asyncio
 import json
 import logging
@@ -11,7 +11,7 @@ import aiofiles  # async I/O
 from mko_telebot.core import utils
 from mko_telebot.core.paths import APP_PATHS
 from mko_telebot.core.errors import TelegramServiceError, StateError
-from mko_telebot.core.chats_config import ChannelConfig
+from mko_telebot.core.channels import ChannelConfig
 
 logger = logging.getLogger(__name__)
 
