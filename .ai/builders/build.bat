@@ -14,7 +14,7 @@ echo ==================================================
 set "SCRIPT_DIR=%~dp0"
 set "ROOT=%SCRIPT_DIR%..\.."
 set "DOCS_DIR=%ROOT%\docs"
-
+set "SOURCE_DIR=%ROOT%\src"
 
 :: ==================================================
 :: PROJECT TREE
@@ -22,8 +22,8 @@ set "DOCS_DIR=%ROOT%\docs"
 
 echo.
 echo [1/3] Generating project structure...
-tree "%ROOT%" /F /A > "%DOCS_DIR%\STRUCT.md" 2>nul
-tree "%ROOT%" /F /A > "%ROOT%\.ai\structure\map.md" 2>nul
+tree "%SOURCE_DIR%" /F /A > "%DOCS_DIR%\STRUCT.md" 2>nul
+tree "%SOURCE_DIR%" /F /A > "%ROOT%\.ai\structure\map.md" 2>nul
 
 echo Generated STRUCT.md
 

@@ -75,7 +75,7 @@ Search for structural anti-patterns:
 
 ## Audit Scope
 
-All source code files in `src/mko_telepost/`. Focus on structural properties: complexity, length, nesting, and control flow patterns.
+All source code files in `src/**/`. Focus on structural properties: complexity, length, nesting, and control flow patterns.
 
 ---
 

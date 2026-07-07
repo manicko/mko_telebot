@@ -5,7 +5,7 @@ agent: auditor
 alwaysApply: false
 ---
 
-# Test Quality Audit — mko_telepost BI Dashboard
+# Test Quality Audit
 
 ## Step 0 — Ensure Docker Environment is Running
 
@@ -42,11 +42,10 @@ Use `websearch` to verify current best practices for:
 ## Anti-Patterns (subject to deletion or complete rewrite)
 
 ### 1. Architecture / Contract Mismatch
-- Sync/async mismatch (mko_telepost uses async SQLAlchemy 2.0 throughout)
+- Sync/async mismatch 
 - Use of deprecated methods, DTOs, data types, or contracts
 - Testing removed or renamed functionality
 - Forces keeping legacy code just to pass tests
-- Uses `pandas` instead of `polars` (forbidden in mko_telepost)
 - Tests against old response shapes (e.g., pre-`TokenWithUser` login response)
 
 ### 2. Overmocking

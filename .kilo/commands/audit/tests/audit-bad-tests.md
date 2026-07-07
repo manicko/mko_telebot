@@ -5,7 +5,7 @@ agent: auditor
 alwaysApply: false
 ---
 
-# Test Quality Audit — mko_telepost BI Dashboard
+# Test Quality Audit
 
 ## Step 0 — Ensure Docker Environment is Running
 
@@ -40,10 +40,9 @@ Use `websearch` to verify current best practices for:
 ## Bad Test Indicators (subject to deletion or complete rewrite):
 
 ### Architecture / Contract Mismatch
-- Use `sync` instead of `async`/`await` (mko_telepost uses async SQLAlchemy throughout)
+- Use `sync` instead of `async`/`await`
 - Call deprecated methods, functions, or settings
 - Violate the current layer separation (API → Service → Repository)
-- Use `pandas` instead of `polars` (pandas is forbidden in mko_telepost)
 - Test against old response shapes (e.g., login returning only `{access_token}` instead of `TokenWithUser` with `user` + `display_name`)
 - Reference removed or renamed StrEnum classes (e.g., old enum names)
 - Test for `print()` output instead of logger calls
@@ -71,7 +70,7 @@ Use `websearch` to verify current best practices for:
 - Don't use pytest fixtures from `conftest.py` (duplicate fixture definitions)
 - Don't use `pytest.mark.asyncio` for async tests
 
-### mko_telepost-Specific Anti-Patterns
+### Specific Anti-Patterns
 - Tests that don't verify JSONB normalization (dims key sorting)
 - Tests that don't verify `display_name` is computed from email prefix
 - Tests that don't verify `TokenWithUser` response shape (token + user profile)
@@ -105,7 +104,7 @@ Create file: `.ai/audit/tests/audit_report_<number>.md` (next available number)
 | FilePath | TestName | Type | Problem | Recommendation |
 |----------|----------|------|---------|----------------|
 | tests/test_auth.py | test_login_old_response | [TEST-REWRITE] | Checks only `{access_token}`, not `TokenWithUser` with `display_name` | Rewrite to verify full response shape |
-| tests/test_processing.py | test_process_uses_pandas | [TEST-DELETE] | Imports pandas instead of polars | Delete — violates mko_telepost tech stack |
+| tests/test_processing.py | test_process_uses_pandas | [TEST-DELETE] | Imports pandas instead of polars | Delete — violates tech stack |
 | tests/test_upload.py | test_no_assert | [TEST-DELETE] | Has no assert statement | Delete or add meaningful assertions |
 | tests/test_dashboards.py | — | [BEST-PRACTICE] | No tests for 403/404 dual-signal | Add negative scenario tests |
 | tests/test_upload.py | test_upload_cleanup | [DOC-UPDATE] | Test expects old cleanup behavior, code evolved | Update test to match current `platformdirs` cleanup |

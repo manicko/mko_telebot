@@ -69,7 +69,7 @@ alwaysApply: false
 | `severity` | enum | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
 | `description` | string | Detailed problem description with context |
 | `evidence` | string | File paths, line references, log excerpts, code snippets |
-| `affected_modules` | list | Affected module paths (e.g., `src/mko_telepost/api/routes/`, `frontend/src/features/auth/`) |
+| `affected_modules` | list | Affected module paths (e.g., `src/**/`, `frontend/src/features/auth/`) |
 | `recommendation` | string | Concrete fix direction: what to change and why |
 | `classification` | enum | `mandatory` (security, data loss, correctness) or `advisory` (improvement, refactoring) |
 
