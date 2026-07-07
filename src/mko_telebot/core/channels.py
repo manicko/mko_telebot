@@ -79,7 +79,7 @@ class ChannelDefaults(BaseModel):
     )
 
 
-class ChatsConfig(BaseModel):
+class ChannelsConfig(BaseModel):
     """Configuration for channel monitoring.
 
     Attributes:
@@ -105,10 +105,10 @@ class ChatsConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def strip_defaults_from_channels(self) -> ChatsConfig:
+    def strip_defaults_from_channels(self) -> ChannelsConfig:
         """Remove 'DEFAULTS' key from channels dict if present."""
         self.channels.pop("DEFAULTS", None)
         return self
 
 
-__all__ = ["LogLevel", "ChannelConfig", "ChannelDefaults", "ChatsConfig"]
+__all__ = ["LogLevel", "ChannelConfig", "ChannelDefaults", "ChannelsConfig"]
