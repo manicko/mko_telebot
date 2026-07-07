@@ -1,5 +1,5 @@
-{
-  MONITORING: {
+﻿{
+  CHANNELS: {
     'channels_delay': 30,
     channels: {
       'DEFAULTS':

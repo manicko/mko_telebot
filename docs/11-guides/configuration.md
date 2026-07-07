@@ -1,4 +1,4 @@
----
+﻿---
 id: configuration-guide
 domain: guide
 tags:
@@ -94,12 +94,12 @@ The `TelepostConfigReader.from_user_dir()` factory method automatically sets up 
 
 ## `config.yaml` — Monitoring Configuration
 
-This file defines the **MONITORING** section of the application — which channels to watch, how often to scan, and how to filter/forward messages.
+This file defines the **CHANNELS** section of the application — which channels to watch, how often to scan, and how to filter/forward messages.
 
 ### Top-Level Structure
 
 ```yaml
-MONITORING:
+CHANNELS:
   channels_delay: <int>
   channels:
     DEFAULTS:
@@ -114,7 +114,7 @@ MONITORING:
       ...
 ```
 
-The root key `MONITORING` maps to `ChatsConfig` in the Pydantic model. The `DEFAULTS` key inside `channels` is automatically removed during validation and its values applied as defaults — it does **not** represent a real channel.
+The root key `CHANNELS` maps to `ChatsConfig` in the Pydantic model. The `DEFAULTS` key inside `channels` is automatically removed during validation and its values applied as defaults — it does **not** represent a real channel.
 
 ### Field Reference
 
@@ -303,7 +303,7 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 4. **Pydantic validation** — the merged dict is validated against `TelepostSettings`, which recursively validates:
    - `TelethonConfig` (from `TELETHON_API` key)
    - `ClientConfig` (from `TELETHON_API.client` key)
-   - `ChatsConfig` (from `MONITORING` key)
+   - `ChatsConfig` (from `CHANNELS` key)
 5. **Model validators** run custom checks:
    - `DEFAULTS` key is removed from the `channels` dict after defaults are applied
    - Placeholder values are rejected (see [SecretStr Handling](#secretstr-handling))
@@ -327,7 +327,7 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 ### Minimal `config.yaml`
 
 ```yaml
-MONITORING:
+CHANNELS:
   channels_delay: 30
   channels:
     DEFAULTS:
@@ -343,7 +343,7 @@ MONITORING:
 ### Full `config.yaml` with Multiple Channels
 
 ```yaml
-MONITORING:
+CHANNELS:
   channels_delay: 30
   channels:
     DEFAULTS:
