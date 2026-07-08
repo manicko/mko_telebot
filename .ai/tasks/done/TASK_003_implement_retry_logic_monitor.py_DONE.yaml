@@ -1,0 +1,74 @@
+---
+id: task_003_implement_retry_logic
+title: Implement retry logic for Telegram message sending
+priority: high
+type: implementation
+status: pending
+depends_on:
+  - task_001_fix_monitoring_attribute
+
+source_reference: .ai\audit\99-validation\05-integrations-validated-findings.md
+source_section: INT-003 and INT-004
+
+description: |
+  The forward_to_users function catches FloodWaitError and waits but does NOT retry 
+  sending the message - it's simply lost. Additionally, Telethon RPCError is never 
+  caught at the send boundary. The unused max_retries field in TelethonConfig should 
+  be utilized for exponential backoff retries.
+
+goals:
+  - Implement retry loop with max_retries from TelethonConfig
+  - Catch both FloodWaitError and RPCError
+  - Add jitter to backoff timing
+  - Log retry attempts for debugging
+
+files:
+  - path: src/mko_telebot/monitor.py
+
+    targets:
+      - type: function
+        name: forward_to_users
+
+    semantic_anchors:
+      insert_after:
+        type: function_call
+        value: caption
+
+      replace_in:
+        - type: try_except
+          value: except FloodWaitError
+
+changes:
+  - action: replace_in_body
+    description: |
+      Replace the single-try send logic (lines 151-172) with retry loop:
+      - Wrap send_message/send_file in retry loop using settings.telethon.max_retries
+      - Add RPCError to the existing FloodWaitError import
+      - Implement exponential backoff with jitter: 2^attempt + random.uniform(0, 3)
+      - Log warnings on retry attempts
+
+    code_hint: |
+      for target in task.forward_to_entities:
+          max_tries = settings.telethon.max_retries
+          for attempt in range(max_tries):
+              try:
+                  if msg_media:
+                      await client.send_file(target, msg_media, caption=caption or None, link_preview=False)
+                  else:
+                      await client.send_message(target, caption or "", link_preview=False)
+                  break
+              except FloodWaitError as e:
+                  wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
+                  logger.warning(f"Flood wait {e.seconds}s, retry {attempt+1}/{max_tries}")
+                  await asyncio.sleep(wait_time)
+              except RPCError as e:
+                  logger.warning(f"RPC error {e}, retry {attempt+1}/{max_tries}")
+                  await asyncio.sleep(2 ** attempt)
+          else:
+              logger.error(f"Failed to send to {target} after {max_tries} attempts")
+
+acceptance_criteria:
+  - forward_to_users uses settings.telethon.max_retries
+  - FloodWaitError triggers wait+retry (not just wait)
+  - RPCError is caught and retried
+  - All tests pass

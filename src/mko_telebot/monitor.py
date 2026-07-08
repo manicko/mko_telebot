@@ -12,7 +12,7 @@ import random
 from pathlib import Path
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError
+from telethon.errors import FloodWaitError, RPCError
 
 from mko_telebot.core import APP_PATHS, Task, search_match
 from mko_telebot.core.config import TelepostConfigReader
@@ -118,13 +118,11 @@ async def build_sender_tag(msg):
         return ""
 
 
-async def forward_to_users(msg, msg_text, msg_media, task: Task, client: TelegramClient):
+async def forward_to_users(msg, msg_text, msg_media, task: Task, client: TelegramClient, settings: TelepostSettings):
     """Forward message or album to targets, appending author and link.
 
-    Behavior:
-        - If msg_media is not empty -> send media group via send_file(target, msg_media, caption=caption).
-        - Otherwise -> send plain text message via send_message.
-        - Caption includes text, author, and message link (if available).
+    Implements retry logic with exponential backoff and jitter for transient
+    Telegram API errors (FloodWaitError, RPCError).
 
     Args:
         msg (telethon.tl.custom.message.Message): The main message object (used to extract author and link).
@@ -132,6 +130,7 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task, client: Telegra
         msg_media (list): List of message.media objects, if any.
         task (Task): Task configuration including forwarding targets.
         client (TelegramClient): The Telethon client instance.
+        settings (TelepostSettings): Application settings (used for max_retries).
     """
 
     link = build_message_link(msg)
@@ -147,38 +146,53 @@ async def forward_to_users(msg, msg_text, msg_media, task: Task, client: Telegra
 
     caption = "\n\n".join(caption_lines).strip()
 
-    # Send to each target
+    # Send to each target with retry loop
     for target in task.forward_to_entities:
-        try:
-            if msg_media:
-                await client.send_file(
-                    target, msg_media, caption=caption or None, link_preview=False
+        max_tries = settings.telethon.max_retries
+        for attempt in range(max_tries):
+            try:
+                if msg_media:
+                    await client.send_file(
+                        target, msg_media, caption=caption or None, link_preview=False
+                    )
+                else:
+                    await client.send_message(target, caption or "", link_preview=False)
+
+                logger.info(
+                    f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}"
                 )
-            else:
-                await client.send_message(target, caption or "", link_preview=False)
-
-            logger.info(
-                f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}"
+                break
+            except FloodWaitError as e:
+                wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
+                logger.warning(
+                    f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
+                    f"for {getattr(target, 'id', target)}"
+                )
+                await asyncio.sleep(wait_time)
+            except RPCError as e:
+                wait_time = (2 ** attempt) + random.uniform(0, 3)
+                logger.warning(
+                    f"RPC error {e}, retry {attempt + 1}/{max_tries} "
+                    f"for {getattr(target, 'id', target)}"
+                )
+                await asyncio.sleep(wait_time)
+        else:
+            logger.error(
+                f"Failed to send to {getattr(target, 'id', target)} "
+                f"after {max_tries} attempts"
             )
-            await asyncio.sleep(random.uniform(5, 10))
-        except FloodWaitError as e:
-            logger.warning(
-                f"Flood wait {e.seconds}s while sending to {getattr(target, 'id', target)}"
-            )
-            await asyncio.sleep(e.seconds + random.uniform(5, 10))
-        except TelegramServiceError as e:
-            logger.exception(
-                f"Failed to send messages to {getattr(target, 'id', target)}: {e}"
-            )
+
+        await asyncio.sleep(random.uniform(5, 10))
 
 
-async def process_messages(messages, task: Task, client: TelegramClient):
+async def process_messages(messages, task: Task, client: TelegramClient, settings: TelepostSettings):
     """Process messages, group albums, check keywords, and forward matches.
 
     Args:
         messages (list[telethon.tl.custom.message.Message]): List of Telethon messages.
         task (Task): Task object with configuration for a specific channel.
         client (TelegramClient): The Telethon client instance.
+        settings (TelepostSettings): Application settings.
     """
     if not messages:
         return
@@ -211,16 +225,17 @@ async def process_messages(messages, task: Task, client: TelegramClient):
         if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
             logger.debug(f"Keyword match in {task.channel_name}, message {album_id}")
             await forward_to_users(
-                content["msg"], msg_text, content.get("media", []), task, client
+                content["msg"], msg_text, content.get("media", []), task, client, settings
             )
 
 
-async def process_task(task: Task, client: TelegramClient):
+async def process_task(task: Task, client: TelegramClient, settings: TelepostSettings):
     """Fetch and process recent messages from a specific Telegram channel.
 
     Args:
         task (Task): Task object representing the channel to process.
         client (TelegramClient): The Telethon client instance.
+        settings (TelepostSettings): Application settings.
     """
     logger.debug(f"{task.channel_name} is processed")
     min_id = max(1, task.last_msg_id - task.overlap + 1)
@@ -245,7 +260,7 @@ async def process_task(task: Task, client: TelegramClient):
         return
 
     if new_messages:
-        await process_messages(new_messages, task, client)
+        await process_messages(new_messages, task, client, settings)
         task.last_msg_id = max(msg.id for msg in new_messages)
         logger.info(
             f"{task.channel_name}: {len(new_messages)} new messages processed, "
@@ -274,6 +289,7 @@ async def process_and_reschedule(
     client: TelegramClient,
     queue: asyncio.Queue[Task],
     lock: asyncio.Lock,
+    settings: TelepostSettings,
 ):
     """Process a single task, save its state, and reschedule it asynchronously.
 
@@ -282,9 +298,10 @@ async def process_and_reschedule(
         client (TelegramClient): The Telethon client instance.
         queue (asyncio.Queue): Queue used for scheduling tasks.
         lock (asyncio.Lock): Lock to serialize task processing.
+        settings (TelepostSettings): Application settings.
     """
     async with lock:
-        await process_task(task, client)
+        await process_task(task, client, settings)
         await task.save_state()
     asyncio.create_task(reschedule_task(task, queue))
 
@@ -323,7 +340,7 @@ async def main_loop(
 
     while True:
         task = await queue.get()
-        asyncio.create_task(process_and_reschedule(task, client, queue, lock))
+        asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings))
         await asyncio.sleep(channels_delay)
 
 
