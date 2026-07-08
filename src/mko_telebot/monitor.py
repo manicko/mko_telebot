@@ -303,11 +303,11 @@ async def main_loop(
         queue (asyncio.Queue): Queue for scheduling tasks.
         lock (asyncio.Lock): Lock to serialize task processing.
     """
-    channels_delay = settings.monitoring.channels_delay
-    channels = settings.monitoring.channels
+    channels_delay = settings.channels.channels_delay
+    channels = settings.channels.channels
     channels_list = list(channels.keys())
 
-    stagger_start_seconds = settings.monitoring.stagger_start_seconds
+    stagger_start_seconds = settings.channels.stagger_start_seconds
 
     for channel_name in channels_list:
         channel_settings = channels[channel_name]
