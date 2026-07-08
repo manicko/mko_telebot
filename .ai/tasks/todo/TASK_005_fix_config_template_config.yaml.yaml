@@ -1,0 +1,54 @@
+---
+id: task_005_fix_config_template
+title: Fix config.yaml template structure and YAML syntax
+priority: high
+type: implementation
+status: pending
+depends_on:
+  - task_002_fix_secrets_template
+
+source_reference: .ai\audit\99-validation\02-config-validated-findings.md
+source_section: CFG-002
+
+description: |
+  The template config.yaml uses JSON-flow-style syntax with single quotes inside curly 
+  braces, which is invalid YAML. Additionally, DEFAULTS is incorrectly nested under 
+  channels.channels with stagger_start_seconds in wrong location. The corrected structure:
+  - "defaults" at CHANNELS level (matching ChannelsConfig.defaults)
+  - "stagger_start_seconds" as top-level CHANNELS field
+  - "channels" as empty dict placeholder
+
+goals:
+  - config.yaml uses valid YAML syntax
+  - defaults field at correct CHANNELS level
+  - stagger_start_seconds at ChannelsConfig level
+  - Template validates without errors
+
+files:
+  - path: src/mko_telebot/settings/config.yaml
+
+    targets: []
+
+    semantic_anchors:
+      file_level: true
+
+changes:
+  - action: replace_file_content
+    description: |
+      Rewrite using proper YAML block syntax with correct structure:
+      CHANNELS:
+        channels_delay: 30
+        stagger_start_seconds: 5
+        defaults:
+          scan_interval: 420
+          history_limit: 50
+          history_days: 2
+          overlap: 5
+          forward_to: []
+          keywords: []
+        channels: {}
+
+acceptance_criteria:
+  - config.yaml parses with yaml.safe_load()
+  - Template validates with ChannelsConfig.model_validate()
+  - Defaults are stripped correctly at runtime

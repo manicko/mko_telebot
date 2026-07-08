@@ -1,0 +1,56 @@
+---
+id: task_019_update_monkeypatch_tests
+title: Replace APP_PATHS.__dict__ mutation with pytest monkeypatch fixture
+priority: low
+type: implementation
+status: pending
+depends_on: []
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-005
+
+description: |
+  Tests in TestCliValidate and TestCliInit mutate APP_PATHS.__dict__ directly to redirect 
+  paths. While tests pass individually, this pattern creates shared mutable state that 
+  could cause non-deterministic failures if tests run in parallel. Should use pytest's 
+  monkeypatch fixture instead.
+
+goals:
+  - Replace direct APP_PATHS.__dict__ mutations with monkeypatch.setattr
+  - Add conftest.py fixture for shared test path setup
+  - Ensure parallel test safety
+
+files:
+  - path: tests/test_cli.py
+
+    targets:
+      - type: class
+        name: TestCliValidate
+      - type: class
+        name: TestCliInit
+
+    semantic_anchors:
+      replace_in:
+        - type: statement
+          value: APP_PATHS.__dict__
+
+changes:
+  - action: replace_in_body
+    description: |
+      Replace pattern:
+        original_dir = APP_PATHS.__dict__["user_dir"]
+        APP_PATHS.__dict__["user_dir"] = tmp_path
+        try:
+            ...
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_dir
+      
+      With:
+        def test_func(tmp_path, monkeypatch):
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+            ...
+
+acceptance_criteria:
+  - All 4 test methods refactored to use monkeypatch
+  - No direct __dict__ mutations remain
+  - All tests pass

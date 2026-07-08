@@ -1,0 +1,17 @@
+---
+id: task_021_rollback_critical_fixes
+title: Rollback procedure for critical runtime fixes
+type: rollback
+status: pending
+depends_on: []
+
+description: |
+  Emergency rollback procedure if critical fixes cause unexpected issues.
+
+rollback_procedures:
+  - Revert monitor.py: settings.monitoring -> settings.channels changes (git revert or manual)
+  - Restore original secrets.yaml template from git history
+  - Revert config.yaml template changes
+  - Revert forward_to_users retry logic changes
+
+verification_after_rollback: uv run pytest tests/ -v

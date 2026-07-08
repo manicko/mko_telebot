@@ -1,49 +1,72 @@
 tasks:
-  - id: TASK_001_rename_logging_setup
+  - id: task_001_fix_monitoring_attribute
     depends_on: []
 
-  - id: TASK_002_rename_telethon_models
+  - id: task_002_fix_secrets_template
     depends_on: []
 
-  - id: TASK_003_rename_channels_file_and_class
+  - id: task_003_implement_retry_logic
+    depends_on:
+      - task_001_fix_monitoring_attribute
+
+  - id: task_004_add_channel_name_validation
     depends_on: []
 
-  - id: TASK_004_rename_config_reader
+  - id: task_005_fix_config_template
+    depends_on:
+      - task_002_fix_secrets_template
+
+  - id: task_006_add_extra_forbid
     depends_on: []
 
-  - id: TASK_005_documentation_update
+  - id: task_007_remove_dead_code_launcher
     depends_on: []
 
-  - id: TASK_006_update_cli_imports
+  - id: task_008_add_exception_handling_run
     depends_on:
-      - TASK_001_rename_logging_setup
-      - TASK_004_rename_config_reader
+      - task_007_remove_dead_code_launcher
 
-  - id: TASK_007_update_core_init_imports
-    depends_on:
-      - TASK_002_rename_telethon_models
-      - TASK_003_rename_channels_file_and_class
-      - TASK_004_rename_config_reader
+  - id: task_009_add_task_model_tests
+    depends_on: []
 
-  - id: TASK_008_update_core_models
-    depends_on:
-      - TASK_002_rename_telethon_models
-      - TASK_003_rename_channels_file_and_class
+  - id: task_010_add_monitor_tests
+    depends_on: []
 
-  - id: TASK_009_update_test_imports
+  - id: task_011_add_validator_tests
     depends_on:
-      - TASK_004_rename_config_reader
-      - TASK_008_update_core_models
+      - task_005_fix_config_template
 
-  - id: TASK_010_update_yaml_templates
+  - id: task_012_add_run_error_tests
     depends_on:
-      - TASK_003_rename_channels_file_and_class
+      - task_008_add_exception_handling_run
 
-  - id: TASK_011_verification
+  - id: task_013_verify_init_copied_config
     depends_on:
-      - TASK_005_documentation_update
-      - TASK_006_update_cli_imports
-      - TASK_007_update_core_init_imports
-      - TASK_008_update_core_models
-      - TASK_009_update_test_imports
-      - TASK_010_update_yaml_templates
+      - task_001_fix_monitoring_attribute
+      - task_005_fix_config_template
+
+  - id: task_014_add_type_hints_task
+    depends_on: []
+
+  - id: task_015_add_type_hints_monitor
+    depends_on:
+      - task_007_remove_dead_code_launcher
+
+  - id: task_016_add_type_hints_parser
+    depends_on: []
+
+  - id: task_017_remove_unused_logger
+    depends_on: []
+
+  - id: task_018_update_chatsconfig_docs
+    depends_on: []
+
+  - id: task_019_update_monkeypatch_tests
+    depends_on: []
+
+  - id: task_020_verify_critical_fixes
+    depends_on:
+      - task_001_fix_monitoring_attribute
+      - task_002_fix_secrets_template
+      - task_003_implement_retry_logic
+      - task_005_fix_config_template

@@ -1,0 +1,56 @@
+---
+id: task_008_add_exception_handling_run
+title: Add proper exception handling in run command
+priority: medium
+type: implementation
+status: pending
+depends_on:
+  - task_007_remove_dead_code_launcher
+
+source_reference: .ai\audit\99-validation\01-cli-validated-findings.md
+source_section: CLI-004
+
+description: |
+  The run command only catches ConfigError (lines 88-94) but TelegramServiceError 
+  and StateError can be raised during runtime when resolving channel entities or 
+  other Telegram operations. These would propagate and display raw tracebacks. 
+  MkoTelebotError is the base class that should be caught.
+
+goals:
+  - Catch MkoTelebotError base class in run()
+  - Display user-friendly error messages
+  - Prevent raw traceback exposure
+
+files:
+  - path: src/mko_telebot/cli.py
+
+    targets:
+      - type: function
+        name: run
+
+    semantic_anchors:
+      replace_in:
+        - type: import
+          value: ConfigError
+
+changes:
+  - action: add_import
+    description: |
+      Add import for MkoTelebotError from mko_telebot.core.errors
+
+  - action: replace_in_body
+    description: |
+      Change except ConfigError to except MkoTelebotError and catch all custom exceptions.
+      Also add exit code 1 for KeyboardInterrupt (CLI-003).
+
+    code_hint: |
+      from mko_telebot.core.errors import ConfigError, MkoTelebotError
+      # ...
+      except (MkoTelebotError, KeyboardInterrupt):
+          console.print("[red]Error:[/red] Failed to run monitor")
+          raise typer.Exit(code=1)
+
+acceptance_criteria:
+  - run() catches MkoTelebotError for all custom exceptions
+  - KeyboardInterrupt raises typer.Exit(code=130) or code=1
+  - No raw tracebacks to users

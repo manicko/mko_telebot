@@ -1,0 +1,49 @@
+---
+id: task_011_add_validator_tests
+title: Add tests for Pydantic model validators
+priority: medium
+type: implementation
+status: pending
+depends_on:
+  - task_005_fix_config_template
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-003
+
+description: |
+  Pydantic validators in telethon.py (validate_api_hash, validate_api_id, 
+  validate_phone_or_token) and channels.py (strip_defaults_from_channels) are not 
+  explicitly tested. Invalid configuration values would only be caught at runtime 
+  during load(), potentially with unclear error messages.
+
+goals:
+  - Add parameterized tests for credential validator rejection
+  - Test that YOUR_* sentinel values are rejected
+  - Test that api_id=12345 is rejected
+  - Test defaults stripping behavior in ChannelsConfig
+
+files:
+  - path: tests/test_config_reader.py
+
+    targets:
+      - type: function
+        name: test_rejects_invalid_credentials
+
+    semantic_anchors:
+      insert_at_bottom: true
+
+changes:
+  - action: add_top_level
+    description: |
+      Add parametrized test function for credential validation.
+      Test cases for:
+      - api_hash: "YOUR_API_HASH" -> error with "placeholder"
+      - api_id: 12345 -> error with "template placeholder"
+      - phone_or_token: "YOUR_PHONE" -> error with "placeholder"
+
+      Also add test_defaults_stripping to verify DEFAULTS key is removed.
+
+acceptance_criteria:
+  - test_config_reader.py has parametrized validation tests
+  - All tests pass
+  - Validators tested with invalid and valid values

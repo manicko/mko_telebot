@@ -1,0 +1,50 @@
+---
+id: task_013_verify_init_copied_config
+title: Verify init-copied config is valid after init command
+priority: medium
+type: implementation
+status: pending
+depends_on:
+  - task_001_fix_monitoring_attribute
+  - task_005_fix_config_template
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-004
+
+description: |
+  The init tests only check file copying, not that the copied config can be loaded.
+  After fixing config.yaml template, the test should verify that init-copied config 
+  successfully validates with TelepostConfigReader.load().
+
+goals:
+  - Extend test_init_creates_config_directory to validate loaded config
+  - Verify init workflow produces runnable configuration
+
+files:
+  - path: tests/test_cli.py
+
+    targets:
+      - type: function
+        name: test_init_creates_config_directory
+
+    semantic_anchors:
+      insert_at_end_of_body:
+        type: function_call
+        value: reader.validate_files
+
+changes:
+  - action: replace_in_body
+    description: |
+      Add validation check after file copying.
+      After copying files, attempt to load() and verify success.
+
+    code_hint: |
+      # After existing validation assertions:
+      reader = TelepostConfigReader.from_user_dir()
+      settings = reader.load()  # Should not raise
+      assert settings.channels.channels is not None
+
+acceptance_criteria:
+  - Init test verifies config can be loaded
+  - No validation errors on init-copied files
+  - Test passes with fixed templates
