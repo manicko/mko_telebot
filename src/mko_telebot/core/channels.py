@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 
 
 class LogLevel(StrEnum):
@@ -50,6 +50,16 @@ class ChannelConfig(BaseModel):
     overlap: int = Field(
         default=5, ge=1, description="Number of overlapping messages between scans"
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_channel_name(cls, v: str) -> str:
+        """Validate channel name rejects path traversal characters."""
+        if "/" in v or "\\" in v or ".." in v:
+            raise ValueError(
+                "Invalid channel name: contains forbidden path character"
+            )
+        return v
 
 
 class ChannelDefaults(BaseModel):
