@@ -7,11 +7,11 @@
   - pathlib
   - rich.console
   - rich.table
-  - mko_telebot.core.config_reader
   - mko_telebot.core.errors
   - mko_telebot.core.paths
-  - mko_telebot.logging_setup
   - mko_telebot.monitor
+  - mko_telebot.logging
+  - mko_telebot.core.config
   classes: []
   functions:
   - init
@@ -19,14 +19,14 @@
   - run
   - config
   - version
-- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\logging_setup.py
-  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.logging_setup
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\logging.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.logging
   layer: unknown
   imports:
   - __future__
   - pathlib
   - typing
-  - mko_telebot.core.config_reader
+  - mko_telebot.core.config
   - mko_telebot.core.errors
   - mko_telebot.core.paths
   classes: []
@@ -48,7 +48,7 @@
   - telethon
   - telethon.errors
   - mko_telebot.core
-  - mko_telebot.core.config_reader
+  - mko_telebot.core.config
   - mko_telebot.core.errors
   - mko_telebot.core.models
   classes: []
@@ -62,8 +62,8 @@
   imports: []
   classes: []
   functions: []
-- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\chats_config.py
-  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.chats_config
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.channels
   layer: unknown
   imports:
   - __future__
@@ -73,11 +73,11 @@
   - LogLevel
   - ChannelConfig
   - ChannelDefaults
-  - ChatsConfig
+  - ChannelsConfig
   functions:
   - strip_defaults_from_channels
-- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\config_reader.py
-  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.config_reader
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\config.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.config
   layer: unknown
   imports:
   - __future__
@@ -118,8 +118,8 @@
   imports:
   - __future__
   - pydantic
-  - chats_config
-  - telethon_models
+  - telethon
+  - channels
   classes:
   - TelepostSettings
   functions: []
@@ -172,8 +172,24 @@
   - config_file
   - secrets_file
   - log_config_file
-- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon_models.py
-  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.telethon_models
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.task
+  layer: unknown
+  imports:
+  - datetime
+  - pathlib
+  - mko_telebot.core
+  - mko_telebot.core.paths
+  - mko_telebot.core.errors
+  - mko_telebot.core.channels
+  classes:
+  - Task
+  functions:
+  - __init__
+  - resolve_state_file
+  - set_offset_date
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.telethon
   layer: unknown
   imports:
   - __future__

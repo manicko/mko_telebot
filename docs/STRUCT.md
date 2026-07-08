@@ -1,33 +1,36 @@
 Folder PATH listing for volume Windows
-Volume serial number is 00000256 F012:D5D6
+Volume serial number is 000001AE F012:D5D6
 C:\PY_DEV\MKO_TELEBOT\SRC
 \---mko_telebot
     |   cli.py
-    |   logging_setup.py
+    |   logging.py
     |   main.py
     |   monitor.py
     |   __init__.py
     |   
     +---core
-    |   |   chats_config.py
-    |   |   config_reader.py
+    |   |   channels.py
+    |   |   config.py
     |   |   errors.py
     |   |   models.py
     |   |   parser.py
     |   |   paths.py
     |   |   task.py
-    |   |   telethon_models.py
+    |   |   telethon.py
     |   |   utils.py
     |   |   __init__.py
     |   |   
     |   \---__pycache__
+    |           channels.cpython-314.pyc
     |           chats_config.cpython-314.pyc
+    |           config.cpython-314.pyc
     |           config_reader.cpython-314.pyc
     |           errors.cpython-314.pyc
     |           models.cpython-314.pyc
     |           parser.cpython-314.pyc
     |           paths.cpython-314.pyc
     |           task.cpython-314.pyc
+    |           telethon.cpython-314.pyc
     |           telethon_models.cpython-314.pyc
     |           utils.cpython-314.pyc
     |           __init__.cpython-314.pyc
@@ -40,6 +43,7 @@ C:\PY_DEV\MKO_TELEBOT\SRC
     |       
     \---__pycache__
             cli.cpython-314.pyc
+            logging.cpython-314.pyc
             logging_setup.cpython-314.pyc
             main.cpython-314.pyc
             monitor.cpython-314.pyc
