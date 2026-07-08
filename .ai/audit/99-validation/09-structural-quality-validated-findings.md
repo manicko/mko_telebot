@@ -40,7 +40,39 @@ src\mko_telebot\core\parser.py
 - 7 return statements at lines 354, 357, 368, 377, 387, 391, 401.
 - Cyclomatic complexity (McCabe): 15 (verified via AST analysis).
 
-**Recommendation:** Extract the inclusion and exclusion checking logic into separate private helper functions (e.g., `_check_exclusions`, `_check_inclusions`). This would reduce the main function to orchestration logic with lower complexity, improve testability of individual matching components, and follow the single-responsibility principle.
+**Recommendation:** Extract `_check_exclusions` and `_check_inclusions` helper functions in `parser.py`. Each helper takes `(text: str, inclusions: list[ASTNode] | None)` or `(text: str, exclusions: list[ASTNode] | None)` and returns `bool`. The refactored `search_match` becomes:
+
+```python
+def search_match(text: str, query: str) -> bool:
+    if query is None:
+        return False
+    clean = query.strip().strip("\"'")
+    if clean == "":
+        return False
+    try:
+        parser = PatternParser(clean)
+        inclusions, exclusions = parser.parse()
+        if _check_exclusions(text, exclusions):
+            return False
+        return _check_inclusions(text, inclusions)
+    except Exception:
+        return False
+
+def _check_exclusions(text: str, exclusions: list[ASTNode]) -> bool:
+    for excl in exclusions:
+        excl_patterns = patterns_for_node(excl)
+        for pat in excl_patterns:
+            if pat and re.search(pat, text, flags=re.IGNORECASE | re.UNICODE):
+                return True
+    return False
+
+def _check_inclusions(text: str, inclusions: list[ASTNode]) -> bool:
+    if not inclusions:
+        return bool(exclusions)  # True only if we had exclusions that didn't match
+    return all(any(re.search(pat, text, flags=re.IGNORECASE | re.UNICODE) for pat in patterns_for_node(inc) if pat) for inc in inclusions)
+```
+
+Effort: small — extract helpers, reduce main function to ~30 lines.
 
 ---
 
@@ -60,7 +92,35 @@ src\mko_telebot\core\parser.py
 - Nesting depth: 7-8 (verified via AST analysis). The `elif` chain in Python AST is represented as nested `If` nodes in each other's `orelse`, so `while → if/elif/elif/elif/elif/elif → else → while` reaches depth 7.
 - Lines 120-141 contain the deeply nested while loop with multiple elif branches.
 
-**Recommendation:** Refactor to use early returns or extract character handling into helper methods. Consider converting the while loop with character-by-character branching into a dispatch table or state machine pattern. Effort: medium.
+**Recommendation:** Extract character handling into a `_handle_char` static method that returns the next token and advances the index. Refactored sketch:
+
+```python
+def _tokenize(self) -> list[tuple[str, str]]:
+    tokens = []
+    i = 0
+    q = self.query
+    while i < len(q):
+        ch = q[i]
+        if ch in "()" :
+            tokens.append(("GROUP_START" if ch == "(" else "GROUP_END", ch))
+            i += 1
+        elif ch == "|":
+            tokens.append(("OR", ch))
+            i += 1
+        elif ch == "-":
+            tokens.append(("EXCLUDE", ch))
+            i += 1
+        elif ch.isspace():
+            i += 1
+        else:
+            start = i
+            while i < len(q) and q[i] not in "()|- ":
+                i += 1
+            tokens.append(("TERM", q[start:i]))
+    return tokens
+```
+
+This reduces nesting by handling all special characters in a single if/elif chain, then falling through to TERM handling. Effort: small — the key is avoiding the deep elif nesting by consolidating special character checks.
 
 ---
 
@@ -80,7 +140,7 @@ src\mko_telebot\core\parser.py
 - Nesting depth: 4. Lines 188-201 show `for msg in messages:` → `try:` → `if getattr(msg, "media", None):` → `if getattr(msg.media, "caption", None):`.
 - Verified by AST analysis.
 
-**Recommendation:** Extract message content extraction logic into a helper function to reduce nesting. Effort: small. Priority: recommended.
+**Recommendation:** Extract message content extraction into `_extract_message_content(msg)` helper function. Return `{"text": list[str], "media": list}` and use at lines 186-201. This reduces nesting to 3 levels and makes the function easier to test.
 
 ---
 

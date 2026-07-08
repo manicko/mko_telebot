@@ -72,7 +72,27 @@ status: complete
 - `src/mko_telebot/core/channels.py` lines 107-111: The `strip_defaults_from_channels` validator runs in `mode="after"`, meaning it cannot prevent validation failure on the DEFAULTS entry.
 - `src/mko_telebot/core/channels.py` lines 55-79: `ChannelDefaults` model has no `stagger_start_seconds` field and no `name` field.
 
-**Recommendation:** Restructure the template `config.yaml` to place `DEFAULTS` at the top level of `CHANNELS` (alongside `channels_delay` and `stagger_start_seconds`), or implement a `model_validator(mode="before")` to properly handle the DEFAULTS key before validation.
+**Recommendation:** Change `DEFAULTS` to `defaults` and place it at the `CHANNELS` level (alongside `channels_delay`), matching the Pydantic model. Move `stagger_start_seconds` from inside `DEFAULTS` to the `CHANNELS` level. Convert the JSON-style syntax to proper YAML block format.
+
+**Specific changes to `src/mko_telebot/settings/config.yaml`:**
+```yaml
+CHANNELS:
+  channels_delay: 30
+  stagger_start_seconds: 5
+  defaults:
+    scan_interval: 420
+    history_limit: 50
+    history_days: 2
+    overlap: 5
+    forward_to: []
+    keywords: []
+  channels: {}
+```
+
+This structure matches:
+- `ChannelsConfig.defaults` (line 93-96 in channels.py) — accepts `ChannelDefaults` at CHANNELS level
+- `ChannelsConfig.stagger_start_seconds` (line 103-104 in channels.py) — a top-level field, not inside defaults
+- `ChannelsConfig.channels` (line 97-99 in channels.py) — requires at least one channel entry; use empty dict `{}` placeholder
 
 > **Validation Note:**
 > - **Action:** validated (unchanged)
@@ -128,11 +148,12 @@ status: complete
   - `api_id`: gt=0 constraint fails on 0
   - `api_hash`: min_length=1 constraint fails on empty string
 
-**Recommendation:** Use sentinel placeholder values that pass validation but are clearly identifiable as placeholders (e.g., `api_id: 1`, `phone_or_token: "YOUR_PHONE_OR_TOKEN"`, `api_hash: "YOUR_API_HASH"`). Add model validators comment indicating users must replace these values.
+**Recommendation:** Replace empty/invalid placeholder values with valid sentinel values that pass both basic Pydantic constraints AND custom placeholder validators. Use `PLACEHOLDER_REPLACE_ME` as the prefix (avoids `YOUR_*` rejection), with `api_id: 1` (valid: gt=0, not blocked value 12345). See `.ai/audit/99-validation/CFG-004-implementation-recommendation.md` for full analysis<sup>1</sup>.
 
 > **Validation Note:**
-> - **Action:** validated (unchanged)
-> - **Detail:** Finding is accurate — template secrets fail basic Pydantic constraints. **However, the recommendation is partially flawed:** the custom validators in `telethon.py` reject values starting with `YOUR_` (lines 42-46, 94-100) and reject `api_id=12345` (lines 62-67), so naive sentinel values like `"YOUR_PHONE_OR_TOKEN"` and `"YOUR_API_HASH"` would themselves fail validation. Any fix must account for these existing placeholder-detection validators.
+> - **Action:** validated with research update
+> - **Detail:** The original recommendation suggested `YOUR_*` sentinel values, but the custom validators in `telethon.py` (lines 42-46, 94-100) reject values starting with `YOUR_`. The fix must use different sentinel values that pass validation.
+> - **Updated recommendation:** Use `PLACEHOLDER_REPLACE_ME` prefix with `api_id: 1`. See footnote for full implementation details.
 
 ---
 
@@ -221,19 +242,17 @@ All 6 findings are validated as-is. No findings were reclassified, merged, or re
 
 ### Warnings
 
-1. **CFG-004 recommendation is partially flawed** — The suggested sentinel values `"YOUR_PHONE_OR_TOKEN"` and `"YOUR_API_HASH"` would themselves be rejected by the custom validators in `telethon.py` (lines 42-46, 94-100) which reject any value starting with `YOUR_`. The fix must either disable placeholder detection for template-init flows or use different sentinel values (e.g., `"PLACEHOLDER_REPLACE_ME_PHONE"`).
+1. **No SPEC.md exists** — The project has no `docs/SPEC.md` file referenced in the guidelines. This means the "dead code" spec cross-reference procedure cannot be applied for this project. All CFG findings were validated against code and models directly.
 
-2. **No SPEC.md exists** — The project has no `docs/SPEC.md` file referenced in the guidelines. This means the "dead code" spec cross-reference procedure cannot be applied for this project. All CFG findings were validated against code and models directly.
-
-3. **`stagger_start_seconds` inconsistency** — The docs (`configuration.md:136`) list `stagger_start_seconds` as a `ChannelDefaults` field, but the `ChannelDefaults` model in `channels.py:55-79` does not have this field — it's a top-level `ChannelsConfig` field (`channels.py:103-104`). This is a secondary docs-vs-model mismatch (related to but not explicitly covered by CFG-002 or CFG-003).
+2. **`stagger_start_seconds` inconsistency** — The docs (`configuration.md:136`) list `stagger_start_seconds` as a `ChannelDefaults` field, but the `ChannelDefaults` model in `channels.py:55-79` does not have this field — it's a top-level `ChannelsConfig` field (`channels.py:103-104`). This is a secondary docs-vs-model mismatch (related to but not explicitly covered by CFG-002 or CFG-003).
 
 ### Required Fixes
 
 | ID | Severity | Classification | Action |
 |----|----------|---------------|--------|
 | CFG-001 | CRITICAL | SPEC-DEVIATION | Replace `settings.monitoring.*` with `settings.channels.*` in `monitor.py:306-310` |
-| CFG-002 | CRITICAL | SPEC-DEVIATION | Restructure template `config.yaml` OR change `strip_defaults_from_channels` to `mode="before"` and align `ChannelDefaults` model |
-| CFG-004 | HIGH | SPEC-DEVIATION | Replace empty/invalid placeholder values in `secrets.yaml` with valid sentinels that pass both basic constraints and custom validators |
+| CFG-002 | CRITICAL | SPEC-DEVIATION | Restructure template `config.yaml` to proper YAML with `defaults` at CHANNELS level and `stagger_start_seconds` as top-level field |
+| CFG-004 | HIGH | SPEC-DEVIATION | Replace empty/invalid placeholder values with `PLACEHOLDER_REPLACE_ME` sentinel prefix (see CFG-004-implementation-recommendation.md) |
 
 ### Advisory Recommendations
 

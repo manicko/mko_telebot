@@ -101,7 +101,37 @@ status: complete
 - No tests verify that `api_hash` validation rejects `YOUR_API_HASH`
 - No tests verify that `api_id=12345` raises a clear validation error
 
-**Recommendation:** Add tests for model validation edge cases: (1) placeholder rejection in `TelethonConfig`, (2) `ChannelsConfig` `DEFAULTS` stripping behavior, (3) field constraint violations. Effort: small - add parameterized tests to `test_config_reader.py`.
+**Recommendation:** Add parameterized tests to `tests/test_config_reader.py` with specific cases:
+
+```python
+@pytest.mark.parametrize("field,value,error_match", [
+    ("api_hash", "YOUR_API_HASH", "placeholder"),
+    ("api_id", 12345, "template placeholder"),
+    ("phone_or_token", "YOUR_PHONE", "placeholder"),
+])
+def test_rejects_invalid_credentials(tmp_path, field, value, error_match):
+    # Construct minimal config with invalid field value
+    ...
+    with pytest.raises(ConfigError, match=error_match):
+        reader.load()
+
+
+def test_defaults_stripping(tmp_path):
+    config_yaml.write_text("""CHANNELS:
+  defaults:
+    scan_interval: 300
+  channels:
+    DEFAULTS:
+      scan_interval: 420
+    my_channel:
+      name: "@my_channel"
+""")
+    settings = reader.load()
+    assert "DEFAULTS" not in settings.channels.channels
+    assert settings.channels.channels["@my_channel"].scan_interval == 300
+```
+
+Effort: small — add ~20 lines of tests.
 
 ---
 
@@ -152,7 +182,24 @@ status: complete
 - This modifies the singleton `APP_PATHS` instance rather than using dependency injection
 - No fixture cleanup for parallel test safety
 
-**Recommendation:** Use `monkeypatch` fixture or create isolated test instances instead of mutating module-level singletons. Effort: small - refactoring test setup.
+**Recommendation:** Replace direct `APP_PATHS.__dict__` mutations with pytest's `monkeypatch` fixture. Example transformation:
+
+```python
+# Before (lines 87-88):
+original_dir = APP_PATHS.__dict__["user_dir"]
+APP_PATHS.__dict__["user_dir"] = tmp_path
+try:
+    ...
+finally:
+    APP_PATHS.__dict__["user_dir"] = original_dir
+
+# After:
+def test_func(tmp_path, monkeypatch):
+    monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+    ...
+```
+
+Add a `conftest.py` fixture for shared test path setup. Effort: small — refactor 4 test methods in test_cli.py.
 
 ---
 

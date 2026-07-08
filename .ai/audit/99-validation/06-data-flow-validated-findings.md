@@ -131,7 +131,7 @@ The correct access pattern should be `settings.channels.channels_delay`, `settin
 - `src/mko_telebot/monitor.py` lines 121-173: `forward_to_users` has no retry loop; messages are sent once with only `FloodWaitError` handled specially
 - `src/mko_telebot/monitor.py` line 169-172: Only `TelegramServiceError` is logged, no retries occur
 
-**Recommendation:** Either implement retry logic using `max_retries` in `forward_to_users`, or remove the unused field from `TelethonConfig` to avoid confusion. Effort: medium - requires adding retry loop around send operations.
+**Recommendation:** See INT-003 — implementing retry logic in `forward_to_users` (lines 152-172 in monitor.py) addresses both the missing retry on FloodWaitError and the unused `max_retries` field. Use `settings.telethon.max_retries` with exponential backoff: `wait_time = e.seconds + (2 ** attempt) + random.uniform(0, 3)`. Effort: merged into INT-003.
 
 ---
 
@@ -156,7 +156,23 @@ The correct access pattern should be `settings.channels.channels_delay`, `settin
 - `src/mko_telebot/core/channels.py` line 103-104: `stagger_start_seconds` is a field of `ChannelsConfig`, not `ChannelDefaults`
 - The `strip_defaults_from_channels` validator in `ChannelsConfig` removes the `DEFAULTS` key but the structure is still wrong
 
-**Recommendation:** Move `DEFAULTS` to the top level of `CHANNELS` alongside `channels_delay` and `stagger_start_seconds` to match the `ChannelsConfig` model. Effort: trivial - restructure the YAML.
+**Recommendation:** Restructure template to match `ChannelsConfig` model in `channels.py`. Replace JSON-style syntax with proper YAML, place `defaults` at CHANNELS level (not inside `channels`), and move `stagger_start_seconds` to the top-level CHANNELS dict:
+
+```yaml
+CHANNELS:
+  channels_delay: 30
+  stagger_start_seconds: 5
+  defaults:
+    scan_interval: 420
+    history_limit: 50
+    history_days: 2
+    overlap: 5
+    forward_to: []
+    keywords: []
+  channels: {}
+```
+
+This matches `ChannelsConfig.defaults` (line 93-96 in channels.py), `ChannelsConfig.stagger_start_seconds` (line 103-104), and `ChannelsConfig.channels` (line 97-99). Effort: trivial.
 
 ---
 
@@ -181,7 +197,23 @@ The correct access pattern should be `settings.channels.channels_delay`, `settin
 - `src/mko_telebot/monitor.py` line 249: `task.last_msg_id` is only updated after successful processing
 - No `try/finally` blocks around the main monitoring loop to ensure state is saved/committed on interrupt
 
-**Recommendation:** Add `try/finally` around the main monitoring loop to ensure state is properly committed on graceful shutdown. Effort: small - wrap loop in error handling.
+**Recommendation:** Add `try/finally` in `run_monitor` (lines 330-341) to guarantee state persistence on shutdown. Wrap the `main_loop` call with signal handling:
+
+```python
+async def run_monitor(settings: TelepostSettings, client: TelegramClient):
+    if await start_client(client, settings):
+        queue: asyncio.Queue[Task] = asyncio.Queue()
+        lock: asyncio.Lock = asyncio.Lock()
+        try:
+            await main_loop(settings, client, queue, lock)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("Shutting down monitor, saving task states...")
+        finally:
+            for task in list(queue._queue):
+                await task.save_state()
+```
+
+Effort: small — adds graceful shutdown handling.
 
 ---
 

@@ -52,7 +52,12 @@ source: .ai/audit/04-security/findings.md
 - `telethon.py` line 28: `session: str = Field(default="first_session")` — **accepts `""`** (no min_length)
 - `telethon.py` lines 29-35: `app_version`, `device_model`, `system_version`, `system_lang_code`, `lang_code` — **accept `""`** (no min_length)
 
-**Recommendation:** Replace empty values in `secrets.yaml` template with `YOUR_`-prefixed placeholders (e.g., `YOUR_api_hash`, `YOUR_bot_token`) to trigger the existing placeholder validators with clear error messages. Add `min_length=1` to `session`, `app_version`, `device_model`, and `system_version` fields for consistency. Effort: trivial.
+**Recommendation:** Replace empty values in `secrets.yaml` template with `PLACEHOLDER_REPLACE_ME_*` values that pass validation while providing clear user guidance. Use:
+- `api_id: 1` (valid: gt=0, not blocked value 12345)
+- `api_hash: "PLACEHOLDER_REPLACE_ME"` (17 chars, not YOUR_*)
+- `phone_or_token: "PLACEHOLDER_REPLACE_ME"` (17 chars >= 5, not YOUR_*)
+
+Omit `session`, `app_version`, `device_model`, `system_version` fields to use their defaults (empty strings ""). Add inline comments in YAML guiding users to replace placeholder values. Effort: trivial.
 
 ---
 

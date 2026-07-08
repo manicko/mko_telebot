@@ -95,7 +95,31 @@ problems-only: true
 - `task.py` lines 70, 82: Catch generic `Exception` and wrap as `TelegramServiceError` for entity resolution (correct usage)
 - No `RPCError`, `AuthKeyError`, or other Telethon exceptions are caught at the send boundary
 
-**Recommendation:** Import additional Telethon exceptions (`RPCError`) and catch them appropriately. Implement proper retry logic for FloodWaitError that re-attempts the send after waiting. Effort: medium.
+**Recommendation:** Implement retry logic using `TelethonConfig.max_retries` with exponential backoff. Add `RPCError` to imports (line 15: `from telethon.errors import FloodWaitError, RPCError`). Replace the current FloodWaitError handler (lines 164-168) with a retry loop that catches both `FloodWaitError` and `RPCError`, retries up to `max_retries` times with `2^retry + random.uniform(0, 3)` seconds of backoff. After all retries exhausted, log and continue to next target.
+
+**Implementation sketch for `monitor.py` lines 121-172:**
+```python
+for target in task.forward_to_entities:
+    max_tries = settings.telethon.max_retries
+    for attempt in range(max_tries):
+        try:
+            if msg_media:
+                await client.send_file(target, msg_media, caption=caption or None, link_preview=False)
+            else:
+                await client.send_message(target, caption or "", link_preview=False)
+            break  # Success - exit retry loop
+        except FloodWaitError as e:
+            wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
+            logger.warning(f"Flood wait {e.seconds}s, retry {attempt+1}/{max_tries}")
+            await asyncio.sleep(wait_time)
+        except RPCError as e:  # Import from telethon.errors
+            logger.warning(f"RPC error {e}, retry {attempt+1}/{max_tries}")
+            await asyncio.sleep(2 ** attempt)
+    else:
+        logger.error(f"Failed to send to {target} after {max_tries} attempts")
+```
+
+Effort: medium — replaces the existing single-try handler with retry logic.
 
 ---
 
@@ -122,7 +146,7 @@ problems-only: true
 - No loop or counter uses `settings.telethon.max_retries`
 - Config documentation at `docs/11-guides/configuration.md` lines 165, 186 documents `max_retries`
 
-**Recommendation:** Implement retry logic in `forward_to_users` that catches transient errors, uses `max_retries` from config, and applies exponential backoff with jitter. Effort: medium.
+**Recommendation:** See INT-003 — implementing retry logic in `forward_to_users` (lines 152-172 in monitor.py) addresses both the missing retry on FloodWaitError and the unused `max_retries` field. The implementation should use `settings.telethon.max_retries` with exponential backoff and jitter. Effort: merged into INT-003.
 
 ---
 
