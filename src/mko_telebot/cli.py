@@ -16,7 +16,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mko_telebot.core.errors import ConfigError
+from mko_telebot.core.errors import ConfigError, MkoTelebotError
 from mko_telebot.core.paths import APP_PATHS
 from mko_telebot.monitor import create_client, run_monitor
 from mko_telebot.logging import setup_logging
@@ -89,15 +89,16 @@ def run() -> None:
     try:
         reader: TelepostConfigReader = TelepostConfigReader.from_user_dir()
         settings = reader.load()
-    except ConfigError as e:
+    except MkoTelebotError as e:
         console.print(f"[red]Configuration error:[/red] {e}")
         raise typer.Exit(code=1) from e
 
     client = create_client(settings)
     try:
         asyncio.run(run_monitor(settings, client))
-    except KeyboardInterrupt:
-        console.print("[yellow]Monitoring stopped by user.[/yellow]")
+    except (MkoTelebotError, KeyboardInterrupt):
+        console.print("[red]Error:[/red] Failed to run monitor")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
