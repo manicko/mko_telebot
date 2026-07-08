@@ -19,7 +19,7 @@ class TelepostSettings(BaseModel):
         channels: Channel monitoring configuration.
     """
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     telethon: TelethonConfig = Field(
         ...,
