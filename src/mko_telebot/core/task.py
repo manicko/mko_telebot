@@ -42,21 +42,21 @@ class Task:
     """
 
     def __init__(self, config: ChannelConfig, last_msg_id: int = 0) -> None:
-        """Initialize Task from a ChannelConfig instance."""
-        self.channel_name = config.name
-        self.channel_entity = None
-        self.forward_to = config.forward_to
-        self.forward_to_entities: list[object] = []
-        self.keywords = config.keywords
-        self.scan_interval = config.scan_interval
-        self.history_limit = config.history_limit
-        self.history_days = config.history_days
-        # offset_date computed from history_days (if provided)
-        self.offset_date = self.set_offset_date()
-        # ensure last_msg_id is int and non-null
-        self.last_msg_id = last_msg_id or 0
-        self.overlap = config.overlap
-        self.state_file: Path | None = None
+            """Initialize Task from a ChannelConfig instance."""
+            self.channel_name = config.name
+            self.channel_entity = None
+            self.forward_to = config.forward_to
+            self.forward_to_entities: list[object] = []
+            self.keywords = config.keywords
+            self.scan_interval = config.scan_interval
+            self.history_limit = config.history_limit
+            self.history_days = config.history_days
+            # offset_date computed from history_days (if provided)
+            self.state_file: Path | None = None
+            self.offset_date = self.set_offset_date()
+            # ensure last_msg_id is int and non-null
+            self.last_msg_id = last_msg_id or 0
+            self.overlap = config.overlap
 
     async def resolve_targets_entities(self, client):
         """Resolve each forward target to a Telethon entity and store them."""

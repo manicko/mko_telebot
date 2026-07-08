@@ -138,7 +138,8 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 python_files = ["tests.py", "test_*.py"]
-addopts = ["--import-mode=importlib","-ra", "-q"]
+addopts = ["--import-mode=importlib", "-ra", "-q"]
+asyncio_mode = "auto"
 console_output_style = "classic"
 # register custom markers to avoid PytestUnknownMarkWarning
 markers = [
@@ -149,6 +150,7 @@ markers = [
 dev = [
     "hypothesis>=6.156.1",
     "pytest>=9.1.1",
+    "pytest-asyncio>=0.24",
     "ruff>=0.15.20",
 ]
 
