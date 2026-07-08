@@ -15,7 +15,6 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError
 
 from mko_telebot.core import APP_PATHS, Task, search_match
-from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 
@@ -355,19 +354,3 @@ async def run_monitor(settings: TelepostSettings, client: TelegramClient):
         queue: asyncio.Queue[Task] = asyncio.Queue()
         lock: asyncio.Lock = asyncio.Lock()
         await main_loop(settings, client, queue, lock)
-
-
-def launcher():
-    """Entry point: load settings, create client, and run the monitor."""
-    try:
-        reader = TelepostConfigReader.from_user_dir()
-        settings = reader.load()
-        logging.config.dictConfig(reader.load_logging_config())
-        client = create_client(settings)
-        asyncio.run(run_monitor(settings, client))
-    except KeyboardInterrupt:
-        logger.info("Monitoring stopped by user.")
-
-
-if __name__ == "__main__":
-    launcher()
