@@ -142,13 +142,13 @@ class PatternParser:
                 tokens.append(("TERM", q[start:i]))
         return tokens
 
-    def _peek(self):
+    def _peek(self) -> tuple[str, str] | None:
         """Return the current token without consuming it, or None if at end."""
         return (
             self.tokens[self.token_pos] if self.token_pos < len(self.tokens) else None
         )
 
-    def _consume(self, expected_type=None):
+    def _consume(self, expected_type: str | None = None) -> tuple[str, str] | None:
         """Consume and return the current token if it matches expected_type.
 
         If expected_type is None, consume any token. Returns the consumed token or None.
@@ -174,7 +174,7 @@ class PatternParser:
 
         while self._peek():
             tok = self._peek()
-            if tok[0] == "EXCLUDE":
+            if tok and tok[0] == "EXCLUDE":
                 # Parse an exclusion expression: '-' followed by an expression
                 self._consume("EXCLUDE")
                 excl = self._parse_or_expr()
@@ -195,7 +195,7 @@ class PatternParser:
     def _parse_or_expr(self) -> ASTNode:
         """Parse OR expressions (left-associative)."""
         left = self._parse_and_expr()
-        while self._peek() and self._peek()[0] == "OR":
+        while (tok := self._peek()) and tok[0] == "OR":
             self._consume("OR")
             right = self._parse_and_expr()
             left = OrOperation(left, right)
@@ -238,7 +238,7 @@ class PatternParser:
             # Parse grouped subexpression
             self._consume("GROUP_START")
             inner = self._parse_or_expr()
-            if self._peek() and self._peek()[0] == "GROUP_END":
+            if (tok := self._peek()) and tok[0] == "GROUP_END":
                 self._consume("GROUP_END")
             return inner
         # Unexpected token: consume and ignore it, returning None
