@@ -179,3 +179,74 @@ class TestCliInit:
         finally:
             APP_PATHS.__dict__["user_dir"] = original_user_dir
             APP_PATHS.__dict__["app_dir"] = original_app_dir
+
+# ---------------------------------------------------------------------------
+# run
+# ---------------------------------------------------------------------------
+
+
+class TestCliRun:
+    """Tests for the run command error paths."""
+
+    def test_run_missing_config_exits_1(self, tmp_path: Path):
+        """run should exit code 1 when config files are missing."""
+        from mko_telebot.core.paths import APP_PATHS
+
+        original_user_dir = APP_PATHS.user_dir
+        original_app_dir = APP_PATHS.app_dir
+
+        try:
+            APP_PATHS.__dict__["user_dir"] = tmp_path
+            APP_PATHS.__dict__["app_dir"] = tmp_path
+
+            result = runner.invoke(app, ["run"])
+            assert result.exit_code == 1
+            assert "Configuration error" in result.stdout
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_user_dir
+            APP_PATHS.__dict__["app_dir"] = original_app_dir
+
+    def test_run_invalid_secrets_exits_1(self, tmp_path: Path):
+        """run should exit code 1 when secrets file has invalid content."""
+        import yaml
+
+        from mko_telebot.core.paths import APP_PATHS
+
+        settings_dir = tmp_path / "settings"
+        settings_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write valid config.yaml
+        config_data: dict[str, object] = {
+            "CHANNELS": {
+                "channels": {
+                    "test_channel": {
+                        "name": "@test_channel",
+                    },
+                },
+            },
+        }
+        with (settings_dir / "config.yaml").open("w", encoding="utf-8") as f:
+            yaml.dump(config_data, f)
+
+        # Write secrets.yaml with missing required fields (no phone_or_token, no client)
+        secrets_data: dict[str, object] = {
+            "TELETHON_API": {
+                "is_user": True,
+            },
+        }
+        with (settings_dir / "secrets.yaml").open("w", encoding="utf-8") as f:
+            yaml.dump(secrets_data, f)
+
+        original_user_dir = APP_PATHS.user_dir
+        original_app_dir = APP_PATHS.app_dir
+
+        try:
+            APP_PATHS.__dict__["user_dir"] = tmp_path
+            APP_PATHS.__dict__["app_dir"] = tmp_path
+
+            result = runner.invoke(app, ["run"])
+            assert result.exit_code == 1
+            assert "Configuration error" in result.stdout
+        finally:
+            APP_PATHS.__dict__["user_dir"] = original_user_dir
+            APP_PATHS.__dict__["app_dir"] = original_app_dir
