@@ -125,6 +125,13 @@ class TestCliInit:
                 settings_dir = tmp_path.joinpath("settings")
                 assert settings_dir.exists()
                 assert len(list(settings_dir.iterdir())) > 0
+
+                # Verify the copied configuration can be loaded and validated
+                from mko_telebot.core.config import TelepostConfigReader
+
+                reader = TelepostConfigReader.from_user_dir()
+                settings = reader.load()
+                assert settings.channels.channels is not None
             finally:
                 APP_PATHS.__dict__["user_dir"] = original_user_dir
                 APP_PATHS.__dict__["app_dir"] = original_app_dir
