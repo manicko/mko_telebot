@@ -12,6 +12,8 @@ import yaml
 from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import ConfigError
 from mko_telebot.core.models import TelepostSettings
+from mko_telebot.core.channels import ChannelConfig, ChannelsConfig
+from mko_telebot.core.telethon import ClientConfig, TelethonConfig
 
 
 # ---------------------------------------------------------------------------
@@ -397,3 +399,60 @@ class TestEdgeCases:
             ConfigError, match="Expected a top-level mapping in YAML file"
         ):
             reader.load()
+
+# ---------------------------------------------------------------------------
+# Pydantic model validators
+# ---------------------------------------------------------------------------
+
+
+class TestValidators:
+    """Tests for Pydantic model validators in telethon.py and channels.py."""
+
+    @pytest.mark.parametrize(
+        ("field_kwargs", "match_pattern"),
+        [
+            pytest.param(
+                {"api_hash": "YOUR_API_HASH"},
+                "placeholder",
+                id="rejects_placeholder_api_hash",
+            ),
+            pytest.param(
+                {"api_id": 12345},
+                "template placeholder",
+                id="rejects_template_api_id",
+            ),
+        ],
+    )
+    def test_rejects_invalid_api_credentials(
+        self, field_kwargs: dict[str, object], match_pattern: str
+    ) -> None:
+        """ClientConfig should reject invalid credential values."""
+        valid_fields: dict[str, object] = {
+            "api_id": 123456,
+            "api_hash": "a" * 32,
+        }
+        merged = {**valid_fields, **field_kwargs}
+        with pytest.raises(ValueError, match=match_pattern):
+            ClientConfig(**merged)
+
+    def test_rejects_placeholder_phone_or_token(self) -> None:
+        """TelethonConfig should reject placeholder phone_or_token."""
+        valid_client = ClientConfig(api_id=123456, api_hash="a" * 32)
+        with pytest.raises(ValueError, match="placeholder"):
+            TelethonConfig(
+                is_user=True,
+                phone_or_token="YOUR_PHONE",
+                client=valid_client,
+            )
+
+    def test_defaults_stripping(self) -> None:
+        """ChannelsConfig should remove DEFAULTS key from channels dict."""
+        channel = ChannelConfig(name="@test")
+        config = ChannelsConfig(
+            channels={
+                "DEFAULTS": channel,
+                "real_channel": channel,
+            }
+        )
+        assert "DEFAULTS" not in config.channels
+        assert "real_channel" in config.channels
