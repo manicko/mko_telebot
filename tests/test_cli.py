@@ -10,6 +10,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from mko_telebot.cli import app
+import pytest
 
 runner: CliRunner = CliRunner()
 
@@ -74,25 +75,16 @@ class TestCliConfig:
 class TestCliValidate:
     """Tests for the validate command."""
 
-    def test_validate_exits_code_1_when_config_missing(self, tmp_path: Path):
-        """validate should exit code 1 when config files are missing."""
-        from mko_telebot.core.paths import APP_PATHS
+    def test_validate_exits_code_1_when_config_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+            """validate should exit code 1 when config files are missing."""
+            from mko_telebot.core.paths import APP_PATHS
 
-        # Temporarily point APP_PATHS to a dir that has no config files
-        original_user_dir = APP_PATHS.user_dir
-        original_app_dir = APP_PATHS.app_dir
-
-        try:
-            # Reassign private attributes on the model to point to tmp_path
-            APP_PATHS.__dict__["user_dir"] = tmp_path
-            APP_PATHS.__dict__["app_dir"] = tmp_path
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+            monkeypatch.setattr(APP_PATHS, "app_dir", tmp_path, raising=False)
 
             result = runner.invoke(app, ["validate"])
             assert result.exit_code == 1
             assert "Configuration error" in result.stdout
-        finally:
-            APP_PATHS.__dict__["user_dir"] = original_user_dir
-            APP_PATHS.__dict__["app_dir"] = original_app_dir
 
 
 # ---------------------------------------------------------------------------
@@ -103,52 +95,37 @@ class TestCliValidate:
 class TestCliInit:
     """Tests for the init command."""
 
-    def test_init_creates_config_directory(self, tmp_path: Path):
+    def test_init_creates_config_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             """init should copy template files to the user config directory."""
             from mko_telebot.core.paths import APP_PATHS
 
-            original_user_dir = APP_PATHS.user_dir
-            original_app_dir = APP_PATHS.app_dir
+            app_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            monkeypatch.setattr(APP_PATHS, "app_dir", app_dir, raising=False)
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
 
-            try:
-                # Point app_settings_dir to the real source, user_settings_dir to tmp
-                APP_PATHS.__dict__["app_dir"] = (
-                    Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
-                )
-                APP_PATHS.__dict__["user_dir"] = tmp_path
+            result = runner.invoke(app, ["init"])
+            assert result.exit_code == 0
+            assert "Copied" in result.stdout
 
-                result = runner.invoke(app, ["init"])
-                assert result.exit_code == 0
-                assert "Copied" in result.stdout
+            # Check that files were actually copied
+            settings_dir = tmp_path.joinpath("settings")
+            assert settings_dir.exists()
+            assert len(list(settings_dir.iterdir())) > 0
 
-                # Check that files were actually copied
-                settings_dir = tmp_path.joinpath("settings")
-                assert settings_dir.exists()
-                assert len(list(settings_dir.iterdir())) > 0
+            # Verify the copied configuration can be loaded and validated
+            from mko_telebot.core.config import TelepostConfigReader
 
-                # Verify the copied configuration can be loaded and validated
-                from mko_telebot.core.config import TelepostConfigReader
+            reader = TelepostConfigReader.from_user_dir()
+            settings = reader.load()
+            assert settings.channels.channels is not None
 
-                reader = TelepostConfigReader.from_user_dir()
-                settings = reader.load()
-                assert settings.channels.channels is not None
-            finally:
-                APP_PATHS.__dict__["user_dir"] = original_user_dir
-                APP_PATHS.__dict__["app_dir"] = original_app_dir
+    def test_init_skips_existing_without_force(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+            """init without --force should skip existing files."""
+            from mko_telebot.core.paths import APP_PATHS
 
-    def test_init_skips_existing_without_force(self, tmp_path: Path):
-        """init without --force should skip existing files."""
-        from mko_telebot.core.paths import APP_PATHS
-
-        original_user_dir = APP_PATHS.user_dir
-        original_app_dir = APP_PATHS.app_dir
-
-        try:
-            src_dir = (
-                Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
-            )
-            APP_PATHS.__dict__["app_dir"] = src_dir
-            APP_PATHS.__dict__["user_dir"] = tmp_path
+            src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            monkeypatch.setattr(APP_PATHS, "app_dir", src_dir, raising=False)
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
 
             # First init
             runner.invoke(app, ["init"])
@@ -157,23 +134,14 @@ class TestCliInit:
             result = runner.invoke(app, ["init"])
             assert result.exit_code == 0
             assert "Skipped" in result.stdout
-        finally:
-            APP_PATHS.__dict__["user_dir"] = original_user_dir
-            APP_PATHS.__dict__["app_dir"] = original_app_dir
 
-    def test_init_force_overwrites_existing(self, tmp_path: Path):
-        """init --force should overwrite existing files."""
-        from mko_telebot.core.paths import APP_PATHS
+    def test_init_force_overwrites_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+            """init --force should overwrite existing files."""
+            from mko_telebot.core.paths import APP_PATHS
 
-        original_user_dir = APP_PATHS.user_dir
-        original_app_dir = APP_PATHS.app_dir
-
-        try:
-            src_dir = (
-                Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
-            )
-            APP_PATHS.__dict__["app_dir"] = src_dir
-            APP_PATHS.__dict__["user_dir"] = tmp_path
+            src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            monkeypatch.setattr(APP_PATHS, "app_dir", src_dir, raising=False)
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
 
             # First init
             runner.invoke(app, ["init"])
@@ -183,9 +151,6 @@ class TestCliInit:
             assert result.exit_code == 0
             assert "Copied" in result.stdout
             assert "Skipped" not in result.stdout
-        finally:
-            APP_PATHS.__dict__["user_dir"] = original_user_dir
-            APP_PATHS.__dict__["app_dir"] = original_app_dir
 
 # ---------------------------------------------------------------------------
 # run
