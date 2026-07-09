@@ -1,4 +1,4 @@
-﻿---
+---
 id: configuration-guide
 domain: guide
 tags:
@@ -23,11 +23,12 @@ This document describes all configuration files used by mko-telebot: their locat
 
 1. [File Locations & Path Resolution](#file-locations--path-resolution)
 2. [`config.yaml` — Monitoring Configuration](#configyaml--monitoring-configuration)
-3. [`secrets.yaml` — Telethon API Credentials](#secretsyaml--telethon-api-credentials)
-4. [`log_config.yaml` — Logging Configuration](#log_configyaml--logging-configuration)
-5. [SecretStr Handling](#secretstr-handling)
-6. [Validation Rules](#validation-rules)
-7. [Example Files](#example-files)
+3. [Keyword Pattern Syntax](#keyword-pattern-syntax)
+4. [`secrets.yaml` — Telethon API Credentials](#secretsyaml--telethon-api-credentials)
+5. [`log_config.yaml` — Logging Configuration](#log_configyaml--logging-configuration)
+6. [SecretStr Handling](#secretstr-handling)
+7. [Validation Rules](#validation-rules)
+8. [Example Files](#example-files)
 
 ---
 
@@ -102,19 +103,25 @@ This file defines the **CHANNELS** section of the application — which channels
 CHANNELS:
   channels_delay: <int>
   stagger_start_seconds: <int>
+  defaults:
+    scan_interval: <int>
+    history_limit: <int>
+    history_days: <int | null>
+    overlap: <int>
+    forward_to: <list[str]>
+    keywords: <list[str]>
   channels:
-    DEFAULTS:
-      scan_interval: <int>
-      history_limit: <int>
-      history_days: <int | null>
-      overlap: <int>
-      forward_to: <list[str]>
-      keywords: <list[str]>
     <channel_name>:
       ...
 ```
 
-The root key `CHANNELS` maps to `ChannelsConfig` in the Pydantic model. The `DEFAULTS` key inside `channels` is automatically removed during validation and its values applied as defaults — it does **not** represent a real channel.
+The root key `CHANNELS` maps to `ChannelsConfig` in the Pydantic model. Note that `defaults` is a top-level key under `CHANNELS` — it is **not** nested under `channels`. Channel-specific entries go under the `channels` key.
+
+### Defaults Configuration
+
+The `defaults` field provides fallback values for all channels. Each channel inherits these values unless it explicitly overrides a field. The key is `defaults` (lowercase) at the `CHANNELS` level.
+
+If you use the uppercase `DEFAULTS` key inside `channels`, it is automatically removed during validation (handled by the `strip_defaults_from_channels` model validator), but the recommended approach is to use the lowercase `defaults` key at the top level for clarity.
 
 ### Field Reference
 
@@ -125,11 +132,11 @@ The root key `CHANNELS` maps to `ChannelsConfig` in the Pydantic model. The `DEF
 | `channels_delay` | `int` | `30` | Delay in seconds between successive channel scans. Minimum: 1. |
 | `stagger_start_seconds` | `int` | `5` | Stagger offset in seconds to distribute initial scan start times across channels. |
 | `channels` | `dict` | _required_ | Map of channel name → `ChannelConfig`. See below. |
-| `defaults` | `ChannelDefaults` | `{}` | Default settings inherited by every channel. Configurable via `DEFAULTS` key (see ChannelDefaults). |
+| `defaults` | `ChannelDefaults` | `{}` | Default settings inherited by every channel. Configurable via `defaults` key (see ChannelDefaults). |
 
 #### `ChannelDefaults`
 
-Applied to every channel that does not override a given field. Configurable inside the `channels` dict under the special `DEFAULTS` key.
+Applied to every channel that does not override a given field. Configurable as a top-level key under `CHANNELS`.
 
 | Field | Type | Default | Valid Range | Description |
 |-------|------|---------|-------------|-------------|
@@ -142,13 +149,51 @@ Applied to every channel that does not override a given field. Configurable insi
 
 #### `ChannelConfig` (per-channel entry)
 
-Each key inside `channels` (except `DEFAULTS`) defines a monitored channel. All fields from `ChannelDefaults` apply here, plus:
+Each key inside `channels` defines a monitored channel. All fields from `ChannelDefaults` apply here, plus:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | `str` | _required_ | Channel identifier — can be a Telegram @username, a `t.me/...` link, or a numeric chat ID. This field is typically inferred from the dict key, but can be set explicitly for custom display names. |
+| `name` | `str` | _required_ | Channel identifier — can be a Telegram @username, a `t.me/...` link, or a numeric chat ID. This field is typically inferred from the dict key, but can be set explicitly for custom display names. Path traversal characters (`/`, `\`, `..`) are rejected for security. |
 
-All other fields (`scan_interval`, `history_limit`, `history_days`, `overlap`, `forward_to`, `keywords`) default to the values set in `DEFAULTS` if not explicitly overridden.
+All other fields (`scan_interval`, `history_limit`, `history_days`, `overlap`, `forward_to`, `keywords`) default to the values set in `defaults` if not explicitly overridden.
+
+---
+
+## Keyword Pattern Syntax
+
+The keyword filtering system supports a flexible pattern syntax for matching messages. Keywords are evaluated using the `PatternParser` engine.
+
+### Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `|` | OR — matches either side | `(barcelona | барселона)` matches "barcelona" OR "барселона" |
+| `-` | Exclusion — excludes matches | `-rent*` excludes messages containing words starting with "rent" |
+| `()` | Grouping — groups subexpressions | `(bike* | велосипед)` groups OR alternatives |
+| `*` | Wildcard — matches any non-space characters | `bike*` matches "bike", "biker", "bicycle" but not "bike rental" |
+
+### Pattern Types
+
+| Pattern Type | Behavior | Example |
+|--------------|----------|---------|
+| Exact match | Whole word match with word boundaries | `alert` matches "alert" but not "alerts" |
+| Wildcard | `*` matches non-space characters | `bike*` matches "bike", "biker", "bicycle" |
+| Sequence (implicit) | Space-separated terms act as AND | `barcelona bicycle` requires both terms present |
+| OR expression | Pipe-separated alternatives act as OR | `barcelona|барселона` matches either |
+
+### Evaluation Semantics
+
+1. **Exclusions first**: Any exclusion pattern matching the text causes the whole expression to fail (returns `False`).
+2. **Inclusions next**: All inclusion patterns must have their required patterns found in the text (unordered).
+3. **Empty expression**: An empty keyword string or `null` returns `False` (no match).
+
+### Example Patterns
+
+```text
+(barcelona | барселона) (bicycle | bike | велосипед) -rent* -repair* -service*
+```
+
+This matches messages containing "Barcelona" AND "bicycle" (in English or Russian), but excludes posts about rentals, repairs, or services.
 
 ---
 
@@ -183,7 +228,7 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 |-------|------|---------|-------------|
 | `is_user` | `bool` | `true` | `true` = authenticate as a user account (phone-based auth). `false` = authenticate as a bot (bot token auth). |
 | `phone_or_token` | `str` (SecretStr) | _required_ | Phone number with country code (e.g. `+79123456789`) for user accounts, or bot token (e.g. `123456:ABC-DEF1234...`) for bots. Stored as a SecretStr — see [SecretStr Handling](#secretstr-handling). Minimum length: 5 characters. |
-| `max_retries` | `int` | `5` | Maximum number of retry attempts when sending messages fails. Valid range: 1–20. |
+| `max_retries` | `int` | `5` | Maximum number of retry attempts when sending messages fails. Valid range: 1–20. Implements exponential backoff with jitter. |
 | `client` | `ClientConfig` | _required_ | Telethon client configuration (see below). |
 
 #### `ClientConfig`
@@ -305,7 +350,8 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
    - `ClientConfig` (from `TELETHON_API.client` key)
    - `ChannelsConfig` (from `CHANNELS` key)
 5. **Model validators** run custom checks:
-   - `DEFAULTS` key is removed from the `channels` dict after defaults are applied
+   - Extra fields at any level are rejected (extra="forbid" on all models)
+   - Channel names are validated to prevent path traversal attacks
    - Placeholder values are rejected (see [SecretStr Handling](#secretstr-handling))
 
 ### Common Validation Errors
@@ -319,6 +365,7 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 | `api_hash appears to be a placeholder value` | `api_hash` value starts with `YOUR_` |
 | `api_id value 12345 is a template placeholder` | `api_id` is still the template value |
 | `phone_or_token appears to be a placeholder value` | `phone_or_token` value starts with `YOUR_` |
+| `Invalid channel name: contains forbidden path character` | Channel name contains `/`, `\`, or `..` |
 
 ---
 
@@ -330,14 +377,14 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 CHANNELS:
   channels_delay: 30
   stagger_start_seconds: 5
-  channels:
-    DEFAULTS:
-      scan_interval: 420
-      history_limit: 50
-      history_days: 2
-      overlap: 5
-      forward_to: []
-      keywords: []
+  defaults:
+    scan_interval: 420
+    history_limit: 50
+    history_days: 2
+    overlap: 5
+    forward_to: []
+    keywords: []
+  channels: {}
 ```
 
 ### Full `config.yaml` with Multiple Channels
@@ -346,29 +393,28 @@ CHANNELS:
 CHANNELS:
   channels_delay: 30
   stagger_start_seconds: 5
-  channels:
-    DEFAULTS:
-      scan_interval: 420
-      history_limit: 50
-      history_days: 2
-      overlap: 5
-      forward_to: []
-      keywords: []
+  defaults:
+    scan_interval: 420
+    history_limit: 50
+    history_days: 2
+    overlap: 5
+    forward_to: []
+    keywords: []
 
-    my_channel:
-      name: "@my_channel"
-      scan_interval: 300
-      keywords:
-        - "alert"
-        - "important"
-      forward_to:
-        - "@admin_chat"
+  my_channel:
+    name: "@my_channel"
+    scan_interval: 300
+    keywords:
+      - "alert"
+      - "important"
+    forward_to:
+      - "@admin_chat"
 
-    another_channel:
-      name: "https://t.me/another_channel"
-      history_days: 7
-      forward_to:
-        - 123456789
+  another_channel:
+    name: "https://t.me/another_channel"
+    history_days: 7
+    forward_to:
+      - 123456789
 ```
 
 ### Minimal `secrets.yaml`
@@ -376,14 +422,10 @@ CHANNELS:
 ```yaml
 TELETHON_API:
   is_user: true
-  phone_or_token: "+79123456789"
-  max_retries: 5
+  phone_or_token: "PLACEHOLDER_REPLACE_ME"
   client:
-    session: "my_session"
-    api_id: 12345
-    api_hash: "your_actual_api_hash_here"
-    device_model: null
-    system_version: null
+    api_id: 1
+    api_hash: "PLACEHOLDER_REPLACE_ME"
     system_lang_code: "en-US"
     lang_code: "ru"
 ```
@@ -416,8 +458,6 @@ TELETHON_API:
     session: "my_bot_session"
     api_id: 123456
     api_hash: "0123456789abcdef0123456789abcdef"
-    device_model: null
-    system_version: null
     system_lang_code: "en-US"
     lang_code: "ru"
 ```

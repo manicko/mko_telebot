@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Agent Guidelines
 
-CLI tool for publishing content from Google Sheets to Telegram. Python 3.14+, Typer, Pydantic v2, Telethon, uv.
+CLI tool **Telegram classified monitor** designed to track messages with customizable **keyword filters**, automatically **forward** relevant posts, and include **source links** and **sender usernames** when availabl
 
 ## Commands
 
