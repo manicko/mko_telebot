@@ -13,9 +13,6 @@ from pathlib import Path
 
 from platformdirs import user_config_dir
 from pydantic import BaseModel, ConfigDict
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Package name derived from package hierarchy
 APP_NAME: str = (__package__ or "").split(".")[0]
