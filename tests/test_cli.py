@@ -160,25 +160,18 @@ class TestCliInit:
 class TestCliRun:
     """Tests for the run command error paths."""
 
-    def test_run_missing_config_exits_1(self, tmp_path: Path):
+    def test_run_missing_config_exits_1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """run should exit code 1 when config files are missing."""
         from mko_telebot.core.paths import APP_PATHS
 
-        original_user_dir = APP_PATHS.user_dir
-        original_app_dir = APP_PATHS.app_dir
+        monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+        monkeypatch.setattr(APP_PATHS, "app_dir", tmp_path, raising=False)
 
-        try:
-            APP_PATHS.__dict__["user_dir"] = tmp_path
-            APP_PATHS.__dict__["app_dir"] = tmp_path
+        result = runner.invoke(app, ["run"])
+        assert result.exit_code == 1
+        assert "Configuration error" in result.stdout
 
-            result = runner.invoke(app, ["run"])
-            assert result.exit_code == 1
-            assert "Configuration error" in result.stdout
-        finally:
-            APP_PATHS.__dict__["user_dir"] = original_user_dir
-            APP_PATHS.__dict__["app_dir"] = original_app_dir
-
-    def test_run_invalid_secrets_exits_1(self, tmp_path: Path):
+    def test_run_invalid_secrets_exits_1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """run should exit code 1 when secrets file has invalid content."""
         import yaml
 
@@ -209,16 +202,9 @@ class TestCliRun:
         with (settings_dir / "secrets.yaml").open("w", encoding="utf-8") as f:
             yaml.dump(secrets_data, f)
 
-        original_user_dir = APP_PATHS.user_dir
-        original_app_dir = APP_PATHS.app_dir
+        monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+        monkeypatch.setattr(APP_PATHS, "app_dir", tmp_path, raising=False)
 
-        try:
-            APP_PATHS.__dict__["user_dir"] = tmp_path
-            APP_PATHS.__dict__["app_dir"] = tmp_path
-
-            result = runner.invoke(app, ["run"])
-            assert result.exit_code == 1
-            assert "Configuration error" in result.stdout
-        finally:
-            APP_PATHS.__dict__["user_dir"] = original_user_dir
-            APP_PATHS.__dict__["app_dir"] = original_app_dir
+        result = runner.invoke(app, ["run"])
+        assert result.exit_code == 1
+        assert "Configuration error" in result.stdout
