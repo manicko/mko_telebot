@@ -68,7 +68,7 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
         return False
 
 
-def build_message_link(msg):
+def build_message_link(msg) -> str | None:
     """Build a Telegram t.me link to the message if possible.
 
     Args:
