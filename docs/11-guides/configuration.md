@@ -101,10 +101,10 @@ This file defines the **CHANNELS** section of the application — which channels
 ```yaml
 CHANNELS:
   channels_delay: <int>
+  stagger_start_seconds: <int>
   channels:
     DEFAULTS:
       scan_interval: <int>
-      stagger_start_seconds: <int>
       history_limit: <int>
       history_days: <int | null>
       overlap: <int>
@@ -114,15 +114,16 @@ CHANNELS:
       ...
 ```
 
-The root key `CHANNELS` maps to `ChatsConfig` in the Pydantic model. The `DEFAULTS` key inside `channels` is automatically removed during validation and its values applied as defaults — it does **not** represent a real channel.
+The root key `CHANNELS` maps to `ChannelsConfig` in the Pydantic model. The `DEFAULTS` key inside `channels` is automatically removed during validation and its values applied as defaults — it does **not** represent a real channel.
 
 ### Field Reference
 
-#### `ChatsConfig` (top-level monitoring)
+#### `ChannelsConfig` (top-level monitoring)
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `channels_delay` | `int` | `30` | Delay in seconds between successive channel scans. Minimum: 1. |
+| `stagger_start_seconds` | `int` | `5` | Stagger offset in seconds to distribute initial scan start times across channels. |
 | `channels` | `dict` | _required_ | Map of channel name → `ChannelConfig`. See below. |
 | `defaults` | `ChannelDefaults` | `{}` | Default settings inherited by every channel. Configurable via `DEFAULTS` key (see ChannelDefaults). |
 
@@ -133,7 +134,6 @@ Applied to every channel that does not override a given field. Configurable insi
 | Field | Type | Default | Valid Range | Description |
 |-------|------|---------|-------------|-------------|
 | `scan_interval` | `int` | `420` | ≥ 60 | Interval in seconds between scanning the channel for new messages. |
-| `stagger_start_seconds` | `int` | `5` | ≥ 0 | Stagger offset in seconds to distribute initial scan start times across channels. |
 | `history_limit` | `int` | `50` | ≥ 1 | Maximum number of historical messages to fetch on first scan. |
 | `history_days` | `int` or `null` | `null` | any positive int | Number of days of historical messages to fetch. `null` means no day-based limit. |
 | `overlap` | `int` | `5` | ≥ 1 | Number of overlapping messages between consecutive scans — avoids gaps from messages arriving during a scan. |
@@ -303,7 +303,7 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 4. **Pydantic validation** — the merged dict is validated against `TelepostSettings`, which recursively validates:
    - `TelethonConfig` (from `TELETHON_API` key)
    - `ClientConfig` (from `TELETHON_API.client` key)
-   - `ChatsConfig` (from `CHANNELS` key)
+   - `ChannelsConfig` (from `CHANNELS` key)
 5. **Model validators** run custom checks:
    - `DEFAULTS` key is removed from the `channels` dict after defaults are applied
    - Placeholder values are rejected (see [SecretStr Handling](#secretstr-handling))
@@ -329,10 +329,10 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 ```yaml
 CHANNELS:
   channels_delay: 30
+  stagger_start_seconds: 5
   channels:
     DEFAULTS:
       scan_interval: 420
-      stagger_start_seconds: 5
       history_limit: 50
       history_days: 2
       overlap: 5
@@ -345,10 +345,10 @@ CHANNELS:
 ```yaml
 CHANNELS:
   channels_delay: 30
+  stagger_start_seconds: 5
   channels:
     DEFAULTS:
       scan_interval: 420
-      stagger_start_seconds: 5
       history_limit: 50
       history_days: 2
       overlap: 5
