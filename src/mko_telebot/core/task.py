@@ -58,7 +58,7 @@ class Task:
             self.last_msg_id = last_msg_id or 0
             self.overlap = config.overlap
 
-    async def resolve_targets_entities(self, client):
+    async def resolve_targets_entities(self, client) -> None:
         """Resolve each forward target to a Telethon entity and store them."""
         self.forward_to_entities = []
         for ent in self.forward_to:
@@ -75,7 +75,7 @@ class Task:
                     f"Failed to resolve entity for target {ent}"
                 ) from e
 
-    async def resolve_channel_entity(self, client):
+    async def resolve_channel_entity(self, client) -> None:
         """Resolve channel_name to a Telethon channel entity."""
         try:
             self.channel_entity = await client.get_entity(self.channel_name)
@@ -87,7 +87,7 @@ class Task:
                 f"Failed to resolve entity for channel {self.channel_name}"
             ) from e
 
-    def resolve_state_file(self):
+    def resolve_state_file(self) -> None:
         """Determine and create (if needed) the path to the state file for this channel."""
         self.state_file = state_dir / f"{self.channel_name}.json"
         try:
@@ -122,7 +122,7 @@ class Task:
         return self.offset_date
 
     # ===== State persistence functions =====
-    async def load_state(self):
+    async def load_state(self) -> None:
         """Load the last processed message id from the state file (if it exists)."""
         if self.state_file and self.state_file.exists():
             try:
@@ -143,7 +143,7 @@ class Task:
         else:
             logger.debug(f"No saved state for {self.channel_name}, starting fresh")
 
-    async def save_state(self):
+    async def save_state(self) -> None:
         """Persist current last_msg_id to the state file."""
         try:
             async with aiofiles.open(str(self.state_file), "w", encoding="utf-8") as f:
