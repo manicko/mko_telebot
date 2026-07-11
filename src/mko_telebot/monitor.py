@@ -115,32 +115,19 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
 def build_message_link(msg: Message) -> str | None:
     """Build a Telegram t.me link to the message if possible.
 
-
-
     Args:
-
         msg: telethon.tl.custom.message.Message
 
-
-
     Returns:
-
         URL like 'https://t.me/username/123' or None.
 
     """
+    chat = getattr(msg, "chat", None)
 
-    try:
-        chat = getattr(msg, "chat", None)
+    if chat and getattr(chat, "username", None):
+        return f"https://t.me/{chat.username}/{msg.id}"
 
-        if chat and getattr(chat, "username", None):
-            return f"https://t.me/{chat.username}/{msg.id}"
-
-        return None
-
-    except TelegramServiceError as e:
-        logger.exception(f"Error while building message link: {e}")
-
-        return None
+    return None
 
 
 async def build_sender_tag(msg: Message) -> str:
@@ -296,46 +283,32 @@ async def process_messages(
 ) -> None:
     """Process messages, group albums, check keywords, and forward matches.
 
-
-
     Args:
-
         messages (list[telethon.tl.custom.message.Message]): List of Telethon messages.
-
         task (Task): Task object with configuration for a specific channel.
-
         client (TelegramClient): The Telethon client instance.
-
         settings (TelepostSettings): Application settings.
 
     """
-
     if not messages:
         return
 
     msg_content = {}
 
     for msg in messages:
-        try:
-            group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
+        group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
 
-            if group_id not in msg_content:
-                msg_content[group_id] = {"msg": msg, "text": [], "media": []}
+        if group_id not in msg_content:
+            msg_content[group_id] = {"msg": msg, "text": [], "media": []}
 
-            if getattr(msg, "message", None):
-                msg_content[group_id]["text"].append(msg.message)
+        if getattr(msg, "message", None):
+            msg_content[group_id]["text"].append(msg.message)
 
-            if getattr(msg, "media", None):
-                if getattr(msg.media, "caption", None):
-                    msg_content[group_id]["text"].append(msg.media.caption)
+        if getattr(msg, "media", None):
+            if getattr(msg.media, "caption", None):
+                msg_content[group_id]["text"].append(msg.media.caption)
 
-                msg_content[group_id]["media"].append(msg.media)
-
-        except TelegramServiceError as e:
-            logger.exception(
-                f"Error processing message {getattr(msg, 'id', None)} "
-                f"from {task.channel_name}: {e}"
-            )
+            msg_content[group_id]["media"].append(msg.media)
 
     for album_id, content in msg_content.items():
         msg_text = "\n".join(content.get("text", []))
