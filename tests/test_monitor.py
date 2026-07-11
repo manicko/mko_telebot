@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
 from mko_telebot.monitor import (
@@ -22,7 +24,6 @@ from mko_telebot.monitor import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 
 def _make_msg_stub(
     msg_id: int, text: str = "", grouped_id: int | None = None, has_media: bool = False
@@ -53,7 +54,6 @@ def _make_msg_with_link(msg_id: int, username: str) -> MagicMock:
 # Fixtures
 # ---------------------------------------------------------------------------
 
-
 @pytest.fixture
 def mock_client() -> MagicMock:
     """Create a mock Telethon client with async method stubs."""
@@ -73,11 +73,21 @@ def mock_settings() -> MagicMock:
     settings.telethon.is_user = True
     settings.telethon.phone_or_token.get_secret_value.return_value = "+1234567890"
     settings.telethon.max_retries = 3
-    settings.telethon.client.model_dump.return_value = {
-        "api_id": 123456,
-        "api_hash": "test_hash_abcdef123456",
-        "session": "test_session",
-    }
+
+    def mock_model_dump(mode: str | None = None) -> dict[str, Any]:
+        """Mock model_dump that serializes SecretStr when mode='json'."""
+        result: dict[str, Any] = {
+            "api_id": 123456,
+            "api_hash": SecretStr("test_hash_abcdef123456") if mode == "json" else "test_hash_abcdef123456",
+            "session": "test_session",
+        }
+        if mode == "json":
+            result["api_hash"] = result["api_hash"].get_secret_value() if isinstance(
+                result["api_hash"], SecretStr
+            ) else result["api_hash"]
+        return result
+
+    settings.telethon.client.model_dump.side_effect = mock_model_dump
     return settings
 
 
@@ -98,7 +108,6 @@ def mock_task() -> MagicMock:
 # ---------------------------------------------------------------------------
 # create_client
 # ---------------------------------------------------------------------------
-
 
 class TestCreateClient:
     """Tests for create_client()."""
@@ -167,11 +176,57 @@ class TestCreateClient:
         assert kwargs["api_id"] == 999888
         assert kwargs["api_hash"] == "test_hash_value"
 
+    def test_unwraps_secretstr_api_hash(self) -> None:
+        """create_client() should unwrap SecretStr api_hash using mode='json'."""
+        with (
+            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+        ):
+            mock_paths.session_dir = Path("/tmp/sessions")
+            settings = MagicMock()
+
+            def model_dump_json(mode: str | None = None) -> dict[str, Any]:
+                result: dict[str, Any] = {
+                    "api_id": 111222,
+                    "api_hash": SecretStr("real_secret_hash_value"),
+                    "session": "secret_session",
+                }
+                if mode == "json":
+                    result["api_hash"] = result["api_hash"].get_secret_value()
+                return result
+
+            settings.telethon.client.model_dump.side_effect = model_dump_json
+            create_client(settings)
+
+        mock_tc.assert_called_once()
+        _, kwargs = mock_tc.call_args
+        # api_hash should be a plain string, not a SecretStr object
+        assert kwargs["api_hash"] == "real_secret_hash_value"
+        assert isinstance(kwargs["api_hash"], str)
+
+    def test_calls_model_dump_with_json_mode(self) -> None:
+        """create_client() should call model_dump with mode='json' for SecretStr serialization."""
+        with (
+            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+        ):
+            mock_paths.session_dir = Path("/tmp/sessions")
+            settings = MagicMock()
+
+            def model_dump_json(mode: str | None = None) -> dict[str, Any]:
+                return {"api_id": 111222, "api_hash": "hash", "session": "s"}
+
+            settings.telethon.client.model_dump.side_effect = model_dump_json
+            create_client(settings)
+
+        mock_tc.assert_called_once()
+        # Verify model_dump was called with mode='json'
+        settings.telethon.client.model_dump.assert_called_once_with(mode="json")
+
 
 # ---------------------------------------------------------------------------
 # start_client
 # ---------------------------------------------------------------------------
-
 
 class TestStartClient:
     """Tests for start_client()."""
@@ -215,7 +270,6 @@ class TestStartClient:
 # build_message_link
 # ---------------------------------------------------------------------------
 
-
 class TestBuildMessageLink:
     """Tests for build_message_link()."""
 
@@ -252,7 +306,6 @@ class TestBuildMessageLink:
 # ---------------------------------------------------------------------------
 # build_sender_tag
 # ---------------------------------------------------------------------------
-
 
 class TestBuildSenderTag:
     """Tests for build_sender_tag()."""
@@ -306,7 +359,6 @@ class TestBuildSenderTag:
 # ---------------------------------------------------------------------------
 # forward_to_users
 # ---------------------------------------------------------------------------
-
 
 class TestForwardToUsers:
     """Tests for forward_to_users()."""
@@ -402,7 +454,6 @@ class TestForwardToUsers:
 # ---------------------------------------------------------------------------
 # process_messages
 # ---------------------------------------------------------------------------
-
 
 class TestProcessMessages:
     """Tests for process_messages()."""

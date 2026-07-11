@@ -42,17 +42,11 @@ logger = logging.getLogger(__name__)
 def create_client(settings: TelepostSettings) -> TelegramClient:
     """Create a Telethon client from settings.
 
-
-
     Session files are stored in APP_PATHS.session_dir.
-
-
 
     Args:
 
         settings: Application settings with Telethon configuration.
-
-
 
     Returns:
 
@@ -60,7 +54,7 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
 
     """
 
-    client_config = settings.telethon.client.model_dump()
+    client_config = settings.telethon.client.model_dump(mode='json')
 
     session = client_config.get("session", "first_session")
 
