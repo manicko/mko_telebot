@@ -24,11 +24,12 @@ This document describes all configuration files used by mko-telebot: their locat
 1. [File Locations & Path Resolution](#file-locations--path-resolution)
 2. [`config.yaml` — Monitoring Configuration](#configyaml--monitoring-configuration)
 3. [Keyword Pattern Syntax](#keyword-pattern-syntax)
-4. [`secrets.yaml` — Telethon API Credentials](#secretsyaml--telethon-api-credentials)
-5. [`log_config.yaml` — Logging Configuration](#log_configyaml--logging-configuration)
-6. [SecretStr Handling](#secretstr-handling)
-7. [Validation Rules](#validation-rules)
-8. [Example Files](#example-files)
+4. [`telethon_config.yaml` — Telethon API Credentials](#telethon_configyaml--telethon-api-credentials)
+5. [Proxy Configuration](#proxy-configuration)
+6. [`log_config.yaml` — Logging Configuration](#log_configyaml--logging-configuration)
+7. [SecretStr Handling](#secretstr-handling)
+8. [Validation Rules](#validation-rules)
+9. [Example Files](#example-files)
 
 ---
 
@@ -41,7 +42,7 @@ The application ships with default config files inside the package at:
 ```
 src/mko_telebot/settings/
 ├── config.yaml
-├── secrets.yaml
+├── telethon_config.yaml
 └── log_config.yaml
 ```
 
@@ -63,7 +64,7 @@ The application creates the following subdirectory structure:
 <mko_telebot_user_dir>/
 ├── settings/
 │   ├── config.yaml          ← User overrides for monitoring
-│   ├── secrets.yaml         ← Telethon credentials (sensitive)
+│   ├── telethon_config.yaml ← Telethon credentials (sensitive)
 │   ├── log_config.yaml      ← Logging configuration
 │   ├── state/               ← Persistent application state
 │   └── sessions/            ← Telethon session files
@@ -88,7 +89,7 @@ The `TelepostConfigReader.from_user_dir()` factory method automatically sets up 
 | Property | Default Path |
 |----------|-------------|
 | `config_path` | `<user_dir>/config.yaml` |
-| `secrets_path` | `<user_dir>/secrets.yaml` |
+| `telethon_config_path` | `<user_dir>/telethon_config.yaml` |
 | `log_config_path` | `<user_dir>/log_config.yaml` |
 
 ---
@@ -197,7 +198,7 @@ This matches messages containing "Barcelona" AND "bicycle" (in English or Russia
 
 ---
 
-## `secrets.yaml` — Telethon API Credentials
+## `telethon_config.yaml` — Telethon API Credentials
 
 This file holds the **TELETHON_API** section — credentials needed to connect to Telegram via the Telethon library.
 
@@ -212,10 +213,18 @@ TELETHON_API:
     session: "<str>"
     api_id: <int>
     api_hash: "<str>"
+    app_version: "<str>"
     device_model: "<str>"
     system_version: "<str>"
     system_lang_code: "<str>"
     lang_code: "<str>"
+    proxy:
+      proxy_type: "<str>"
+      addr: "<str>"
+      port: <int>
+      username: "<str>"
+      password: "<str>"
+      rdns: <bool>
 ```
 
 The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
@@ -242,6 +251,49 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 | `system_version` | `str` or `null` | `null` | System version string sent to Telegram (optional). Values starting with `YOUR_` are rejected. |
 | `system_lang_code` | `str` or `null` | `null` | System language code (e.g. `en-US`). |
 | `lang_code` | `str` or `null` | `null` | Telegram interface language code (e.g. `ru`). |
+| `app_version` | `str` or `null` | `null` | Application version string sent to Telegram (optional). |
+| `proxy` | `dict` or `null` | `null` | Proxy configuration for Telethon SOCKS5 proxy. Requires `proxy_type`, `addr`, `port`. Optional: `username`, `password`, `rdns`. See [Proxy Configuration](#proxy-configuration). |
+
+---
+
+### Proxy Configuration
+
+Telethon supports SOCKS4, SOCKS5, and HTTP proxies via the `proxy` field in `ClientConfig`. Requires `python-socks[asyncio]` package (optional dependency available via `pip install -e ".[proxy]"`).
+
+#### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `proxy_type` | `str` | Proxy type: `"socks5"`, `"socks4"`, or `"http"` |
+| `addr` | `str` | Proxy server IP address or hostname (non-empty) |
+| `port` | `int` | Proxy server port (1-65535) |
+
+#### Optional Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `username` | `str` | Authentication username (if required) |
+| `password` | `str` | Authentication password (if required) |
+| `rdns` | `bool` | Remote DNS resolution (SOCKS5 only, default: `true`) |
+
+#### SOCKS5 Example
+
+```yaml
+TELETHON_API:
+  client:
+    proxy:
+      proxy_type: "socks5"
+      addr: "127.0.0.1"
+      port: 1080
+      username: "user"
+      password: "pass"
+```
+
+#### Installation
+
+```bash
+uv pip install -e ".[proxy]"
+```
 
 ---
 
@@ -315,8 +367,8 @@ Sensitive fields use Pydantic's [`SecretStr`](https://docs.pydantic.dev/latest/c
 
 | Field | Location | Purpose |
 |-------|----------|---------|
-| `phone_or_token` | `secrets.yaml` → `TELETHON_API.phone_or_token` | Phone number or bot token |
-| `api_hash` | `secrets.yaml` → `TELETHON_API.client.api_hash` | Telegram API hash |
+| `phone_or_token` | `telethon_config.yaml` → `TELETHON_API.phone_or_token` | Phone number or bot token |
+| `api_hash` | `telethon_config.yaml` → `TELETHON_API.client.api_hash` | Telegram API hash |
 
 ### How SecretStr Works
 
@@ -342,9 +394,9 @@ If any field fails validation, a `ConfigError` with a descriptive message is rai
 
 The configuration is validated against Pydantic v2 models when `TelepostConfigReader.load()` is called. The validation pipeline:
 
-1. **Required files check** — both `config.yaml` and `secrets.yaml` must exist.
+1. **Required files check** — both `config.yaml` and `telethon_config.yaml` must exist.
 2. **YAML parsing** — both files are parsed with `yaml.safe_load()`. Malformed YAML raises `ConfigError`.
-3. **Deep merge** — `secrets.yaml` is merged into `config.yaml` (secrets values win on conflict).
+3. **Deep merge** — `telethon_config.yaml` is merged into `config.yaml` (telethon values win on conflict).
 4. **Pydantic validation** — the merged dict is validated against `TelepostSettings`, which recursively validates:
    - `TelethonConfig` (from `TELETHON_API` key)
    - `ClientConfig` (from `TELETHON_API.client` key)
@@ -359,7 +411,7 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 | Error | Cause |
 |-------|-------|
 | `Required config file not found` | Missing `config.yaml` in user settings dir |
-| `Required secrets file not found` | Missing `secrets.yaml` in user settings dir |
+| `Required telethon config file not found` | Missing `telethon_config.yaml` in user settings dir |
 | `Configuration file not found` | Missing file at the specified path |
 | `Malformed YAML in configuration file` | Syntax error in YAML |
 | `api_hash appears to be a placeholder value` | `api_hash` value starts with `YOUR_` |
@@ -417,7 +469,7 @@ CHANNELS:
       - 123456789
 ```
 
-### Minimal `secrets.yaml`
+### Minimal `telethon_config.yaml`
 
 ```yaml
 TELETHON_API:
@@ -430,7 +482,7 @@ TELETHON_API:
     lang_code: "ru"
 ```
 
-### Full `secrets.yaml` (User Account)
+### Full `telethon_config.yaml` (User Account)
 
 ```yaml
 TELETHON_API:
@@ -447,7 +499,7 @@ TELETHON_API:
     lang_code: "ru"
 ```
 
-### Full `secrets.yaml` (Bot)
+### Full `telethon_config.yaml` (Bot)
 
 ```yaml
 TELETHON_API:
