@@ -96,9 +96,12 @@ def run() -> None:
     client = create_client(settings)
     try:
         asyncio.run(run_monitor(settings, client))
-    except (MkoTelebotError, KeyboardInterrupt):
-        console.print("[red]Error:[/red] Failed to run monitor")
-        raise typer.Exit(code=1) from None
+    except KeyboardInterrupt:
+        console.print("[yellow]Shutdown requested[/yellow]")
+        raise typer.Exit(code=0) from None
+    except MkoTelebotError as e:
+        console.print(f"[red]Error:[/red] Failed to run monitor - {e}")
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
