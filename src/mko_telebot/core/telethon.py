@@ -39,7 +39,7 @@ class ClientConfig(BaseModel):
     def validate_api_hash(cls, v: SecretStr) -> SecretStr:
         """Reject placeholder values for api_hash."""
         value = v.get_secret_value()
-        if value.startswith("YOUR_"):
+        if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
             raise ValueError(
                 "api_hash appears to be a placeholder value. Replace with your actual value."
             )
@@ -49,7 +49,7 @@ class ClientConfig(BaseModel):
     @classmethod
     def validate_not_placeholder(cls, v: str | None) -> str | None:
         """Reject placeholder values for credential fields."""
-        if v is not None and v.startswith("YOUR_"):
+        if v is not None and (v.startswith("YOUR_") or v.startswith("PLACEHOLDER_")):
             raise ValueError(
                 f"{v} appears to be a placeholder value. Replace with your actual value."
             )
@@ -92,7 +92,7 @@ class TelethonConfig(BaseModel):
     def validate_phone_or_token(cls, v: SecretStr) -> SecretStr:
         """Reject placeholder values for phone_or_token."""
         value = v.get_secret_value()
-        if value.startswith("YOUR_"):
+        if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
             raise ValueError(
                 "phone_or_token appears to be a placeholder value. "
                 "Replace with your phone number or bot token."

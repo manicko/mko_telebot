@@ -422,6 +422,11 @@ class TestValidators:
                 id="rejects_placeholder_api_hash",
             ),
             pytest.param(
+                {"api_hash": "PLACEHOLDER_API_HASH"},
+                "placeholder",
+                id="rejects_placeholder_prefix_api_hash",
+            ),
+            pytest.param(
                 {"api_id": 12345},
                 "template placeholder",
                 id="rejects_template_api_id",
@@ -448,6 +453,25 @@ class TestValidators:
                 is_user=True,
                 phone_or_token="YOUR_PHONE",
                 client=valid_client,
+            )
+
+    def test_rejects_placeholder_prefix_phone_or_token(self) -> None:
+        """TelethonConfig should reject PLACEHOLDER_ prefix phone_or_token."""
+        valid_client = ClientConfig(api_id=123456, api_hash="a" * 32)
+        with pytest.raises(ValueError, match="placeholder"):
+            TelethonConfig(
+                is_user=True,
+                phone_or_token="PLACEHOLDER_PHONE",
+                client=valid_client,
+            )
+
+    def test_rejects_placeholder_prefix_session(self) -> None:
+        """ClientConfig should reject PLACEHOLDER_ prefix in session field."""
+        with pytest.raises(ValueError, match="placeholder"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                session="PLACEHOLDER_SESSION",
             )
 
     def test_defaults_stripping(self) -> None:
