@@ -50,7 +50,22 @@ validated: yes
 - Runtime verification: `model_dump()` returns `{'api_hash': SecretStr('**********')}` with type `<class 'pydantic.types.SecretStr'>`
 - Tests in `tests/test_monitor.py:76-80` mock `model_dump.return_value` with plain string `"test_hash_abcdef123456"` instead of SecretStr, masking the actual runtime issue
 
-**Recommendation:** Convert SecretStr to string when passing to TelegramClient using `.get_secret_value()`. Either add explicit handling in `create_client()` or use `model_dump(mode='json')` which serializes SecretStr to its value. Effort: small.
+**Recommendation:** In `monitor.py` lines 35-46, convert SecretStr to string before passing to TelegramClient:
+
+```python
+# Change line 35-46:
+def create_client(settings: TelepostSettings) -> TelegramClient:
+    client_config = settings.telethon.client.model_dump()
+    # Add: Convert SecretStr api_hash to string
+    if "api_hash" in client_config:
+        client_config["api_hash"] = client_config["api_hash"].get_secret_value()
+    # ... rest of function
+```
+
+OR use `model_dump(mode='json')` which serializes SecretStr automatically:
+```python
+client_config = settings.telethon.client.model_dump(mode='json')
+```
 
 ---
 
@@ -71,7 +86,22 @@ validated: yes
 - `src/mko_telebot/cli.py:88-101` - `run()` command calls `run_monitor()` within try/except but no cleanup hook
 - Audit spec line 86 requires "The Telegram client is properly started and stopped (`async with client.start()`)"
 
-**Recommendation:** Wrap client usage in try/finally block and call `await client.disconnect()` on exit, or use async context manager pattern. Effort: small.
+**Recommendation:** In `monitor.py` lines 346-356, wrap client lifecycle with try/finally and explicit disconnect:
+
+```python
+async def run_monitor(settings: TelepostSettings, client: TelegramClient):
+    """Run the monitoring system."""
+    if await start_client(client, settings):
+        queue: asyncio.Queue[Task] = asyncio.Queue()
+        lock: asyncio.Lock = asyncio.Lock()
+        try:
+            await main_loop(settings, client, queue, lock)
+        finally:
+            await client.disconnect()
+            logger.info("Telethon client disconnected.")
+```
+
+This ensures cleanup on KeyboardInterrupt or any error exit path.
 
 ---
 

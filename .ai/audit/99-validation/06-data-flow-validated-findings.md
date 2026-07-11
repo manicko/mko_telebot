@@ -53,7 +53,18 @@ validated: yes
 - `monitor.py:37-44` - Session string is manually extracted and converted, but `api_hash` is not
 - `test_monitor.py:76-80` - mock `model_dump.return_value` uses plain string `"test_hash_abcdef123456"` instead of SecretStr
 
-**Recommendation:** Convert SecretStr to its string value in `create_client()`. Either call `get_secret_value()` on the api_hash field after model_dump, or use `model_dump(mode='json')` which serializes SecretStr values. Effort: small.
+**Recommendation:** In `monitor.py` lines 35-46, convert SecretStr api_hash to its string value:
+
+```python
+def create_client(settings: TelepostSettings) -> TelegramClient:
+    client_config = settings.telethon.client.model_dump()
+    # Add this line after model_dump to unwrap SecretStr:
+    if "api_hash" in client_config:
+        client_config["api_hash"] = client_config["api_hash"].get_secret_value()
+    # ... rest of function unchanged
+```
+
+This is the same fix as INT-002 (use `model_dump(mode='json')` or explicit `.get_secret_value()` call).
 
 > **Validation Note:**
 > - **Action:** validated
@@ -79,7 +90,22 @@ validated: yes
 - `cli.py:96-101` - The outer try/except catches `KeyboardInterrupt` but has no cleanup hook for client disconnection
 - The Telethon client remains connected after `main_loop()` exits, leaving orphaned sessions
 
-**Recommendation:** Wrap client lifecycle in try/finally block and call `await client.disconnect()` on exit. Effort: small.
+**Recommendation:** In `monitor.py` lines 346-356, add try/finally for client cleanup:
+
+```python
+async def run_monitor(settings: TelepostSettings, client: TelegramClient):
+    """Run the monitoring system."""
+    try:
+        if await start_client(client, settings):
+            queue: asyncio.Queue[Task] = asyncio.Queue()
+            lock: asyncio.Lock = asyncio.Lock()
+            await main_loop(settings, client, queue, lock)
+    finally:
+        await client.disconnect()
+        logger.info("Telethon client disconnected.")
+```
+
+This ensures `client.disconnect()` is called even on KeyboardInterrupt, preventing orphaned sessions.
 
 > **Validation Note:**
 > - **Action:** validated

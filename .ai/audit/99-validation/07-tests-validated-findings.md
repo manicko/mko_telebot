@@ -30,7 +30,7 @@ validated: yes
 
 **Evidence:** `tests/test_monitor.py:415-485` shows `process_messages` tests using `patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock)` and then asserting `mock_forward.assert_awaited_once()` or `mock_forward.assert_not_called()`. The actual `forward_to_users` logic (including caption building, retry logic, and media handling) is never exercised in combination with `process_messages`.
 
-**Recommendation:** Add integration tests that exercise `process_messages` → `forward_to_users` → `client.send_message` without mocking `forward_to_users`, or test `forward_to_users` independently with a real mock client. The current tests provide a false sense of security because they only verify the mock was called, not that the forwarding actually works.
+**Recommendation:** No action required - TST-001 is rejected. The audit specification overstates the testing gap; `forward_to_users` is already extensively tested independently in `TestForwardToUsers` (lines 311-400) with real mock clients. The `process_messages` tests correctly unit-test message grouping and keyword matching in isolation.
 
 > **Rejection reason:** The finding overstates the testing gap. Examination of `tests/test_monitor.py` reveals that `forward_to_users` is extensively tested in `TestForwardToUsers` (lines 311-400) with real mock clients, testing caption building, retry logic on FloodWaitError and RPCError, and media handling. The `process_messages` tests correctly unit-test the message grouping and keyword matching logic in isolation — a standard testing pattern. Integration coverage exists via separate test classes, and mocking the internal helper is appropriate for unit testing. No meaningful gap exists that warrants this finding.
 
@@ -55,7 +55,15 @@ validated: yes
 
 **Evidence:** `grep -r "process_task\|reschedule_task\|process_and_reschedule\|main_loop\|run_monitor" tests/` returns no matches. The audit dimension table in phase 07-audit-tests.md requires tests for TelegramPoster equivalent (monitor), but the main orchestration functions are untested.
 
-**Recommendation:** Add async tests for these functions. At minimum, test that `main_loop` creates tasks correctly, `process_task` handles empty results, and `reschedule_task` applies the correct delay formula. A bug in any of these functions could cause the monitor to fail silently or not process messages at all.
+**Recommendation:** Add async tests in `tests/test_monitor.py` for orchestration functions. Create test methods with real mock clients:
+
+1. `test_process_task_empty_results`: Create mock client with no messages, verify early return and no state save
+2. `test_process_task_processes_new_messages`: Mock client returning one message, verify `process_messages` called with correct args
+3. `test_reschedule_task_delay_calculation`: Verify delay = `scan_interval + random(10-30)`, use freezegun to test deterministically
+4. `test_main_loop_creates_tasks`: Verify each channel creates a Task with resolved entities added to queue
+5. `test_run_monitor_client_cleanup`: Verify `client.disconnect()` called even on exception
+
+Use `AsyncMock` for client methods and `pytest-mock` fixtures for temporary state files.
 
 > **Validation Note:**
 > - **Action:** Validated
@@ -77,10 +85,24 @@ validated: yes
 
 **Evidence:** `grep -r "setup_logging" tests/` returns no results. The function at `src/mko_telebot/logging.py:22-46` contains logic for loading logging config and handling errors, which is critical for operational observability.
 
-**Recommendation:** Add tests for:
-1. Successful logging config loading
-2. Fallback behavior when log_config.yaml is missing
-3. Application of dictConfig with resolved paths
+**Recommendation:** Add tests in `tests/test_logging.py`:
+
+```python
+def test_setup_logging_loads_config(tmp_path):
+    """Test config file loading with valid log_config.yaml."""
+    log_config = tmp_path / "log_config.yaml"
+    log_config.write_text("version: 1\nformatters: {}")
+    setup_logging(log_config=str(log_config))  # Verify no exception
+
+def test_setup_logging_fallback_on_missing(tmp_path):
+    """Test basicConfig fallback when config missing."""
+    setup_logging(log_config=str(tmp_path / "nonexistent.yaml"))
+    # Verify basicConfig was applied (logging.root.handlers not empty)
+
+def test_setup_logging_resolves_paths(tmp_path):
+    """Test path resolution in logging config."""
+    # Verify dictConfig receives resolved paths, not relative paths
+```
 
 > **Validation Note:**
 > - **Action:** Validated
@@ -106,7 +128,37 @@ validated: yes
 
 **Evidence:** `grep -r "PathResolver\|list_files_in_directory\|load_config\|merge_dicts" tests/` returns no results except for one indirect reference in test_task.py:150. These utilities are used throughout the codebase for path resolution and config loading.
 
-**Recommendation:** Add unit tests for these utility functions to verify path resolution, home directory expansion, and error handling. A path resolution bug could cause config files not to be found in production.
+**Recommendation:** Add unit tests in `tests/test_paths.py` and `tests/test_utils.py`:
+
+```python
+# tests/test_paths.py
+def test_path_resolver_resolve_relative():
+    """Verify relative paths resolve to absolute."""
+    resolver = PathResolver("/base/dir")
+    assert resolver.resolve("config.yaml").is_absolute()
+
+def test_path_resolver_expand_home():
+    """Verify ~ expansion in paths."""
+    resolver = PathResolver("/base/dir")
+    assert str(Path.home()) in resolver.resolve("~/config.yaml")
+
+# tests/test_utils.py  
+def test_load_config_parses_yaml(tmp_path):
+    """Verify YAML config loading."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("channels:\n  test:\n    name: '@test'")
+    result = load_config(str(config_file))
+    assert "channels" in result
+
+def test_merge_dicts_combines_nested(tmp_path):
+    """Verify dict merging for nested configs."""
+    defaults = {"a": 1, "b": {"x": 1}}
+    override = {"b": {"y": 2}}
+    result = merge_dicts(defaults, override)
+    assert result["a"] == 1
+    assert result["b"]["x"] == 1
+    assert result["b"]["y"] == 2
+```
 
 > **Validation Note:**
 > - **Action:** Validated with caveats
@@ -128,7 +180,23 @@ validated: yes
 
 **Evidence:** `tests/test_task.py:108-114` calls `set_offset_date()` without mocking `datetime.now(UTC)`. The test passes because UTC timezone is reliably applied, but best practice would freeze time for deterministic testing.
 
-**Recommendation:** Use `freezegun` or `pytest-freeze-time` to freeze time in this test, or at minimum not assert on the specific datetime values. The current test is acceptable but not following strict time-freeze best practices.
+**Recommendation:** In `tests/test_task.py` lines 108-114, use `freezegun` to freeze time for deterministic testing:
+
+```python
+# Add to existing imports or add pytest-freeze-time dependency
+from freezegun import freeze_time
+
+@freeze_time("2024-01-15 12:00:00")
+def test_computes_correct_offset():
+    """Test offset date calculation with frozen time."""
+    task = Task(config=channel_config)  # 7-day default
+    # Now assertions on specific date values are deterministic
+    assert task.offset_date.year == 2024
+    assert task.offset_date.month == 1
+    assert task.offset_date.day == 8
+```
+
+Or remove the test entirely since `datetime.now(UTC)` timezone behavior is tested by Python itself.
 
 > **Validation Note:**
 > - **Action:** Validated (low priority)

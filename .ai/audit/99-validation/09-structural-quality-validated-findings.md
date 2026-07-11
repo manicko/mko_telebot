@@ -33,7 +33,30 @@ src\mko_telebot\core\parser.py:105 _tokenize - nesting depth 7
 > - **Detail:** Nesting depth claim is inaccurate. The `_tokenize` method has max nesting depth of 4 (outer while + inner while in else branch = 2 levels; if/elif chain adds conditional branches but not nesting). The radon output shows complexity=9, not nesting depth 7. However, the nesting is still moderate and refactoring with early returns would improve readability.
 > - **See also:** None
 
-**Recommendation:** Refactor the character classification logic: extract special character handling into helper methods and use a dispatch table or early returns. Effort: medium.
+**Recommendation:** In `parser.py`, refactor `_tokenize` (lines ~105-180) using early returns and extraction:
+
+```python
+# Extract character classification to helper:
+def _classify_char(self, char: str) -> str:
+    """Return 'SPACE', 'SPECIAL', or 'LITERAL' for character type."""
+    if char.isspace():
+        return "SPACE"
+    if char in "*?.[](){}|":
+        return "SPECIAL"
+    return "LITERAL"
+
+# In _tokenize, use dispatch on classification:
+classification = self._classify_char(char)
+if classification == "SPACE":
+    # handle space - no nesting
+    continue  # or early return logic
+if classification == "SPECIAL":
+    # handle special - extract to _handle_special()
+    return self._handle_special(char)
+# LITERAL case continues inline
+```
+
+This reduces nesting by extracting logic into separate methods.
 
 ---
 
@@ -55,7 +78,23 @@ src\mko_telebot\core\parser.py
     F 325:0 search_match - C (15)
 ```
 
-**Recommendation:** Split into `parse_query` and `evaluate_query` functions. Use a single return at end. Effort: medium.
+**Recommendation:** In `parser.py` lines ~325-402, split `search_match` into focused functions:
+
+```python
+# extract parse_query():
+def parse_query(query: str) -> tuple[list[str], list[str]]:
+    """Parse query into inclusion and exclusion keyword lists."""
+    # Extract lines handling -i flag parsing (lines ~325-350)
+
+# extract evaluate_query():
+def evaluate_query(text: str, inclusion: list[str], exclusion: list[str]) -> bool:
+    """Check if text matches inclusion keywords and no exclusions."""
+    # Extract matching logic (lines ~350-402)
+    
+# Each function has single responsibility and single return
+```
+
+This separates parsing from evaluation, reducing complexity from 15 to ~8 per function.
 
 ---
 
@@ -78,7 +117,43 @@ src\mko_telebot\monitor.py
     nesting depth 4, 65 lines, 6 parameters
 ```
 
-**Recommendation:** Extract `build_caption` and `send_with_retry` helpers; replace `for...else` with explicit flag. Effort: medium.
+**Recommendation:** In `monitor.py` lines ~120-185, extract helpers to reduce complexity:
+
+```python
+# Extract build_caption (lines 138-146):
+def build_caption(msg_text: str, sender_tag: str, link: str) -> str:
+    """Build forward caption with author and source link."""
+    lines = []
+    if msg_text:
+        lines.append(msg_text)
+    if sender_tag:
+        lines.append(f"Author: {sender_tag}")
+    if link:
+        lines.append(f"Source: {link}")
+    return "\n\n".join(lines).strip()
+
+# Extract send_with_retry (lines 149-182):
+async def send_with_retry(client: TelegramClient, target: Any, caption: str, msg_media: list) -> bool:
+    """Send message with exponential backoff retry. Returns True on success."""
+    # Replace for...else with explicit success flag
+    for attempt in range(max_tries):
+        try:
+            if msg_media:
+                await client.send_file(target, msg_media, caption=caption, link_preview=False)
+            else:
+                await client.send_message(target, caption, link_preview=False)
+            return True  # success - early return replaces break
+        except FloodWaitError as e:
+            # existing retry logic
+            ...
+    return False  # failure - replaces else clause
+
+# In forward_to_users:
+caption = build_caption(msg_text, sender_tag, link)
+success = await send_with_retry(client, target, caption, msg_media)
+if not success:
+    logger.error(f"Failed to send to {target} after {max_tries} attempts")
+```
 
 ---
 
@@ -100,7 +175,34 @@ src\mko_telebot\monitor.py
     F 187:0 process_messages - C (13)
 ```
 
-**Recommendation:** Extract `group_album_messages` helper to separate grouping from matching logic. Effort: medium.
+**Recommendation:** In `monitor.py` lines ~187-230, extract `group_album_messages`:
+
+```python
+# Extract at top of file (no imports needed):
+def group_album_messages(messages: list[Message]) -> dict[int, dict]:
+    """Group messages by grouped_id (album) or message id (single).
+    
+    Returns dict mapping album_id -> {'msg': Message, 'text': [str], 'media': [Media]}
+    """
+    msg_content: dict[int, dict] = {}
+    for msg in messages:
+        group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
+        if group_id not in msg_content:
+            msg_content[group_id] = {"msg": msg, "text": [], "media": []}
+        if getattr(msg, "message", None):
+            msg_content[group_id]["text"].append(msg.message)
+        if getattr(msg, "media", None):
+            if getattr(msg.media, "caption", None):
+                msg_content[group_id]["text"].append(msg.media.caption)
+            msg_content[group_id]["media"].append(msg.media)
+    return msg_content
+
+# In process_messages (line 199):
+msg_content = group_album_messages(messages)
+# Remove lines 201-214 (current grouping logic)
+```
+
+This separates grouping logic from keyword matching, reducing function complexity.
 
 ---
 
@@ -121,7 +223,22 @@ src\mko_telebot\monitor.py
 src\mko_telebot\core\parser.py - 401 lines total
 ```
 
-**Recommendation:** Split into `ast_nodes.py`, `parser.py`, and `matcher.py`. Effort: medium.
+**Recommendation:** Split `parser.py` into three modules:
+
+```
+core/parser.py    # PatternParser class with _tokenize method (~150 lines)
+core/matcher.py   # search_match and helper functions (~100 lines)  
+core/ast_nodes.py # AST node constants and types (~50 lines)
+
+# Extract:
+# - Lines 1-50: AST node constants -> ast_nodes.py
+# - Lines 52-200: PatternParser._tokenize -> parser.py (already there)
+# - Lines 201-401: search_match, patterns_for_node, ast_to_regex -> matcher.py
+# Update imports in core/__init__.py to re-export from new modules
+# Update imports in monitor.py to point to matcher.search_match
+```
+
+This follows the project's "small modules and functions" principle.
 
 ---
 
@@ -142,7 +259,21 @@ src\mko_telebot\core\parser.py - 401 lines total
 src\mko_telebot\monitor.py - 356 lines total
 ```
 
-**Recommendation:** Split into `forwarding.py` and `client.py` modules. Effort: medium.
+**Recommendation:** Split `monitor.py` into focused modules:
+
+```
+monitor.py       # main_loop, run_monitor entry point (~100 lines)
+monitor_forward.py # forward_to_users, process_messages, process_task (~150 lines)
+monitor_client.py  # create_client, start_client (~50 lines)
+
+# Extract:
+# - Lines 24-68: client creation functions -> monitor_client.py
+# - Lines 120-228: forwarding functions -> monitor_forward.py  
+# - Lines 231-356: task processing and loop -> monitor_forward.py + monitor.py
+# Update imports in core/__init__.py to: from .monitor_forward import forward_to_users, process_messages, process_task
+```
+
+This aligns with the "small modules and functions" architecture principle.
 
 ---
 
@@ -168,8 +299,8 @@ src\mko_telebot\core\parser.py:290 patterns_for_node - 6 return statements, nest
 > - **Action:** rejected
 > - **Detail:** Nesting depth claim is inaccurate. The function has max nesting depth of 2 (single if/return chain inside function body). Return statement count (6) is technically correct but this pattern is idiomatic for type-dispatch functions and does not impede maintainability. Multiple early returns in a dispatch function of 14 lines provides cleaner control flow than accumulating and returning at the end.
 > - **See also:** None
-
-**Recommendation:** Use single return at end with accumulated results. Effort: small.
+ 
+**Recommendation:** No action required - STR-007 is rejected as early returns in type-dispatch functions are idiomatic and maintainable.
 
 ---
 
@@ -227,7 +358,26 @@ else:
     logger.error("Failed to send...")
 ```
 
-**Recommendation:** Replace with explicit success flag for clearer control flow. Effort: trivial.
+**Recommendation:** Part of STR-003 refactoring. Replace the `for...else` with explicit success flag in the extracted `send_with_retry` function:
+
+```python
+success = False
+for attempt in range(max_tries):
+    try:
+        if msg_media:
+            await client.send_file(target, msg_media, caption=caption, link_preview=False)
+        else:
+            await client.send_message(target, caption, link_preview=False)
+        success = True
+        break
+    except (FloodWaitError, RPCError) as e:
+        # existing retry logic
+        ...
+if not success:
+    logger.error(f"Failed to send to {target} after {max_tries} attempts")
+```
+
+This is addressed by the STR-003 `send_with_retry` helper extraction.
 
 ---
 
@@ -249,7 +399,21 @@ src\mko_telebot\core\__init__.py
     ERROR: invalid non-printable character U+FEFF (<unknown>, line 1)
 ```
 
-**Recommendation:** Remove the BOM character from `core/__init__.py`. Effort: trivial.
+**Recommendation:** Remove UTF-8 BOM from `core/__init__.py`:
+
+```bash
+# Unix/Linux command:
+sed -i '1s/^xEFxBBxBF//' src/mko_telebot/core/__init__.py
+
+# Or in Python:
+with open("src/mko_telebot/core/__init__.py", "rb") as f:
+    content = f.read()
+if content.startswith(b'\xef\xbb\xbf'):
+    with open("src/mko_telebot/core/__init__.py", "wb") as f:
+        f.write(content[3:])
+```
+
+This ensures radon and other tools can parse the file correctly.
 
 ---
 

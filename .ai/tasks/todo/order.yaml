@@ -1,0 +1,111 @@
+tasks:
+  # Phase 1: Type hints (addresses CLI-001, QLT-001)
+  - id: TASK_001_type_hints_monitor
+    depends_on: []
+    priority: high
+    phase: mandatory
+
+  # Phase 2: Exception handling in CLI (CLI-003)
+  - id: TASK_002_exception_specificity_cli
+    depends_on: []
+    priority: high
+    phase: mandatory
+
+  # Phase 3: Channel defaults (CFG-002, DF-001 merged)
+  - id: TASK_003_apply_channel_defaults
+    depends_on: []
+    priority: high
+    phase: mandatory
+
+  # Phase 4: SecretStr serialization (INT-002, DF-002 merged - must follow type hints)
+  - id: TASK_004_secretstr_serialization
+    depends_on:
+      - TASK_001_type_hints_monitor
+    priority: high
+    phase: mandatory
+
+  # Phase 5: Client lifecycle cleanup (INT-003, DF-003)
+  - id: TASK_011_client_disconnect_cleanup
+    depends_on:
+      - TASK_001_type_hints_monitor
+    priority: medium
+    phase: advisory
+
+  # Phase 6: Dead code removal (QLT-002, QLT-004, CLI-002 merged)
+  - id: TASK_005_remove_dead_code_utils
+    depends_on: []
+    priority: medium
+    phase: advisory
+
+  # Phase 7: Exception cleanup (CLI-004, QLT-005)
+  - id: TASK_006_remove_unnecessary_exceptions
+    depends_on:
+      - TASK_001_type_hints_monitor
+    priority: medium
+    phase: advisory
+
+  # Phase 8: Config template fix (CFG-003)
+  - id: TASK_007_fix_malformed_config_template
+    depends_on: []
+    priority: medium
+    phase: advisory
+
+  # Phase 9: Simplify set_offset_date (SRV-002)
+  - id: TASK_012_simplify_offset_date
+    depends_on: []
+    priority: medium
+    phase: advisory
+
+  # Phase 10: Search_match refactoring (STR-002)
+  - id: TASK_008_refactor_search_match
+    depends_on: []
+    priority: medium
+    phase: advisory
+
+  # Phase 11: File length - split parser.py (STR-005)
+  - id: TASK_013_split_parser_module
+    depends_on: []
+    priority: medium
+    phase: advisory
+
+  # Phase 12: File length - split monitor.py (STR-006)
+  - id: TASK_014_split_monitor_module
+    depends_on:
+      - TASK_001_type_hints_monitor
+      - TASK_004_secretstr_serialization
+      - TASK_006_remove_unnecessary_exceptions
+    priority: medium
+    phase: advisory
+
+  # Phase 13: Fix UTF-8 BOM (STR-010)
+  - id: TASK_015_fix_bom_file
+    depends_on: []
+    priority: low
+    phase: advisory
+
+  # Phase 14: Dependencies (QLT-003)
+  - id: TASK_009_remove_unused_dependency
+    depends_on: []
+    priority: low
+    phase: advisory
+
+  # Phase 15: Secrets template cleanup (SEC-004)
+  - id: TASK_010_simplify_secrets_template
+    depends_on: []
+    priority: low
+    phase: advisory
+
+  # Verification task for mandatory fixes
+  - id: TASK_099_verify_mandatory_fixes
+    depends_on:
+      - TASK_001_type_hints_monitor
+      - TASK_002_exception_specificity_cli
+      - TASK_003_apply_channel_defaults
+      - TASK_004_secretstr_serialization
+    priority: high
+    phase: verification
+
+# Parallel execution groups:
+# Group 1 (can run in parallel): TASK_001, TASK_002, TASK_003, TASK_005, TASK_007, TASK_008, TASK_009, TASK_010, TASK_012
+# Group 2 (depends on Group 1): TASK_004, TASK_006, TASK_011, TASK_014
+# Group 3 (verification): TASK_099

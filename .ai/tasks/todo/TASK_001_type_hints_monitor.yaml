@@ -1,0 +1,123 @@
+# TASK_001_type_hints_monitor.yaml
+# Mandatory fix — Project rules require type hints on all public functions
+
+id: TASK_001_type_hints_monitor
+
+title: Add type hints to public functions in monitor.py and task.py
+
+priority: high
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/01-cli-validated-findings.md
+source_section: CLI-001
+source_blocks:
+  - "CLI-001: Missing type hints on public functions in monitor.py"
+
+cross_reference: .ai/audit/99-validation/08-quality-validated-findings.md
+cross_reference_section: QLT-001
+cross_reference_blocks:
+  - "QLT-001: Missing type hints on public function parameters"
+
+description: >
+  Add explicit type hints to public functions in monitor.py and task.py that currently lack
+  parameter type annotations. This addresses SPEC-DEVIATION (project rules require
+  type hints on all public functions).
+
+goals:
+  - Add type hints to build_message_link, build_sender_tag, forward_to_users, process_messages
+  - Add type hints to resolve_targets_entities, resolve_channel_entity in task.py
+  - Use proper Telethon Message types or Any for type stubs compatibility
+  - Preserve backward compatibility
+
+files:
+  - path: src/mko_telebot/monitor.py
+
+    targets:
+      - type: function
+        name: build_message_link
+
+      - type: function
+        name: build_sender_tag
+
+      - type: function
+        name: forward_to_users
+
+      - type: function
+        name: process_messages
+
+  - path: src/mko_telebot/core/task.py
+
+    targets:
+      - type: method
+        name: resolve_targets_entities
+
+      - type: method
+        name: resolve_channel_entity
+
+semantic_anchors:
+  insert_before:
+    type: import_block
+    after: from __future__ import annotations
+
+changes:
+  - action: add_import
+    description: Import Any from typing for Telethon types without stubs
+    import_text: from typing import Any
+
+  - action: add_import
+    description: Import Message type for type hints
+    import_text: from telethon.tl.custom.message import Message
+
+  - action: modify_function_signature
+    description: Add msg: Message parameter type hint
+    target: build_message_link
+    code_hint: |
+      def build_message_link(msg: Message) -> str | None:
+
+  - action: modify_function_signature
+    description: Add msg: Message and return type hint
+    target: build_sender_tag
+    code_hint: |
+      async def build_sender_tag(msg: Message) -> str:
+
+  - action: modify_function_signature
+    description: Add type hints to all untyped parameters
+    target: forward_to_users
+    code_hint: |
+      async def forward_to_users(
+          msg: Message,
+          msg_text: str | None,
+          msg_media: list,
+          task: Task,
+          client: Any,
+          settings: TelepostSettings,
+      ) -> None:
+
+  - action: modify_function_signature
+    description: Add messages: list[Message] parameter type hint
+    target: process_messages
+    code_hint: |
+      async def process_messages(
+          messages: list[Message],
+          task: Task,
+          client: Any,
+          settings: TelepostSettings,
+      ) -> None:
+
+  - action: modify_method_signature
+    description: Add client: Any parameter type hint
+    target: resolve_targets_entities
+    code_hint: |
+      async def resolve_targets_entities(self, client: Any) -> None:
+
+  - action: modify_method_signature
+    description: Add client: Any parameter type hint
+    target: resolve_channel_entity
+    code_hint: |
+      async def resolve_channel_entity(self, client: Any) -> None:
+
+acceptance_criteria:
+  - All public function parameters have explicit type hints
+  - mypy passes with no new type errors
+  - ruff check passes

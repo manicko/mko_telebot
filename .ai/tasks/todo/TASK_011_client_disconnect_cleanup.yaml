@@ -1,0 +1,42 @@
+# TASK_011_client_disconnect_cleanup.yaml
+# Advisory fix — Add client.disconnect() on exit paths
+
+id: TASK_011_client_disconnect_cleanup
+
+title: Add client.disconnect() cleanup in run_monitor and cli.run
+
+priority: medium
+
+depends_on:
+  - TASK_001_type_hints_monitor
+
+source_reference: .ai/audit/99-validation/05-integrations-validated-findings.md
+source_section: INT-003
+source_blocks:
+  - "INT-003: Telegram client lifecycle not properly managed - no disconnect on exit"
+
+description: >
+  The run_monitor function and cli.run command lack proper cleanup on exit. When
+  run_monitor exits due to KeyboardInterrupt or error, the Telethon client
+  connection is never explicitly disconnected. Add try/finally for client cleanup.
+
+goals:
+  - Add try/finally around main_loop in run_monitor
+  - Call await client.disconnect() on exit
+  - Handle KeyboardInterrupt gracefully
+
+files:
+  - path: src/mko_telebot/monitor.py
+
+    targets:
+      - type: function
+        name: run_monitor
+
+acceptance_criteria:
+  - client.disconnect() is called on all exit paths
+  - No orphaned sessions on KeyboardInterrupt
+  - Logger confirms client disconnected
+
+verification_steps:
+  - build: uv run ruff check src/mko_telebot
+  - test: uv run pytest tests/ -v --tb=short

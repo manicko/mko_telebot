@@ -47,7 +47,21 @@ validated: yes
 - `secrets.yaml:6` - `"api_id": 1,` - clearly invalid api_id value (Telegram API IDs are typically 6-7 digit numbers)
 - `telethon.py:24` - `api_id: int = Field(..., gt=0, ...)` - only requires positive integer, no minimum value check for realistic API IDs
 
-**Recommendation:** Update the template to use `0` or remove the api_id field entirely so Pydantic's required field validation catches it. The current value `1` is misleading because it looks like a valid integer but fails at Telegram API authentication time with unclear errors.
+**Recommendation:** In `settings/secrets.yaml` line 6, change the api_id placeholder to match documented validation behavior:
+
+```yaml
+# Change line 6 from:
+api_id: 1
+
+# To one of these options:
+api_id: 0  # Forces Pydantic required field error (field has gt=0 constraint), user must provide valid value
+# OR
+# api_id: 12345  # Matches documented validation error in configuration.md
+# OR
+# api_id: ~  # Remove field, forces Pydantic required field error
+```
+
+Using `api_id: 0` will trigger the `gt=0` constraint error, clearly indicating the field needs a valid API ID value.
 
 > **Validation Note:**
 > - **Action:** reclassified
@@ -85,7 +99,15 @@ validated: yes
 **Evidence:**
 - `secrets.yaml:8-9` - `"system_lang_code": "en-US"` and `"lang_code": "ru"` are included in the template but are optional
 
-**Recommendation:** Move optional fields to the main `config.yaml` or remove them from the template to keep `secrets.yaml` focused only on required credentials (api_id, api_hash, phone_or_token).
+**Recommendation:** In `settings/secrets.yaml`, remove lines 8-9 (`system_lang_code` and `lang_code`) to keep secrets focused on credentials:
+
+```yaml
+# Remove these lines from secrets.yaml:
+# system_lang_code: "en-US"
+# lang_code: "ru"
+```
+
+These optional fields belong in `config.yaml` if needed, not in the secrets template alongside API credentials.
 
 > **Validation Note:**
 > - **Action:** validated

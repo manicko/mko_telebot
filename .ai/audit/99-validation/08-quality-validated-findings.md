@@ -31,7 +31,27 @@
 
 These functions accept Telethon types but use untyped parameters, which reduces static analysis effectiveness.
 
-**Recommendation:** Add type hints using `from typing import Any` for Telethon types that lack stubs, or import proper types. `Any` is acceptable for external library types without type stubs.
+**Recommendation:** Add type hints to public functions. For Telethon types without stubs, use `Any` from typing:
+
+```python
+# monitor.py additions:
+from typing import Any
+
+# Line 90: async def build_sender_tag(msg: Any) -> str:
+async def build_sender_tag(msg: Any) -> str:  # Any for Message type
+
+# Line 120: async def forward_to_users(msg: Any, msg_text: str, msg_media: list, ...) -> None:
+async def forward_to_users(msg: Any, msg_text: str, msg_media: list, task: Task, client: Any, settings: TelepostSettings) -> None:
+
+# Line 187: async def process_messages(messages: list[Any], ...) -> None:
+async def process_messages(messages: list[Any], task: Task, client: Any, settings: TelepostSettings) -> None:
+
+# task.py additions (lines 61, 78):
+async def resolve_targets_entities(self, client: Any) -> None:
+async def resolve_channel_entity(self, client: Any) -> None:
+```
+
+Use `Any` for Telethon types since they lack type stubs; this enables static analysis for the type-hinted parameters.
 
 ---
 
@@ -56,7 +76,19 @@ These functions accept Telethon types but use untyped parameters, which reduces 
 
 The `resolve_path` in utils.py does create missing paths (via `ensure_path_exists`) while config.py's version only resolves. However, this is not used anywhere in the codebase - `utils.resolve_path` has no external callers.
 
-**Recommendation:** Investigate purpose of these functions. Either remove them or add usage documentation explaining their intended use. The duplicate `resolve_path` should be removed, keeping only the config.py version which is exported via `__init__.py`.
+**Recommendation:** Delete dead code in `core/utils.py`:
+
+1. Remove lines 12-36 (`list_files_in_directory`) - no callers
+2. Remove lines 96-133 (`load_config` and `merge_dicts`) - no callers (config.py uses private `_merge_dicts`)
+3. Remove lines 60-92 (`resolve_path` and its internal `ensure_path_exists` reference) - duplicate of config.py version
+4. Keep only `ensure_path_exists` at line 39 (actually used in task.py:94)
+
+**Before deletion:** Verify with grep that no internal calls exist:
+```bash
+grep -r "list_files_in_directory\|utils\.load_config\|utils\.merge_dicts\|utils\.resolve_path" src/
+```
+
+Remove these unused function definitions to reduce maintenance burden.
 
 ---
 
@@ -77,7 +109,17 @@ The `resolve_path` in utils.py does create missing paths (via `ensure_path_exist
 - Grep search for `pydantic_settings` or `BaseSettings` returns no matches in source code
 - All models in `core/models.py` inherit from `BaseModel` only
 
-**Recommendation:** Remove `pydantic-settings` from dependencies to reduce attack surface and installation size. If settings functionality is needed later, it can be added back.
+**Recommendation:** Remove `pydantic-settings` from `pyproject.toml` line 20:
+
+```toml
+# Delete this line:
+pydantic-settings>=2
+
+# Verify no usage exists:
+grep -r "pydantic_settings\|from pydantic_settings" src/
+```
+
+This dependency has zero code references and can be safely removed to reduce attack surface.
 
 ---
 
@@ -101,7 +143,7 @@ The `resolve_path` in utils.py does create missing paths (via `ensure_path_exist
 
 This duplication creates confusion about which function to use and potential inconsistencies.
 
-**Recommendation:** Remove `resolve_path` from `utils.py` and keep only the version in `config.py` which is actively exported and used.
+**Recommendation:** Remove `resolve_path` from `utils.py` (lines 60-93). This function is already handled in QLT-002 - the `utils.resolve_path` has no callers and is superseded by `config.resolve_path` which is exported via `__init__.py`. Delete `utils.resolve_path` and its internal `ensure_path_exists` reference (move `ensure_path_exists` to module level if needed by task.py).
 
 ---
 
@@ -127,7 +169,27 @@ utils.py:34: except Exception as err:
 
 These broad catches make error handling less precise and can mask programming errors.
 
-**Recommendation:** Where possible, catch more specific exception types. For Telethon API operations, use telethon-specific exceptions. For file I/O, catch `OSError`. Keep broad catches only for top-level handlers where re-raising with context is needed.
+**Recommendation:** Replace broad `except Exception as e` with specific types. For each location:
+
+```python
+# parser.py:393 - catches general errors in pattern matching
+# Replace with specific parsing exceptions or remove if not needed
+
+# task.py lines 70,82,98,136,154 - entity resolution and file I/O
+# Replace with:
+except (ValueError, KeyError, OSError) as e:  # for file I/O operations
+except (RPCError, ValueError) as e:  # for Telethon operations
+
+# config.py:173 - config loading
+# Replace with:
+except (OSError, yaml.YAMLError, ValueError) as e:
+
+# utils.py:34 - if kept after QLT-002
+# Replace with:
+except OSError as err:
+```
+
+Log the exception with `logger.exception(f"Context: {e}")` and re-raise when appropriate to preserve error context.
 
 ---
 

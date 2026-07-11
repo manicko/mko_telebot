@@ -1,0 +1,61 @@
+# TASK_006_remove_unnecessary_exceptions.yaml
+# Advisory fix — Remove dead exception handler code in monitor.py
+
+id: TASK_006_remove_unnecessary_exceptions
+
+title: Remove unnecessary TelegramServiceError catch blocks in monitor.py
+
+priority: medium
+
+depends_on:
+  - TASK_001_type_hints_monitor
+
+source_reference: .ai/audit/99-validation/01-cli-validated-findings.md
+source_section: CLI-004
+source_blocks:
+  - "CLI-004: Unnecessary exception handlers for non-raising code in monitor.py"
+
+description: >
+  Remove dead TelegramServiceError catch blocks that cannot catch anything because the
+  try blocks contain only getattr and string formatting operations. Also remove
+  unnecessary exception handlers as part of QLT-005 (broad Exception catches).
+
+goals:
+  - Remove catch blocks that cannot catch any exception
+  - Clean up dead code in build_message_link
+  - Clean up exception handling in process_messages
+
+files:
+  - path: src/mko_telebot/monitor.py
+
+    targets:
+      - type: function
+        name: build_message_link
+
+      - type: function
+        name: process_messages
+
+semantic_anchors:
+  insert_before:
+    type: return_statement
+    value: "return None"
+
+changes:
+  - action: remove_try_except
+    description: Remove unnecessary try/except in build_message_link
+    target: build_message_link
+    code_hint: |
+      # Remove lines 85-87 (try/except TelegramServiceError)
+      # Replace with direct if/return logic without try/except
+
+  - action: remove_except_block
+    description: Remove TelegramServiceError except in process_messages
+    target: process_messages
+    code_hint: |
+      # Remove lines 216-220 (except TelegramServiceError block)
+      # Move logging outside try block
+
+acceptance_criteria:
+  - No dead exception handlers remain
+  - Code behavior unchanged
+  - Tests pass

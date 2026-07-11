@@ -1,0 +1,44 @@
+# TASK_014_split_monitor_module.yaml
+# Advisory fix — monitor.py exceeds 300 line maximum (356 lines)
+
+id: TASK_014_split_monitor_module
+
+title: Split monitor.py into focused modules (monitor.py, monitor_forward.py, monitor_client.py)
+
+priority: medium
+
+depends_on:
+  - TASK_001_type_hints_monitor
+  - TASK_004_secretstr_serialization
+  - TASK_006_remove_unnecessary_exceptions
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-006
+source_blocks:
+  - "STR-006: File Exceeds Maximum Length (monitor.py)"
+
+description: >
+  The monitor.py file spans 356 lines, exceeding the 300-line threshold.
+  Contains client creation, message processing, forwarding, scheduling, and loop.
+  Split into focused modules following the "small modules and functions" principle.
+
+goals:
+  - Create monitor_client.py with create_client, start_client functions
+  - Create monitor_forward.py with forward_to_users, process_messages, process_task
+  - Keep monitor.py with main_loop, run_monitor entry point, reschedule_task
+  - Update imports in core/__init__.py if needed
+
+files:
+  - path: src/mko_telebot/monitor.py
+  - path: src/mko_telebot/monitor_forward.py
+  - path: src/mko_telebot/monitor_client.py
+
+semantic_anchors:
+  create_new_modules: true
+
+acceptance_criteria:
+  - monitor.py reduced to ~100 lines
+  - monitor_forward.py created with forwarding functions
+  - monitor_client.py created with client functions
+  - All imports work correctly
+  - Tests pass

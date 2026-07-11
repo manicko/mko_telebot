@@ -34,7 +34,25 @@ validated: yes
 - `monitor.py:90` - `async def build_sender_tag(msg):` - no type hints on parameter or return
 - `monitor.py:120` - `async def forward_to_users(msg, msg_text, msg_media, ...)` - first 3 params untyped
 
-**Recommendation:** Add explicit type hints using `from telethon.tl.custom.message import Message` for type annotations.
+**Recommendation:** Add explicit type hints to the following functions by importing `Message` type from Telethon:
+
+```python
+from telethon.tl.custom.message import Message
+
+# Line 71 - add msg: Message parameter
+def build_message_link(msg: Message) -> str | None:
+
+# Line 90 - add msg: Message parameter  
+async def build_sender_tag(msg: Message) -> str:
+
+# Line 120 - add msg: Message, msg_text: str, msg_media: list parameters
+async def forward_to_users(msg: Message, msg_text: str, msg_media: list, ...) -> None:
+
+# Line 187 - add messages: list[Message] parameter
+async def process_messages(messages: list[Message], ...) -> None:
+```
+
+For Telethon types without type stubs, use `from __future__ import annotations` (already present) for forward compatibility. Type hint the parameters; return types are already annotated.
 
 > **Validation Note:**
 > - **Action:** reclassified
@@ -61,7 +79,7 @@ validated: yes
 - Both functions handle path resolution and home-directory expansion
 - `__init__.py` imports `resolve_path` from `config` only, not `utils`
 
-**Recommendation:** Remove the duplicate from `utils.py` and ensure all internal references use the version from `config.py`. This reduces code duplication and maintenance burden.
+**Recommendation:** Delete `resolve_path` from `utils.py` (lines 60-93). This function has no callers and is superseded by `config.resolve_path` which is exported via `__all__`. No code changes needed elsewhere - the `config.py` version is already used via `core/__init__.py`.
 
 > **Validation Note:**
 > - **Action:** validated
@@ -86,7 +104,22 @@ validated: yes
 - `cli.py:99` - `except (MkoTelebotError, KeyboardInterrupt):` both handled identically
 - `cli.py:100` - `console.print("[red]Error:[/red] Failed to run monitor")` - same message for all error types
 
-**Recommendation:** Separate exception handling to provide actionable messages: configuration/auth errors should suggest fixing config files, KeyboardInterrupt should indicate graceful shutdown (or no message at all since it's intentional).
+**Recommendation:** In `cli.py` lines 96-102, separate exception handling:
+
+```python
+# Change from single handler:
+except (MkoTelebotError, KeyboardInterrupt):
+    console.print("[red]Error:[/red] Failed to run monitor")
+
+# To specific handlers:
+except MkoTelebotError as e:
+    console.print(f"[red]Error:[/red] Failed to run monitor - {e}")
+except KeyboardInterrupt:
+    # No message needed - intentional user shutdown
+    pass  # or: console.print("[yellow]Shutdown requested[/yellow]")
+```
+
+This distinguishes configuration/authentication errors (suggest fixing config files) from intentional interrupt.
 
 > **Validation Note:**
 > - **Action:** reclassified
@@ -112,7 +145,12 @@ validated: yes
 - `monitor.py:85-87` - Catches `TelegramServiceError` but this exception cannot be raised by the preceding code
 - `monitor.py:216-220` - Same issue in `process_messages` where `TelegramServiceError` is caught around non-raising code
 
-**Recommendation:** Remove the unnecessary exception handlers in `build_message_link` (lines 85-87) and `process_messages` (lines 216-220).
+**Recommendation:** Remove unnecessary `TelegramServiceError` catch blocks that cannot catch anything:
+
+1. In `monitor.py` lines 85-87: Delete the try/except entirely, replace with direct return logic
+2. In `monitor.py` lines 216-220: Delete the except block - move the logging outside the try
+
+These exceptions are never raised in the try blocks (only uses `getattr` and string formatting).
 
 > **Validation Note:**
 > - **Action:** validated

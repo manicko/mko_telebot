@@ -49,7 +49,25 @@ validated: yes
 - `src/mko_telebot/monitor.py:323-336` iterates over `settings.channels.channels` and creates `Task(config=channel_settings)` - the `channel_settings` comes directly from the parsed `ChannelConfig`, not merged with defaults
 - Running test: `channel = settings.channels.channels['test_channel']` produces `scan_interval: 420` even when `settings.channels.defaults.scan_interval` is set to `600`
 
-**Recommendation:** Implement a model validator or factory method in `ChannelsConfig` that applies `defaults` values to each channel entry during validation, or explicitly merge defaults in `Task.__init__()`. Effort: small. Priority: mandatory (correctness issue).
+**Recommendation:** Add a model validator in `ChannelsConfig` (after line 121) that merges defaults into each channel during validation:
+
+```python
+from pydantic import model_validator
+
+@model_validator(mode="after")
+def apply_defaults_to_channels(self) -> ChannelsConfig:
+    """Merge defaults into each channel config."""
+    for channel_name, channel in self.channels.items():
+        for field_name, default_value in self.defaults.model_dump().items():
+            if getattr(channel, field_name, None) is None and default_value is not None:
+                setattr(channel, field_name, default_value)
+            elif getattr(channel, field_name, None) == channel.model_fields[field_name].default:
+                setattr(channel, field_name, default_value)
+    return self
+```
+
+Alternatively, in `Task.__init__` (task.py line 51-59), merge defaults after extracting config:
+- Add `defaults = settings.channels.defaults` and apply field-by-field merge for any `None` or default values in the channel config.
 
 > **Validation Note:**
 > - **Action:** validated
@@ -79,7 +97,20 @@ validated: yes
 - Validation error: `CHANNELS.channels.DEFAULTS.stagger_start_seconds - Extra inputs are not permitted`
 - Validation error: `CHANNELS.channels.channel_1.name - Field required`
 
-**Recommendation:** Either remove this file (it's not referenced in documentation) or fix it to match the documented schema in configuration.md. Effort: trivial. The file appears to be a legacy/work-in-progress example that should be cleaned up.
+**Recommendation:** Replace `keyw_config_example_keep.yaml` contents with valid schema matching `channels` structure:
+
+```yaml
+# Delete the malformed file or replace with:
+channels:
+  # Each channel requires a name field
+  channel_1:
+    name: "@your_channel"
+    keywords: ["keyword1", "keyword2"]
+    forward_to: ["@target_channel"]
+  # Or remove the file entirely if unused
+```
+
+The file is copied to user config via `cli.py:init()` but causes validation errors. Either remove from template or fix to be a valid example per the documented schema in configuration.md.
 
 > **Validation Note:**
 > - **Action:** validated

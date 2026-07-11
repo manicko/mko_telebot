@@ -1,0 +1,41 @@
+# TASK_013_split_parser_module.yaml
+# Advisory fix — parser.py exceeds 300 line maximum (401 lines)
+
+id: TASK_013_split_parser_module
+
+title: Split parser.py into focused modules (parser.py, matcher.py, ast_nodes.py)
+
+priority: medium
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-005
+source_blocks:
+  - "STR-005: File Exceeds Maximum Length (parser.py)"
+
+description: >
+  The parser.py file spans 401 lines, exceeding the 300-line threshold for god modules.
+  Contains AST nodes, PatternParser class, and matcher functions. Split into
+  separate modules following the project's "small modules and functions" principle.
+
+goals:
+  - Create core/ast_nodes.py with AST node constants and types
+  - Create core/matcher.py with search_match and helper functions
+  - Keep core/parser.py with PatternParser class and _tokenize
+  - Update imports in core/__init__.py to re-export from new modules
+
+files:
+  - path: src/mko_telebot/core/parser.py
+  - path: src/mko_telebot/core/matcher.py
+  - path: src/mko_telebot/core/ast_nodes.py
+
+semantic_anchors:
+  create_new_modules: true
+
+acceptance_criteria:
+  - parser.py reduced to ~150 lines
+  - matcher.py created with search_match function
+  - ast_nodes.py created with AST node definitions
+  - All imports work correctly
+  - Tests pass

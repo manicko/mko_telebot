@@ -1,0 +1,46 @@
+# TASK_009_remove_unused_dependency.yaml
+# Advisory fix — Remove unused pydantic-settings dependency
+
+id: TASK_009_remove_unused_dependency
+
+title: Remove pydantic-settings dependency from pyproject.toml
+
+priority: low
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/08-quality-validated-findings.md
+source_section: QLT-003
+source_blocks:
+  - "QLT-003: Unused dependency pydantic-settings"
+
+description: >
+  Remove pydantic-settings from pyproject.toml dependencies. The project uses
+  plain BaseModel from pydantic, not BaseSettings. This eliminates an unused
+  dependency and reduces attack surface.
+
+goals:
+  - Remove pydantic-settings from dependencies
+  - Verify no code references pydantic_settings
+  - Update lock file if needed
+
+files:
+  - path: pyproject.toml
+
+    targets:
+
+semantic_anchors:
+  replace_value:
+    target: dependencies
+
+changes:
+  - action: remove_from_array
+    description: Remove pydantic-settings line from dependencies
+    code_hint: |
+      # Delete: pydantic-settings>=2
+      # From dependencies array in pyproject.toml
+
+acceptance_criteria:
+  - pydantic-settings removed from pyproject.toml
+  - Project builds and runs without the dependency
+  - uv sync completes successfully

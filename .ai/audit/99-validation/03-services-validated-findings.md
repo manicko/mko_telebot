@@ -48,7 +48,24 @@ validated: yes
 - `core/task.py:106-122` - `set_offset_date` sets `self.offset_date = None` at line 108, then `self.offset_date = datetime.now(UTC) - timedelta(days=days)` at line 118, and returns at line 122
 - `core/task.py:122` - Returns `self.offset_date` which is immediately reassigned by caller
 
-**Recommendation:** Either return the value and remove the internal assignment, or remove the return and just keep internal assignment. The current dual assignment is confusing and error-prone. Effort: trivial.
+**Recommendation:** In `task.py`, refactor `set_offset_date` to use single assignment pattern:
+
+**Option A (remove internal assignment, return value only):**
+```python
+# Lines 106-122 - remove self.offset_date = None at line 108
+# Remove self.offset_date = datetime.now(UTC) - timedelta(days=days) at line 118
+# Result: return datetime.now(UTC) - timedelta(days=days)
+# Caller at line 56 uses: self.offset_date = self.set_offset_date()
+```
+
+**Option B (remove return, keep internal assignment):**
+```python
+# Lines 106-122 - remove return statement
+# Remove line 56 assignment: self.offset_date = self.set_offset_date()
+# Keep internal assignment at line 118
+```
+
+Option A is recommended — remove internal assignments and just return the computed value.
 
 > **Validation Note:**
 > - **Action:** validated

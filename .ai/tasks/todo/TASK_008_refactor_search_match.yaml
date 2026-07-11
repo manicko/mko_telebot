@@ -1,0 +1,68 @@
+# TASK_008_refactor_search_match.yaml
+# Advisory fix — High cyclomatic complexity in search_match function
+
+id: TASK_008_refactor_search_match
+
+title: Refactor search_match into parse_query and evaluate_query helpers
+
+priority: medium
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/09-structural-quality-validated-findings.md
+source_section: STR-002
+source_blocks:
+  - "STR-002: High Cyclomatic Complexity in search_match"
+
+description: >
+  Split the 77-line search_match function (complexity 15) into focused helper
+  functions to reduce cyclomatic complexity. Extract parse_query for parsing
+  and evaluate_query for matching logic.
+
+goals:
+  - Extract parse_query for query parsing logic
+  - Extract evaluate_query for matching logic
+  - Reduce cyclomatic complexity to under threshold
+  - Preserve exact matching behavior
+
+files:
+  - path: src/mko_telebot/core/parser.py
+
+    targets:
+      - type: function
+        name: search_match
+
+semantic_anchors:
+  insert_before:
+    type: function
+    name: search_match
+
+changes:
+  - action: add_function_before
+    description: Add parse_query helper function
+    target: search_match
+    code_hint: |
+      def parse_query(query: str) -> tuple[list[str], list[str]]:
+          """Parse query into inclusion and exclusion keyword lists."""
+          # Extract -i flag parsing logic from search_match
+          # Returns (inclusion_keywords, exclusion_keywords)
+
+  - action: add_function_before
+    description: Add evaluate_query helper function
+    target: search_match
+    code_hint: |
+      def evaluate_query(text: str, inclusion: list[str], exclusion: list[str]) -> bool:
+          """Check if text matches inclusion keywords and no exclusions."""
+          # Extract matching logic from search_match
+          # Returns True if matches
+
+  - action: modify_function_body
+    description: Refactor search_match to use helpers
+    target: search_match
+    code_hint: |
+      # Simplified search_match calling parse_query and evaluate_query
+
+acceptance_criteria:
+  - cyclomatic complexity reduced below threshold
+  - All existing tests pass
+  - No behavior changes

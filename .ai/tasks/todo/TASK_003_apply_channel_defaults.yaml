@@ -1,0 +1,66 @@
+# TASK_003_apply_channel_defaults.yaml
+# Mandatory fix — Documentation states defaults are applied but implementation does not
+
+id: TASK_003_apply_channel_defaults
+
+title: Merge ChannelsConfig.defaults into individual ChannelConfig objects
+
+priority: high
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/02-config-validated-findings.md
+source_section: CFG-002
+source_blocks:
+  - "CFG-002: `defaults` in ChannelsConfig not applied to individual channels"
+
+description: >
+  Add a model_validator in ChannelsConfig that merges default values into each channel
+  configuration during validation. This addresses the SPEC-DEVIATION where
+  documentation states "Each channel inherits these values unless it explicitly overrides a field"
+  but the implementation does not apply defaults.
+
+goals:
+  - Add model_validator to apply defaults to channels
+  - Ensure Task.__init__ receives merged configuration values
+  - Maintain backward compatibility for explicit overrides
+
+files:
+  - path: src/mko_telebot/core/channels.py
+
+    targets:
+      - type: class
+        name: ChannelsConfig
+
+      - type: class
+        name: strip_defaults_from_channels
+
+semantic_anchors:
+  insert_after:
+    type: function
+    name: strip_defaults_from_channels
+
+changes:
+  - action: add_import
+    description: Import model_validator for Pydantic v2
+    import_text: from pydantic import model_validator
+
+  - action: add_method
+    description: Add model_validator to merge defaults into channels
+    target_class: ChannelsConfig
+    code_hint: |
+      @model_validator(mode="after")
+      def apply_defaults_to_channels(self) -> ChannelsConfig:
+          """Merge defaults into each channel config."""
+          for channel_name, channel in self.channels.items():
+              for field_name, default_value in self.defaults.model_dump().items():
+                  if getattr(channel, field_name, None) is None and default_value is not None:
+                      setattr(channel, field_name, default_value)
+                  elif getattr(channel, field_name, None) == channel.model_fields[field_name].default:
+                      setattr(channel, field_name, default_value)
+          return self
+
+acceptance_criteria:
+  - Channel configs receive defaults for unspecified fields
+  - Explicit channel overrides are preserved
+  - Tests verify defaults are applied correctly

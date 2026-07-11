@@ -1,0 +1,47 @@
+# TASK_007_fix_malformed_config_template.yaml
+# Advisory fix — Example config file causes validation errors when copied to user config
+
+id: TASK_007_fix_malformed_config_template
+
+title: Fix or remove malformed keyw_config_example_keep.yaml template
+
+priority: medium
+
+depends_on: []
+
+source_reference: .ai/audit/99-validation/02-config-validated-findings.md
+source_section: CFG-003
+source_blocks:
+  - "CFG-003: `keyw_config_example_keep.yaml` is a malformed example config"
+
+description: >
+  Fix the keyw_config_example_keep.yaml template that would fail Pydantic validation
+  when copied to user config via cli.py init(). The file has DEFAULTS inside channels
+  (missing required 'name' field), and channel entries missing required 'name' field.
+
+goals:
+  - Replace malformed template with valid schema
+  - Ensure template can be loaded without validation errors
+  - Keep optional/placeholder values for user guidance
+
+files:
+  - path: src/mko_telebot/settings/keyw_config_example_keep.yaml
+
+semantic_anchors:
+  replace_content: true
+
+changes:
+  - action: replace_file_content
+    description: Replace with valid channel configuration template
+    code_hint: |
+      channels:
+        # Each channel requires a name field
+        channel_1:
+          name: "@your_channel"
+          keywords: ["keyword1", "keyword2"]
+          forward_to: ["@target_channel"]
+
+acceptance_criteria:
+  - Template loads without Pydantic validation errors
+  - Example has valid structure matching documented schema
+  - Users can copy and modify without confusion
