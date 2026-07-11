@@ -500,22 +500,18 @@ async def main_loop(
         await asyncio.sleep(channels_delay)
 
 
-async def run_monitor(settings: TelepostSettings, client: TelegramClient):
+async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> None:
     """Run the monitoring system.
 
-
-
     Args:
-
-        settings (TelepostSettings): Application settings.
-
-        client (TelegramClient): The Telethon client instance.
-
+        settings: Application settings.
+        client: The Telethon client instance.
     """
-
     if await start_client(client, settings):
         queue: asyncio.Queue[Task] = asyncio.Queue()
-
         lock: asyncio.Lock = asyncio.Lock()
-
-        await main_loop(settings, client, queue, lock)
+        try:
+            await main_loop(settings, client, queue, lock)
+        finally:
+            await client.disconnect()
+            logger.info("Telethon client disconnected.")
