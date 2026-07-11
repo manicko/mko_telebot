@@ -12,7 +12,11 @@ import yaml
 from mko_telebot.core.config import TelepostConfigReader
 from mko_telebot.core.errors import ConfigError
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.channels import ChannelConfig, ChannelsConfig
+from mko_telebot.core.channels import (
+    ChannelConfig,
+    ChannelsConfig,
+    ChannelDefaults,
+)
 from mko_telebot.core.telethon import ClientConfig, TelethonConfig
 
 
@@ -74,7 +78,7 @@ def _write_yaml(path: Path, data: dict[str, object]) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” from_user_dir
+# TelepostConfigReader — from_user_dir
 # ---------------------------------------------------------------------------
 
 
@@ -101,7 +105,7 @@ class TestFromUserDir:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” validate_files
+# TelepostConfigReader — validate_files
 # ---------------------------------------------------------------------------
 
 
@@ -141,7 +145,7 @@ class TestValidateFiles:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” load
+# TelepostConfigReader — load
 # ---------------------------------------------------------------------------
 
 
@@ -213,7 +217,7 @@ class TestLoad:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” merged config
+# TelepostConfigReader — merged config
 # ---------------------------------------------------------------------------
 
 
@@ -275,7 +279,7 @@ class TestMergedConfig:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” load_logging_config
+# TelepostConfigReader — load_logging_config
 # ---------------------------------------------------------------------------
 
 
@@ -367,7 +371,7 @@ class TestLoadLoggingConfig:
 
 
 # ---------------------------------------------------------------------------
-# TelepostConfigReader â€” malformed / edge cases
+# TelepostConfigReader — malformed / edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -399,6 +403,7 @@ class TestEdgeCases:
             ConfigError, match="Expected a top-level mapping in YAML file"
         ):
             reader.load()
+
 
 # ---------------------------------------------------------------------------
 # Pydantic model validators
@@ -456,3 +461,29 @@ class TestValidators:
         )
         assert "DEFAULTS" not in config.channels
         assert "real_channel" in config.channels
+
+    def test_defaults_applied_to_channels(self) -> None:
+        """ChannelsConfig.defaults should be applied to channel configurations."""
+        channel = ChannelConfig(name="@test")
+        config = ChannelsConfig(
+            defaults=ChannelDefaults(scan_interval=600, history_limit=100),
+            channels={
+                "test_channel": channel,
+            },
+        )
+        # Defaults should be applied when channel uses default values
+        assert config.channels["test_channel"].scan_interval == 600
+        assert config.channels["test_channel"].history_limit == 100
+
+    def test_explicit_overrides_preserved(self) -> None:
+        """Explicit channel overrides should not be overwritten by defaults."""
+        channel = ChannelConfig(name="@test", scan_interval=300, history_limit=25)
+        config = ChannelsConfig(
+            defaults=ChannelDefaults(scan_interval=600, history_limit=100),
+            channels={
+                "test_channel": channel,
+            },
+        )
+        # Explicit values should be preserved
+        assert config.channels["test_channel"].scan_interval == 300
+        assert config.channels["test_channel"].history_limit == 25
