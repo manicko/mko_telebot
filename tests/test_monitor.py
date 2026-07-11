@@ -11,14 +11,14 @@ import pytest
 from pydantic import SecretStr
 
 from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
-from mko_telebot.monitor import (
+from mko_telebot.monitor_client import (
     build_message_link,
     build_sender_tag,
     create_client,
-    forward_to_users,
-    process_messages,
     start_client,
 )
+from mko_telebot.monitor_forward import forward_to_users, process_messages
+
 
 
 # ---------------------------------------------------------------------------
@@ -116,8 +116,8 @@ class TestCreateClient:
         """create_client() should append .session suffix and resolve under session_dir."""
         session_dir = tmp_path / "sessions"
         with (
-            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
-            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+            patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = session_dir
             settings = MagicMock()
@@ -138,8 +138,8 @@ class TestCreateClient:
         """create_client() should keep existing .session suffix."""
         session_dir = tmp_path / "sessions"
         with (
-            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
-            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+            patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = session_dir
             settings = MagicMock()
@@ -158,8 +158,8 @@ class TestCreateClient:
     def test_passes_config_through(self) -> None:
         """create_client() should pass all client config to TelegramClient."""
         with (
-            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
-            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+            patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
@@ -179,8 +179,8 @@ class TestCreateClient:
     def test_unwraps_secretstr_api_hash(self) -> None:
         """create_client() should unwrap SecretStr api_hash using mode='json'."""
         with (
-            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
-            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+            patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
@@ -207,8 +207,8 @@ class TestCreateClient:
     def test_calls_model_dump_with_json_mode(self) -> None:
         """create_client() should call model_dump with mode='json' for SecretStr serialization."""
         with (
-            patch("mko_telebot.monitor.APP_PATHS") as mock_paths,
-            patch("mko_telebot.monitor.TelegramClient") as mock_tc,
+            patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
+            patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
@@ -463,7 +463,7 @@ class TestProcessMessages:
     ) -> None:
         """process_messages() should forward messages matching keywords."""
         messages = [_make_msg_stub(1, "this is a test message")]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_awaited_once()
 
@@ -472,7 +472,7 @@ class TestProcessMessages:
     ) -> None:
         """process_messages() should skip messages not matching keywords."""
         messages = [_make_msg_stub(2, "unrelated content here")]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_not_called()
 
@@ -485,7 +485,7 @@ class TestProcessMessages:
             _make_msg_stub(10, "test photo one", grouped_id=group_id, has_media=True),
             _make_msg_stub(11, "test photo two", grouped_id=group_id, has_media=True),
         ]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_awaited_once()
             call_args = mock_forward.call_args
@@ -502,7 +502,7 @@ class TestProcessMessages:
             _make_msg_stub(20, "random a", grouped_id=group_id, has_media=True),
             _make_msg_stub(21, "random b", grouped_id=group_id, has_media=True),
         ]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_not_called()
 
@@ -510,7 +510,7 @@ class TestProcessMessages:
         self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
     ) -> None:
         """process_messages() should handle empty message list without error."""
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages([], mock_task, mock_client, mock_settings)
             mock_forward.assert_not_called()
 
@@ -522,7 +522,7 @@ class TestProcessMessages:
             _make_msg_stub(30, "test one"),
             _make_msg_stub(31, "test two"),
         ]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             assert mock_forward.await_count == 2
 
@@ -531,6 +531,6 @@ class TestProcessMessages:
     ) -> None:
         """process_messages() should skip messages with no text content."""
         messages = [_make_msg_stub(40, text="")]
-        with patch("mko_telebot.monitor.forward_to_users", new_callable=AsyncMock) as mock_forward:
+        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_not_called()

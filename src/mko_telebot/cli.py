@@ -18,7 +18,8 @@ from rich.table import Table
 
 from mko_telebot.core.errors import ConfigError, MkoTelebotError
 from mko_telebot.core.paths import APP_PATHS
-from mko_telebot.monitor import create_client, run_monitor
+from mko_telebot.monitor_client import create_client
+from mko_telebot.monitor import run_monitor
 from mko_telebot.logging import setup_logging
 from mko_telebot.core.config import TelepostConfigReader
 
