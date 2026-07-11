@@ -511,3 +511,161 @@ class TestValidators:
         # Explicit values should be preserved
         assert config.channels["test_channel"].scan_interval == 300
         assert config.channels["test_channel"].history_limit == 25
+
+# ---------------------------------------------------------------------------
+# Proxy Configuration
+# ---------------------------------------------------------------------------
+
+
+class TestProxyConfig:
+    """Tests for proxy configuration in ClientConfig."""
+
+    def test_valid_socks5_proxy(self) -> None:
+        """ClientConfig should accept valid SOCKS5 proxy."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "socks5",
+                "addr": "127.0.0.1",
+                "port": 1080,
+            },
+        )
+        assert config.proxy is not None
+        assert config.proxy["proxy_type"] == "socks5"
+
+    def test_valid_socks4_proxy(self) -> None:
+        """ClientConfig should accept valid SOCKS4 proxy."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "socks4",
+                "addr": "proxy.example.com",
+                "port": 1080,
+            },
+        )
+        assert config.proxy is not None
+
+    def test_valid_http_proxy(self) -> None:
+        """ClientConfig should accept valid HTTP proxy."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "http",
+                "addr": "127.0.0.1",
+                "port": 8080,
+            },
+        )
+        assert config.proxy is not None
+
+    def test_proxy_with_auth(self) -> None:
+        """ClientConfig should accept proxy with username/password."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "socks5",
+                "addr": "proxy.example.com",
+                "port": 1080,
+                "username": "user",
+                "password": "pass",
+            },
+        )
+        assert config.proxy is not None
+        assert config.proxy.get("username") == "user"
+
+    def test_invalid_proxy_type(self) -> None:
+        """ClientConfig should reject invalid proxy_type."""
+        with pytest.raises(ValueError, match="proxy_type"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "invalid",
+                    "addr": "127.0.0.1",
+                    "port": 1080,
+                },
+            )
+
+    def test_missing_addr(self) -> None:
+        """ClientConfig should reject proxy without addr."""
+        with pytest.raises(ValueError, match="addr"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "port": 1080,
+                },
+            )
+
+    def test_empty_addr(self) -> None:
+        """ClientConfig should reject proxy with empty addr."""
+        with pytest.raises(ValueError, match="addr"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "addr": "",
+                    "port": 1080,
+                },
+            )
+
+    def test_invalid_port_high(self) -> None:
+        """ClientConfig should reject proxy with port > 65535."""
+        with pytest.raises(ValueError, match="port"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "addr": "127.0.0.1",
+                    "port": 99999,
+                },
+            )
+
+    def test_invalid_port_low(self) -> None:
+        """ClientConfig should reject proxy with port < 1."""
+        with pytest.raises(ValueError, match="port"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "addr": "127.0.0.1",
+                    "port": 0,
+                },
+            )
+
+    def test_invalid_port_not_int(self) -> None:
+        """ClientConfig should reject proxy with non-integer port."""
+        with pytest.raises(ValueError, match="port"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "addr": "127.0.0.1",
+                    "port": "1080",
+                },
+            )
+
+    def test_proxy_none_works(self) -> None:
+        """ClientConfig should work with proxy=None."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy=None,
+        )
+        assert config.proxy is None
+
+    def test_proxy_omitted_works(self) -> None:
+        """ClientConfig should work when proxy field is omitted."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+        )
+        assert config.proxy is None
