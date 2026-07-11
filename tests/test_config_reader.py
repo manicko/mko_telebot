@@ -417,12 +417,12 @@ class TestValidators:
         ("field_kwargs", "match_pattern"),
         [
             pytest.param(
-                {"api_hash": "YOUR_API_HASH"},
+                {"api_hash": "YOUR_API_HASH" + "x" * 20},
                 "placeholder",
                 id="rejects_placeholder_api_hash",
             ),
             pytest.param(
-                {"api_hash": "PLACEHOLDER_API_HASH"},
+                {"api_hash": "PLACEHOLDER_API_HASH" + "x" * 15},
                 "placeholder",
                 id="rejects_placeholder_prefix_api_hash",
             ),

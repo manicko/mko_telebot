@@ -23,7 +23,7 @@ class ClientConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     api_id: int = Field(..., gt=0, description="Telegram API ID")
     api_hash: SecretStr = Field(
-        ..., min_length=1, max_length=64, description="Telegram API hash"
+        ..., min_length=32, max_length=64, description="Telegram API hash"
     )
     session: str = Field(default="first_session", description="Session name or path")
     app_version: str | None = Field(default=None, description="Application version")
