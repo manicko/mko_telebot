@@ -322,6 +322,79 @@ def patterns_for_node(node: ASTNode) -> list[str]:
     return []
 
 
+def parse_query(query: str) -> tuple[list[ASTNode], list[ASTNode]]:
+    """Parse query into inclusion and exclusion AST node lists.
+
+    Args:
+        query: The raw query string to parse.
+
+    Returns:
+        A tuple (inclusions, exclusions) where:
+          - inclusions: list of ASTNode patterns that must be present
+          - exclusions: list of ASTNode patterns that must NOT be present
+
+    Raises:
+        ValueError: If query is None or empty after cleaning.
+    """
+    if query is None:
+        raise ValueError("Query cannot be None")
+    clean = query.strip().strip("\"'")
+    if clean == "":
+        raise ValueError("Query cannot be empty")
+
+    parser = PatternParser(clean)
+    return parser.parse()
+
+
+def _check_patterns_match(text: str, patterns: list[str]) -> bool:
+    """Check if all regex patterns match in the text.
+
+    Args:
+        text: The target text to search.
+        patterns: List of regex patterns (all must match).
+
+    Returns:
+        True if all patterns match, False otherwise.
+    """
+    if not patterns:
+        return False
+    for pat in patterns:
+        if not pat:
+            return False
+        if not re.search(pat, text, flags=re.IGNORECASE | re.UNICODE):
+            return False
+    return True
+
+
+def evaluate_query(text: str, inclusions: list[ASTNode], exclusions: list[ASTNode]) -> bool:
+    """Evaluate if text matches inclusion patterns and no exclusion patterns.
+
+    Args:
+        text: The target text where patterns will be searched.
+        inclusions: List of ASTNode patterns that must be present.
+        exclusions: List of ASTNode patterns that must NOT be present.
+
+    Returns:
+        True if text satisfies all inclusions and no exclusions match.
+    """
+    # First handle exclusions: if any exclusion matches -> overall False
+    for excl in exclusions:
+        excl_patterns = patterns_for_node(excl)
+        if _check_patterns_match(text, excl_patterns):
+            return False
+
+    # Then handle inclusions: each inclusion expression requires all its
+    # sub-patterns to be present somewhere in the text (unordered).
+    for inc in inclusions:
+        required = patterns_for_node(inc)
+        if not _check_patterns_match(text, required):
+            return False
+
+    # If there were any inclusions and they all passed -> True.
+    # If no inclusions but exclusions existed (and none matched) -> True.
+    return len(inclusions) > 0 or len(exclusions) > 0
+
+
 def search_match(text: str, query: str) -> bool:
     r"""Evaluate whether the given text matches the query expression.
 
@@ -350,46 +423,9 @@ def search_match(text: str, query: str) -> bool:
     Returns:
         True if the text satisfies the query expression, False otherwise.
     """
-    if query is None:
-        return False
-    clean = query.strip().strip("\"'")
-    if clean == "":
-        return False
-
     try:
-        parser = PatternParser(clean)
-        inclusions, exclusions = parser.parse()
-
-        # First handle exclusions: if any exclusion matches -> overall False
-        for excl in exclusions:
-            excl_patterns = patterns_for_node(excl)
-            for pat in excl_patterns:
-                if pat and re.search(pat, text, flags=re.IGNORECASE | re.UNICODE):
-                    return False
-
-        # Then handle inclusions: each inclusion expression requires all its
-        # sub-patterns to be present somewhere in the text (unordered).
-        # For OrOperation inclusion, patterns_for_node returns a single OR pattern.
-        for inc in inclusions:
-            required = patterns_for_node(inc)
-            if not required:
-                # Empty inclusion considered non-matching
-                return False
-            all_found = True
-            for pat in required:
-                if not pat:
-                    all_found = False
-                    break
-                if not re.search(pat, text, flags=re.IGNORECASE | re.UNICODE):
-                    all_found = False
-                    break
-            if not all_found:
-                return False
-
-        # If there were any inclusions and they all passed -> True.
-        # If no inclusions but exclusions existed (and none matched) -> True.
-        return len(inclusions) > 0 or len(exclusions) > 0
-
+        inclusions, exclusions = parse_query(query)
+        return evaluate_query(text, inclusions, exclusions)
     except Exception as e:
         # Log any parsing or runtime error with full traceback for diagnostics.
         # Using logger.exception automatically includes the stack trace,
