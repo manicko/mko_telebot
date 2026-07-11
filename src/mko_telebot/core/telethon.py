@@ -73,6 +73,42 @@ class ClientConfig(BaseModel):
             )
         return v
 
+    @field_validator("proxy")
+    @classmethod
+    def validate_proxy(cls, v: dict[str, object] | None) -> dict[str, object] | None:
+        """Validate proxy configuration for Telethon SOCKS5 proxy.
+
+        Validates that the proxy dict contains required fields and valid values.
+        Telethon requires python-socks[asyncio] for proxy support.
+
+        Args:
+            v: Proxy configuration dict or None.
+
+        Returns:
+            The validated proxy dict or None.
+
+        Raises:
+            ValueError: If proxy configuration is invalid.
+        """
+        if v is None:
+            return v
+
+        valid_types = {"socks5", "socks4", "http"}
+        proxy_type = v.get("proxy_type")
+        if proxy_type not in valid_types:
+            raise ValueError(
+                f"proxy_type must be one of {valid_types}, got '{proxy_type}'"
+            )
+
+        if "addr" not in v or not isinstance(v.get("addr"), str) or not v.get("addr"):
+            raise ValueError("proxy must contain non-empty 'addr' field")
+
+        port = v.get("port")
+        if not isinstance(port, int) or not (1 <= port <= 65535):
+            raise ValueError("proxy 'port' must be integer 1-65535")
+
+        return v
+
 
 class TelethonConfig(BaseModel):
     """
