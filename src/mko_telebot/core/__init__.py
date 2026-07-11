@@ -1,4 +1,4 @@
-﻿"""Core package for mko_telebot.
+"""Core package for mko_telebot.
 
 Provides configuration models, path management, config reader, errors,
 task model, and search matching utilities.
