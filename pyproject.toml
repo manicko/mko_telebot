@@ -29,6 +29,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+# Optional proxy dependency for SOCKS5 proxy support with Telethon
+[project.optional-dependencies]
+proxy = ["python-socks[asyncio]"]
+
 [project.urls]
 Homepage = "https://github.com/manicko/mko_telebot"
 Repository = "https://github.com/manicko/mko_telebot"
