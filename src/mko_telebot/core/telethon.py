@@ -18,6 +18,7 @@ class ClientConfig(BaseModel):
         system_version: System version string
         system_lang_code: System language code
         lang_code: Interface language code
+        proxy: Optional SOCKS5 proxy configuration for Telethon
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -33,6 +34,12 @@ class ClientConfig(BaseModel):
         default=None, description="System language code"
     )
     lang_code: str | None = Field(default=None, description="Interface language code")
+    proxy: dict[str, object] | None = Field(
+        default=None,
+        description="Proxy configuration for Telethon. SOCKS5 format: "
+        "{'proxy_type': 'socks5', 'addr': '...', 'port': int, "
+        "'username': str | None, 'password': str | None}",
+    )
 
     @field_validator("api_hash")
     @classmethod
