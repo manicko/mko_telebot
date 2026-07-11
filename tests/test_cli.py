@@ -115,12 +115,13 @@ class TestCliInit:
         assert settings_dir.exists()
         assert len(list(settings_dir.iterdir())) > 0
 
-        # Verify the copied configuration can be loaded and validated
-        from mko_telebot.core.config import TelepostConfigReader
-
-        reader = TelepostConfigReader.from_user_dir()
-        settings = reader.load()
-        assert settings.channels.channels is not None
+        # Verify the copied telethon_config.yaml has placeholder sentinel values
+        # (intentionally fails validation - users must customize it)
+        telethon_data = yaml.safe_load(
+            (settings_dir / "telethon_config.yaml").read_text(encoding="utf-8")
+        )
+        assert telethon_data["TELETHON_API"]["client"]["api_id"] == 12345
+        assert "PLACEHOLDER_REPLACE_ME" in telethon_data["TELETHON_API"]["phone_or_token"]
 
     def test_init_skips_existing_without_force(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """init without --force should skip existing files."""

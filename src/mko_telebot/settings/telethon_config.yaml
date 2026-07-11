@@ -1,12 +1,44 @@
-{
-  "TELETHON_API": {
-    "is_user": true,
-    "phone_or_token": "PLACEHOLDER_REPLACE_ME",
-    "client": {
-      "api_id": 1,
-      "api_hash": "PLACEHOLDER_REPLACE_ME",
-      "system_lang_code": "en-US",
-      "lang_code": "ru"
-    }
-  }
-}
+# Telethon API configuration template for mko_telebot.
+# Copy this file to your user settings directory and customize for your deployment.
+# See docs/11-guides/configuration.md for full documentation.
+#
+# Replace PLACEHOLDER_REPLACE_ME values with your actual credentials from:
+# https://my.telegram.org/apps
+
+TELETHON_API:
+  is_user: true
+  phone_or_token: "PLACEHOLDER_REPLACE_ME"
+  client:
+    api_id: 12345  # Sentinel value - replace with your actual API ID
+    api_hash: "PLACEHOLDER_REPLACE_ME"
+    system_lang_code: "en-US"
+    lang_code: "ru"
+
+    # --- Optional: Anti-blocking device configuration ---
+    # These parameters help avoid Telegram detection. Uncomment and customize:
+    # app_version: "8.4.2"       # Telegram desktop version
+    # device_model: "Desktop"      # Generic device model
+    # system_version: "Windows 10" # Your system version
+
+    # Mobile device examples (alternative):
+    # app_version: "Telegram iOS 10.5"
+    # device_model: "iPhone 15 Pro"
+    # system_version: "iOS 17.4"
+    # system_lang_code: "en-US"
+    # lang_code: "en"
+
+    # Android device example:
+    # app_version: "Telegram Android 10.5"
+    # device_model: "Samsung Galaxy S24"
+    # system_version: "Android 14"
+    # system_lang_code: "en-US"
+    # lang_code: "en"
+
+    # --- Optional: SOCKS5 proxy configuration ---
+    # Requires python-socks[asyncio] package. Uncomment and customize:
+    # proxy:
+    #   proxy_type: "socks5"
+    #   addr: "127.0.0.1"
+    #   port: 1080
+    #   username: "user"  # optional
+    #   password: "pass"  # optional
