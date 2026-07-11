@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -97,29 +98,28 @@ class TestTaskInit:
 class TestSetOffsetDate:
     """Tests for Task.set_offset_date()."""
 
-    def test_returns_none_when_no_history_days(self) -> None:
-        """set_offset_date() should return None when history_days is None."""
+    def test_sets_none_when_no_history_days(self) -> None:
+        """set_offset_date() should set offset_date to None when history_days is None."""
         config = _make_config(history_days=None)
         task = _make_task(config)
-        result = task.set_offset_date()
-        assert result is None
+        task.offset_date = datetime.now(UTC)  # Set initial value to verify it gets cleared
+        task.set_offset_date()
         assert task.offset_date is None
 
     def test_computes_correct_offset(self) -> None:
         """set_offset_date() should compute (now - history_days) in UTC."""
         config = _make_config(history_days=7)
         task = _make_task(config)
-        result = task.set_offset_date()
-        assert result is not None
-        assert result.tzname() == "UTC"
+        task.set_offset_date()
+        assert task.offset_date is not None
+        assert task.offset_date.tzname() == "UTC"
 
-    def test_returns_none_on_invalid_days(self) -> None:
-        """set_offset_date() should return None when history_days is not int-convertible."""
-        config = _make_config()
+    def test_sets_none_on_invalid_days(self) -> None:
+        """set_offset_date() should set offset_date to None when history_days is not int-convertible."""
+        config = _make_config(history_days=0)  # Valid config but we'll set invalid value
         task = _make_task(config)
-        task.history_days = "not_a_number"
-        result = task.set_offset_date()
-        assert result is None
+        task.history_days = "not_a_number"  # type: ignore[assignment]
+        task.set_offset_date()
         assert task.offset_date is None
 
 

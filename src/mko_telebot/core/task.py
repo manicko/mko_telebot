@@ -54,7 +54,8 @@ class Task:
         self.history_days = config.history_days
         # offset_date computed from history_days (if provided)
         self.state_file: Path | None = None
-        self.offset_date = self.set_offset_date()
+        self.offset_date: datetime | None = None
+        self.set_offset_date()
         # ensure last_msg_id is int and non-null
         self.last_msg_id = last_msg_id or 0
         self.overlap = config.overlap
@@ -104,23 +105,22 @@ class Task:
                 f"Failed to create or verify state file for channel {self.channel_name}"
             ) from e
 
-    def set_offset_date(self) -> datetime | None:
+    def set_offset_date(self) -> None:
         """Compute and store offset_date as (now - history_days) in UTC."""
         self.offset_date = None
         if not self.history_days:
-            return None
+            return
         try:
             days = int(self.history_days)
         except (TypeError, ValueError) as e:
             logger.error(
                 f"Invalid history_days for {self.channel_name}/{self.state_file}: {e}"
             )
-            return None
+            return
         self.offset_date = datetime.now(UTC) - timedelta(days=days)
         logger.debug(
             f"Offset date for {self.channel_name} set to {self.offset_date.isoformat()}"
         )
-        return self.offset_date
 
     # ===== State persistence functions =====
     async def load_state(self) -> None:
