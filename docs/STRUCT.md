@@ -41,7 +41,7 @@ C:\PY_DEV\MKO_TELEBOT\SRC
     |       config.yaml
     |       keyw_config_example_keep.yaml
     |       log_config.yaml
-    |       secrets.yaml
+    |       telethon_config.yaml
     |       
     \---__pycache__
             cli.cpython-314.pyc
@@ -51,3 +51,4 @@ C:\PY_DEV\MKO_TELEBOT\SRC
             monitor.cpython-314.pyc
             __init__.cpython-314.pyc
             
+

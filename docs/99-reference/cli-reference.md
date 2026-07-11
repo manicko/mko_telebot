@@ -69,7 +69,7 @@ mko-telebot init [OPTIONS]
 | File | Description |
 |------|-------------|
 | `config.yaml` | Monitoring configuration (channels, keywords, intervals). |
-| `secrets.yaml` | Telegram API credentials (api_id, api_hash, phone/token). |
+| `telethon_config.yaml` | Telegram API credentials (api_id, api_hash, phone/token). |
 | `log_config.yaml` | Logging configuration (handlers, formatters, levels). |
 | `keyw_config_example_keep.yaml` | Keyword configuration example (kept as reference). |
 
@@ -110,7 +110,7 @@ mko-telebot validate
 **Behavior:**
 
 1. Creates a `TelepostConfigReader` pointing at the user config directory.
-2. Calls `validate_files()` which checks that both `config.yaml` and `secrets.yaml` exist.
+2. Calls `validate_files()` which checks that both `config.yaml` and `telethon_config.yaml` exist.
 3. If valid, prints a success message in green.
 4. If validation fails, prints the error in red and exits with code `1`.
 
@@ -118,7 +118,7 @@ mko-telebot validate
 
 | Code | Condition |
 |------|-----------|
-| `0` | Configuration files are valid (both `config.yaml` and `secrets.yaml` exist). |
+| `0` | Configuration files are valid (both `config.yaml` and `telethon_config.yaml` exist). |
 | `1` | Configuration error — a required file is missing (`ConfigError` raised). |
 
 **Examples:**
@@ -151,7 +151,7 @@ mko-telebot run
 **Behavior:**
 
 1. Sets up logging from `log_config.yaml` (falls back to `basicConfig(level=INFO)` if file missing).
-2. Creates a `TelepostConfigReader` and loads/validates `config.yaml` + `secrets.yaml`.
+2. Creates a `TelepostConfigReader` and loads/validates `config.yaml` + `telethon_config.yaml`.
 3. Creates a Telethon `TelegramClient` (session files stored in `APP_PATHS.session_dir`).
 4. Starts the monitoring loop:
    - Connects to each configured Telegram channel.
@@ -208,7 +208,7 @@ Prints a Rich table with two columns (Path, Value) showing all application paths
 | Path Name | Description |
 |-----------|-------------|
 | Config file | Main configuration file (`config.yaml`). |
-| Secrets file | Secrets file (`secrets.yaml`). |
+| Telethon config file | Telethon config file (`telethon_config.yaml`). |
 | Log config file | Logging configuration file (`log_config.yaml`). |
 | State directory | Directory for persistent state (last message IDs). |
 | Session directory | Directory for Telethon session files (`.session`). |
@@ -233,7 +233,7 @@ mko-telebot config
 # │ Path                │ Value                                            │
 # ├─────────────────────┼──────────────────────────────────────────────────┤
 # │ Config file         │ C:\Users\user\.config\mko_telebot\settings\config.yaml        │
-# │ Secrets file        │ C:\Users\user\.config\mko_telebot\settings\secrets.yaml       │
+# │ Telethon config file        │ C:\Users\user\.config\mko_telebot\settings\telethon_config.yaml       │
 # │ Log config file     │ C:\Users\user\.config\mko_telebot\settings\log_config.yaml     │
 # │ State directory     │ C:\Users\user\.config\mko_telebot\settings\state              │
 # │ Session directory   │ C:\Users\user\.config\mko_telebot\settings\sessions           │
@@ -307,7 +307,7 @@ All user config files live under the user settings directory:
 | File | Purpose | Required |
 |------|---------|----------|
 | `config.yaml` | Monitoring configuration: channels, keywords, intervals, forwarding targets. | Yes |
-| `secrets.yaml` | Telegram API credentials: `api_id`, `api_hash`, `phone_or_token`. | Yes |
+| `telethon_config.yaml` | Telegram API credentials: `api_id`, `api_hash`, `phone_or_token`. | Yes |
 | `log_config.yaml` | Logging configuration: handlers, formatters, log levels. | No (fallback to basicConfig) |
 
 ### Application Template Directory
@@ -332,7 +332,7 @@ mko-telebot init
 
 # 2. Edit the config files (see configuration guide)
 #    $EDITOR ~/.config/mko_telebot/settings/config.yaml
-#    $EDITOR ~/.config/mko_telebot/settings/secrets.yaml
+#    $EDITOR ~/.config/mko_telebot/settings/telethon_config.yaml
 
 # 3. Validate the configuration
 mko-telebot validate

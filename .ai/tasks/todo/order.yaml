@@ -89,23 +89,129 @@ tasks:
     priority: low
     phase: advisory
 
-  # Phase 15: Secrets template cleanup (SEC-004)
+# Phase 15: Secrets template cleanup (SEC-004)
   - id: TASK_010_simplify_secrets_template
     depends_on: []
     priority: low
     phase: advisory
 
-  # Verification task for mandatory fixes
-  - id: TASK_099_verify_mandatory_fixes
+# Phase 16: Rename secrets.yaml to telethon_config.yaml (Phase 01)
+  - id: TASK_016_rename_secrets_yaml
+    depends_on: []
+    priority: high
+    phase: phase_01
+
+# Phase 16b: Add python-socks dependency for proxy support (Phase 01)
+  - id: TASK_016b_add_proxy_dependency
+    depends_on: []
+    priority: medium
+    phase: phase_01
+
+# Phase 17: Add proxy field to ClientConfig (Phase 01)
+  - id: TASK_017_add_proxy_field
     depends_on:
-      - TASK_001_type_hints_monitor
-      - TASK_002_exception_specificity_cli
-      - TASK_003_apply_channel_defaults
-      - TASK_004_secretstr_serialization
+      - TASK_019_api_hash_validation
+    priority: high
+    phase: phase_01
+
+# Phase 18: Add PLACEHOLDER_ prefix rejection (Phase 01)
+  - id: TASK_018_placeholder_validation
+    depends_on: []
+    priority: medium
+    phase: phase_01
+
+# Phase 19: Update api_hash validation constraints (Phase 01)
+  - id: TASK_019_api_hash_validation
+    depends_on:
+      - TASK_018_placeholder_validation
+    priority: high
+    phase: phase_01
+
+# Phase 20: Add device configuration examples (Phase 01)
+  - id: TASK_020_device_examples
+    depends_on:
+      - TASK_016_rename_secrets_yaml
+    priority: medium
+    phase: phase_01
+
+# Verification task for Phase 01
+  - id: TASK_099_verify_phase_01
+    depends_on:
+      - TASK_016_rename_secrets_yaml
+      - TASK_016b_add_proxy_dependency
+      - TASK_017_add_proxy_field
+      - TASK_018_placeholder_validation
+      - TASK_019_api_hash_validation
+      - TASK_020_device_examples
     priority: high
     phase: verification
 
-# Parallel execution groups:
-# Group 1 (can run in parallel): TASK_001, TASK_002, TASK_003, TASK_005, TASK_007, TASK_008, TASK_009, TASK_010, TASK_012
-# Group 2 (depends on Group 1): TASK_004, TASK_006, TASK_011, TASK_014
-# Group 3 (verification): TASK_099
+# Phase 01 Wave 1 (parallel - no telethon.py changes):
+#   TASK_016_rename_secrets_yaml
+#   TASK_016b_add_proxy_dependency
+
+# Phase 01 Wave 2 (telethon.py sequential chain):
+#   TASK_018_placeholder_validation -> TASK_019_api_hash_validation -> TASK_017_add_proxy_field
+
+# Phase 01 Wave 3 (after TASK_016):
+#   TASK_020_device_examples
+
+# Verification: TASK_099_verify_phase_01
+
+# ============================================================================
+# Phase 02: Proxy Configuration
+# ============================================================================
+#
+# Execution DAG for Phase 02:
+#   Wave 1 (parallel, independent files):
+#     TASK_02_07_update_docs (docs/11-guides/configuration.md)
+#     TASK_02_08_proxy_validator (src/mko_telebot/core/telethon.py)
+#
+#   Wave 2 (depends on validator):
+#     TASK_02_09_proxy_tests (tests/test_config_reader.py)
+#
+#   Verification (depends on all implementation tasks):
+#     TASK_02_99_verify
+#
+# File-based sequential dependency:
+#   TASK_017_add_proxy_field (DONE) -> TASK_02_08_proxy_validator (same file: telethon.py)
+#   Both modify ClientConfig class in src/mko_telebot/core/telethon.py
+#
+# ============================================================================
+
+# Phase 02 tasks
+
+# Task 02_07: Documentation update (no dependencies, modifies configuration.md only)
+  - id: task_02_07_update_docs
+    depends_on: []
+    priority: medium
+    phase: phase_02
+    file: docs/11-guides/configuration.md
+
+# Task 02_08: Proxy validator (must follow TASK_017_add_proxy_field from Phase 01)
+# Sequential constraint: same file src/mko_telebot/core/telethon.py
+  - id: task_02_08_proxy_validator
+    depends_on:
+      - TASK_017_add_proxy_field
+    depends_on_previous_task_in_chain: TASK_017_add_proxy_field
+    priority: high
+    phase: phase_02
+    file: src/mko_telebot/core/telethon.py
+
+# Task 02_09: Proxy tests (depends on validator)
+  - id: task_02_09_proxy_tests
+    depends_on:
+      - task_02_08_proxy_validator
+    priority: medium
+    phase: phase_02
+    file: tests/test_config_reader.py
+
+# Task 02_99: Verification (depends on all implementation tasks)
+  - id: task_02_99_verify
+    depends_on:
+      - task_02_07_update_docs
+      - task_02_08_proxy_validator
+      - task_02_09_proxy_tests
+    priority: high
+    phase: phase_02_verification
+    type: verification

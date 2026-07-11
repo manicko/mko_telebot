@@ -44,10 +44,11 @@ The application follows a layered architecture:
 Configuration is loaded from:
 
 1. **User config directory** (platform-specific):
-   - `config.yaml` — Channel definitions and monitoring settings
-   - `secrets.yaml` — Telegram API credentials (SecretStr protected)
-   - `log_config.yaml` — Logging configuration
-2. **Built-in templates** — Copied to user directory via `mko-telebot init`
+    - `config.yaml` — Channel definitions and monitoring settings
+    - `telethon_config.yaml` — Telegram API credentials (api_id, api_hash, phone/token)
+    - `log_config.yaml` — Logging configuration
+    - `keyw_config_example_keep.yaml` — Keyword configuration examples (reference)
+  2. **Built-in templates** — Copied to user directory via `mko-telebot init`
 
 ### Message Processing Pipeline
 
@@ -123,3 +124,4 @@ The application implements robust error handling:
 
 - [Configuration Guide](../11-guides/configuration.md) — Detailed field-by-field configuration reference
 - [CLI Reference](../99-reference/cli-reference.md) — Command usage and options
+

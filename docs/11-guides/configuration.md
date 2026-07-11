@@ -246,7 +246,7 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 |-------|------|---------|-------------|
 | `session` | `str` | `"first_session"` | Session name or path. Determines the session file name used by Telethon to persist authentication. |
 | `api_id` | `int` | _required_ | Telegram API ID. Obtain from [my.telegram.org/apps](https://my.telegram.org/apps). Must be a positive integer. The placeholder value `12345` is rejected. |
-| `api_hash` | `str` (SecretStr) | _required_ | Telegram API hash. Obtain from [my.telegram.org/apps](https://my.telegram.org/apps). Stored as a SecretStr. Minimum length: 1, max length: 64. Values starting with `YOUR_` are rejected as placeholders. |
+| `api_hash` | `str` (SecretStr) | _required_ | Telegram API hash. Obtain from [my.telegram.org/apps](https://my.telegram.org/apps). Stored as a SecretStr. Minimum length: 32, max length: 64. Values starting with `YOUR_` are rejected as placeholders. |
 | `device_model` | `str` or `null` | `null` | Device model string sent to Telegram (optional). Values starting with `YOUR_` are rejected. |
 | `system_version` | `str` or `null` | `null` | System version string sent to Telegram (optional). Values starting with `YOUR_` are rejected. |
 | `system_lang_code` | `str` or `null` | `null` | System language code (e.g. `en-US`). |

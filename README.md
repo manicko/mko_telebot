@@ -203,6 +203,19 @@ The main configuration file where you define:
 
 * **Channels** — Telegram channels or groups to monitor (by username or ID).
 * **Keywords** — Per-channel keyword expressions supporting `(word1 | word2)`, `-exclude`, and `*` wildcards.
+
+Example:
+
+(tivat | тиват) -услуг* -трансфер* -массаж -ремонт -iphone -сдаю -сдам -аренд*  -мясо -сыр -заказ*',
+            '(budv* | будв* | херцег* | котор | бечичи) телефон -iphone -услуг* -ремонт',
+            '(budv* | будв* | херцег* | котор | бечичи) наушники -iphone -беспроводные',
+            '(budv* | будв* | херцег* | котор | бечичи) (кроссовки | обувь) (39 |40 | 43 | 44 )',
+            '(budv* | будв* | херцег* | котор | бечичи) (инструмент | перфоратор | дрель | ушм | болгарка | *лобзик | электролобзик)',
+            '(budv* | будв* | херцег* | котор | бечичи) пылесос (робот | строительный)',
+            '(budv* | будв* | херцег* | котор | бечичи) (notebook | ноут* | *book) -услуг* -ремонт* -mac*',
+            '(budv* | будв* | херцег* | котор | бечичи) стеллаж*',
+            '(budv* | будв* | херцег* | котор | бечичи) ящик*
+            
 * **Intervals** — How often to scan each channel (in seconds).
 * **History depth** — How many past messages to scan on first run.
 
