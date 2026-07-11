@@ -8,7 +8,7 @@ _src_dir = Path(__file__).resolve().parent.parent / "src"
 if str(_src_dir) not in sys.path:
     sys.path.insert(0, str(_src_dir))
 
-from mko_telebot.core.parser import search_match  # noqa: E402
+from mko_telebot.core.matcher import search_match  # noqa: E402
 
 
 @pytest.fixture

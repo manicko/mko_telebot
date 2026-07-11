@@ -7,8 +7,8 @@ task model, and search matching utilities.
 from .channels import ChannelConfig, ChannelDefaults, ChannelsConfig, LogLevel
 from .config import TelepostConfigReader, resolve_path
 from .errors import ConfigError, MkoTelebotError
+from .matcher import search_match
 from .models import TelepostSettings
-from .parser import search_match
 from .paths import APP_PATHS
 from .task import Task
 
