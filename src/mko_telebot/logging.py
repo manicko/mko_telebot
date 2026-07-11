@@ -32,7 +32,7 @@ def setup_logging(config_path: Path | None = None) -> None:
     """
     reader = TelepostConfigReader(
         config_path=APP_PATHS.config_file,
-        secrets_path=APP_PATHS.secrets_file,
+        secrets_path=APP_PATHS.telethon_config_file,
         log_config_path=config_path,
     )
     try:

@@ -1,7 +1,7 @@
 """Configuration reader for mko_telebot.
 
 Provides TelepostConfigReader for lazy-loading Pydantic-validated configuration
-from config.yaml, secrets.yaml, and log_config.yaml files.
+from config.yaml, telethon_config.yaml, and log_config.yaml files.
 
 Usage:
     reader = TelepostConfigReader.from_user_dir()
@@ -97,12 +97,12 @@ def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any
 class TelepostConfigReader:
     """Lazy configuration reader that loads and validates YAML config files.
 
-    Reads config.yaml (monitoring) and secrets.yaml (Telethon API credentials),
+    Reads config.yaml (monitoring) and telethon_config.yaml (Telethon API credentials),
     merges them, and validates the result against TelepostSettings.
 
     Attributes:
         config_path: Path to config.yaml.
-        secrets_path: Path to secrets.yaml.
+        secrets_path: Path to telethon_config.yaml.
         log_config_path: Optional path to log_config.yaml.
     """
 
@@ -116,7 +116,7 @@ class TelepostConfigReader:
 
         Args:
             config_path: Path to config.yaml.
-            secrets_path: Path to secrets.yaml.
+            secrets_path: Path to telethon_config.yaml.
             log_config_path: Optional path to log_config.yaml.
         """
         self.config_path = config_path
@@ -138,7 +138,7 @@ class TelepostConfigReader:
         base = user_dir or APP_PATHS.user_settings_dir
         return cls(
             config_path=base / "config.yaml",
-            secrets_path=base / "secrets.yaml",
+            secrets_path=base / "telethon_config.yaml",
             log_config_path=base / "log_config.yaml",
         )
 
@@ -152,11 +152,11 @@ class TelepostConfigReader:
             raise ConfigError("Required config file not found", path=self.config_path)
         if not self.secrets_path.exists():
             raise ConfigError(
-                "Required secrets file not found", path=self.secrets_path
+                "Required telethon config file not found", path=self.secrets_path
             )
 
     def load(self) -> TelepostSettings:
-        """Load and merge config.yaml + secrets.yaml, validate against TelepostSettings.
+        """Load and merge config.yaml + telethon_config.yaml, validate against TelepostSettings.
 
         Returns:
             Validated TelepostSettings instance.

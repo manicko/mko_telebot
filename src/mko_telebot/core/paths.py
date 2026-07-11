@@ -120,9 +120,9 @@ class AppPaths(BaseModel):
         return self.user_settings_dir / "config.yaml"
 
     @property
-    def secrets_file(self) -> Path:
-        """Path to the secrets configuration file."""
-        return self.user_settings_dir / "secrets.yaml"
+    def telethon_config_file(self) -> Path:
+        """Path to the Telethon configuration file."""
+        return self.user_settings_dir / "telethon_config.yaml"
 
     @property
     def log_config_file(self) -> Path:

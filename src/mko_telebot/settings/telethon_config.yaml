@@ -1,0 +1,12 @@
+{
+  "TELETHON_API": {
+    "is_user": true,
+    "phone_or_token": "PLACEHOLDER_REPLACE_ME",
+    "client": {
+      "api_id": 1,
+      "api_hash": "PLACEHOLDER_REPLACE_ME",
+      "system_lang_code": "en-US",
+      "lang_code": "ru"
+    }
+  }
+}

@@ -113,7 +113,7 @@ def config() -> None:
     table.add_column("Value", style="green")
 
     table.add_row("Config file", str(APP_PATHS.config_file))
-    table.add_row("Secrets file", str(APP_PATHS.secrets_file))
+    table.add_row("Telethon config file", str(APP_PATHS.telethon_config_file))
     table.add_row("Log config file", str(APP_PATHS.log_config_file))
     table.add_row("State directory", str(APP_PATHS.state_dir))
     table.add_row("Session directory", str(APP_PATHS.session_dir))

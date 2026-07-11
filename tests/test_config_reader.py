@@ -1,7 +1,7 @@
 ﻿"""Tests for the TelepostConfigReader configuration reader.
 
 Tests cover construction, file validation, loading of YAML config files,
-logging config loading, and merging of config.yaml + secrets.yaml.
+logging config loading, and merging of config.yaml + telethon_config.yaml.
 """
 
 from pathlib import Path
@@ -38,8 +38,8 @@ def _valid_config_yaml() -> dict[str, object]:
     }
 
 
-def _valid_secrets_yaml() -> dict[str, object]:
-    """Return a minimal valid TELETHON_API secrets dict."""
+def _valid_telethon_config_yaml() -> dict[str, object]:
+    """Return a minimal valid TELETHON_API config dict."""
     return {
         "TELETHON_API": {
             "is_user": True,
@@ -90,7 +90,7 @@ class TestFromUserDir:
         reader = TelepostConfigReader.from_user_dir(tmp_path)
         assert isinstance(reader, TelepostConfigReader)
         assert reader.config_path == tmp_path / "config.yaml"
-        assert reader.secrets_path == tmp_path / "secrets.yaml"
+        assert reader.secrets_path == tmp_path / "telethon_config.yaml"
         assert reader.log_config_path == tmp_path / "log_config.yaml"
 
     def test_from_user_dir_defaults_to_app_paths(self):
@@ -100,7 +100,7 @@ class TestFromUserDir:
         reader = TelepostConfigReader.from_user_dir()
         expected = APP_PATHS.user_settings_dir
         assert reader.config_path == expected / "config.yaml"
-        assert reader.secrets_path == expected / "secrets.yaml"
+        assert reader.secrets_path == expected / "telethon_config.yaml"
         assert reader.log_config_path == expected / "log_config.yaml"
 
 
@@ -114,31 +114,31 @@ class TestValidateFiles:
 
     def test_validate_files_raises_error_when_config_missing(self, tmp_path: Path):
         """validate_files() should raise ConfigError if config.yaml is missing."""
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(ConfigError, match="Required config file not found"):
             reader.validate_files()
 
-    def test_validate_files_raises_error_when_secrets_missing(self, tmp_path: Path):
-        """validate_files() should raise ConfigError if secrets.yaml is missing."""
+    def test_validate_files_raises_error_when_telethon_config_missing(self, tmp_path: Path):
+        """validate_files() should raise ConfigError if telethon_config.yaml is missing."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
-        with pytest.raises(ConfigError, match="Required secrets file not found"):
+        with pytest.raises(ConfigError, match="Required telethon config file not found"):
             reader.validate_files()
 
     def test_validate_files_passes_when_all_files_exist(self, tmp_path: Path):
         """validate_files() should not raise when both files exist."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         # Should not raise
         reader.validate_files()
@@ -154,31 +154,31 @@ class TestLoad:
 
     def test_load_raises_config_error_when_config_missing(self, tmp_path: Path):
         """load() should raise ConfigError when config.yaml is missing."""
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(ConfigError, match="Required config file not found"):
             reader.load()
 
-    def test_load_raises_config_error_when_secrets_missing(self, tmp_path: Path):
-        """load() should raise ConfigError when secrets.yaml is missing."""
+    def test_load_raises_config_error_when_telethon_config_missing(self, tmp_path: Path):
+        """load() should raise ConfigError when telethon_config.yaml is missing."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
-        with pytest.raises(ConfigError, match="Required secrets file not found"):
+        with pytest.raises(ConfigError, match="Required telethon config file not found"):
             reader.load()
 
     def test_load_raises_config_error_on_malformed_yaml(self, tmp_path: Path):
         """load() should raise ConfigError when a YAML file is malformed."""
         (tmp_path / "config.yaml").write_text("{invalid: yaml: broken", encoding="utf-8")
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(ConfigError, match="Malformed YAML"):
             reader.load()
@@ -186,10 +186,10 @@ class TestLoad:
     def test_load_returns_telepost_settings(self, tmp_path: Path):
         """load() should return a TelepostSettings instance with valid files."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         settings = reader.load()
         assert isinstance(settings, TelepostSettings)
@@ -198,10 +198,10 @@ class TestLoad:
     def test_load_populates_settings_property(self, tmp_path: Path):
         """load() should populate the settings property after loading."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         reader.load()
         assert isinstance(reader.settings, TelepostSettings)
@@ -210,7 +210,7 @@ class TestLoad:
         """settings property should raise ConfigError before load() is called."""
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(ConfigError, match="Settings not loaded"):
             _ = reader.settings
@@ -222,15 +222,15 @@ class TestLoad:
 
 
 class TestMergedConfig:
-    """Tests for merging config.yaml + secrets.yaml."""
+    """Tests for merging config.yaml + telethon_config.yaml."""
 
     def test_merged_config_contains_both_sections(self, tmp_path: Path):
         """Merged config should contain both CHANNELS and TELETHON_API data."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        _write_yaml(tmp_path / "secrets.yaml", _valid_secrets_yaml())
+        _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         settings = reader.load()
         # CHANNELS section
@@ -239,8 +239,8 @@ class TestMergedConfig:
         assert settings.telethon.is_user is True
         assert settings.telethon.client.api_id == 123456
 
-    def test_secrets_overlay_config_defaults(self, tmp_path: Path):
-        """Secrets values should overlay config values when keys overlap."""
+    def test_telethon_config_overlay_config_defaults(self, tmp_path: Path):
+        """Telethon config values should overlay config values when keys overlap."""
         config_data: dict[str, object] = {
             "CHANNELS": {
                 "channels": {
@@ -250,7 +250,7 @@ class TestMergedConfig:
                 },
             },
         }
-        secrets_data: dict[str, object] = {
+        telethon_config_data: dict[str, object] = {
             "CHANNELS": {
                 "channels_delay": 60,
             },
@@ -264,17 +264,17 @@ class TestMergedConfig:
             },
         }
         _write_yaml(tmp_path / "config.yaml", config_data)
-        _write_yaml(tmp_path / "secrets.yaml", secrets_data)
+        _write_yaml(tmp_path / "telethon_config.yaml", telethon_config_data)
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         settings = reader.load()
-        # Overlay value from secrets
+        # Overlay value from telethon config
         assert settings.channels.channels_delay == 60
         # Original value from config still present
         assert settings.channels.channels["test_channel"].name == "@test_channel"
-        # Bot token from secrets
+        # Bot token from telethon config
         assert settings.telethon.is_user is False
 
 
@@ -290,7 +290,7 @@ class TestLoadLoggingConfig:
         """load_logging_config() should raise ConfigError when file is missing."""
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
         with pytest.raises(
@@ -303,7 +303,7 @@ class TestLoadLoggingConfig:
         _write_yaml(tmp_path / "log_config.yaml", _valid_logging_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
         log_config = reader.load_logging_config()
@@ -315,7 +315,7 @@ class TestLoadLoggingConfig:
         _write_yaml(tmp_path / "log_config.yaml", _valid_logging_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
         log_config = reader.load_logging_config()
@@ -332,7 +332,7 @@ class TestLoadLoggingConfig:
         _write_yaml(tmp_path / "log_config.yaml", data)
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
         log_config = reader.load_logging_config()
@@ -360,7 +360,7 @@ class TestLoadLoggingConfig:
         _write_yaml(tmp_path / "log_config.yaml", data)
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
         log_config = reader.load_logging_config()
@@ -381,10 +381,10 @@ class TestEdgeCases:
     def test_load_raises_on_empty_yaml(self, tmp_path: Path):
         """load() should raise ConfigError when a YAML file is empty."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        (tmp_path / "secrets.yaml").write_text("", encoding="utf-8")
+        (tmp_path / "telethon_config.yaml").write_text("", encoding="utf-8")
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(
             ConfigError, match="Expected a top-level mapping in YAML file"
@@ -394,10 +394,10 @@ class TestEdgeCases:
     def test_load_raises_on_invalid_yaml_type(self, tmp_path: Path):
         """load() should raise ConfigError when YAML is not a dict."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
-        (tmp_path / "secrets.yaml").write_text("[1, 2, 3]", encoding="utf-8")
+        (tmp_path / "telethon_config.yaml").write_text("[1, 2, 3]", encoding="utf-8")
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
-            secrets_path=tmp_path / "secrets.yaml",
+            secrets_path=tmp_path / "telethon_config.yaml",
         )
         with pytest.raises(
             ConfigError, match="Expected a top-level mapping in YAML file"
