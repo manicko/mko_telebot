@@ -48,14 +48,12 @@
   - telethon
   - telethon.errors
   - mko_telebot.core
-  - mko_telebot.core.config
   - mko_telebot.core.errors
   - mko_telebot.core.models
   classes: []
   functions:
   - create_client
   - build_message_link
-  - launcher
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\__init__.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.__init__
   layer: unknown
@@ -75,6 +73,7 @@
   - ChannelDefaults
   - ChannelsConfig
   functions:
+  - validate_channel_name
   - strip_defaults_from_channels
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\config.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.config

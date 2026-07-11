@@ -252,6 +252,18 @@
   value: build_sender_tag
   stable_hash: dada2d8a
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
+- id: 8c926504
+  symbol_path: []
+  type: function_call
+  value: range
+  stable_hash: 8c926504
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
+- id: c033d44f
+  symbol_path: []
+  type: function_call
+  value: getattr
+  stable_hash: c033d44f
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
 - id: c033d44f
   symbol_path: []
   type: function_call
@@ -394,26 +406,6 @@
   value: main_loop
   stable_hash: a2d91acf
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
-- id: a7923d6e
-  symbol_path:
-  - launcher
-  type: function_call
-  value: create_client
-  stable_hash: a7923d6e
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
-- id: 9a82babc
-  symbol_path:
-  - launcher
-  type: function_call
-  value: run_monitor
-  stable_hash: 9a82babc
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
-- id: f329952a
-  symbol_path: []
-  type: function_call
-  value: launcher
-  stable_hash: f329952a
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
 - id: cceeb2d8
   symbol_path:
   - ChannelConfig
@@ -469,6 +461,29 @@
   type: function_call
   value: Field
   stable_hash: d45368d7
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
+- id: 5d085386
+  symbol_path:
+  - ChannelConfig
+  - validate_channel_name
+  type: function_call
+  value: ValueError
+  stable_hash: 5d085386
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
+- id: 34702adb
+  symbol_path:
+  - ChannelConfig
+  - validate_channel_name
+  type: return_statement
+  stable_hash: 34702adb
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
+- id: f1bc9b3b
+  symbol_path:
+  - ChannelConfig
+  - validate_channel_name
+  type: function_call
+  value: field_validator
+  stable_hash: f1bc9b3b
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
 - id: 8e28db0b
   symbol_path:
