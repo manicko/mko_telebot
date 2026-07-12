@@ -620,3 +620,319 @@ class TestProcessAndReschedule:
         with patch("mko_telebot.monitor.process_task", new_callable=AsyncMock):
             with pytest.raises(ValueError, match="Unexpected error"):
                 await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+
+
+# ---------------------------------------------------------------------------
+# TestRunMonitor
+# ---------------------------------------------------------------------------
+
+
+class TestRunMonitor:
+    """Tests for run_monitor()."""
+
+    async def test_starts_client_and_runs_loop(self) -> None:
+        """run_monitor() should start client and enter main loop on success."""
+        mock_client = MagicMock()
+        mock_client.disconnect = AsyncMock()
+
+        mock_settings = MagicMock()
+
+        with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=True):
+            # Import after patching to get the mocked version
+            from mko_telebot import monitor
+
+            with patch.object(monitor, "main_loop", new_callable=AsyncMock) as mock_loop:
+                # Set side_effect to raise KeyboardInterrupt from inside the mocked coroutine
+                mock_loop.side_effect = KeyboardInterrupt("test exit")
+
+                with pytest.raises(KeyboardInterrupt):
+                    await monitor.run_monitor(mock_settings, mock_client)
+
+                mock_loop.assert_awaited_once()
+                mock_client.disconnect.assert_awaited_once()
+
+    async def test_does_not_run_loop_on_auth_failure(self) -> None:
+        """run_monitor() should not enter main_loop if start_client fails."""
+        mock_client = MagicMock()
+        mock_client.disconnect = AsyncMock()
+
+        mock_settings = MagicMock()
+
+        with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=False):
+            from mko_telebot.monitor import run_monitor
+
+            await run_monitor(mock_settings, mock_client)
+            mock_client.disconnect.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# TestMainLoop
+# ---------------------------------------------------------------------------
+
+
+class TestMainLoop:
+    """Tests for main_loop() orchestration."""
+
+    async def test_creates_task_for_each_channel(self) -> None:
+        """main_loop() should create Task for each channel in config."""
+        from mko_telebot.monitor import main_loop
+
+        mock_settings = MagicMock()
+        mock_settings.channels.channels_delay = 30
+        mock_settings.channels.stagger_start_seconds = 5
+
+        mock_channel_config = MagicMock()
+        mock_channel_config.name = "test_channel"
+        mock_channel_config.scan_interval = 420
+        mock_channel_config.history_limit = 50
+        mock_channel_config.overlap = 5
+        mock_channel_config.forward_to = []
+        mock_channel_config.keywords = []
+
+        mock_settings.channels.channels = {"test_channel": mock_channel_config}
+
+        mock_client = MagicMock()
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+
+        with (
+            patch("mko_telebot.monitor.Task") as mock_task_class,
+            patch("mko_telebot.monitor.process_and_reschedule", new_callable=AsyncMock),
+        ):
+            mock_task_instance = MagicMock()
+            mock_task_instance.resolve_channel_entity = AsyncMock()
+            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.load_state = AsyncMock()
+            mock_task_instance.resolve_targets_entities = AsyncMock()
+            mock_task_class.return_value = mock_task_instance
+
+            # Patch queue.get to return immediately to break the loop
+            get_count = 0
+
+            async def mock_get():
+                nonlocal get_count
+                get_count += 1
+                if get_count > 1:
+                    raise KeyboardInterrupt()
+                return MagicMock()
+
+            with patch.object(queue, "get", side_effect=mock_get):
+                with patch("asyncio.sleep", return_value=None):
+                    with pytest.raises(KeyboardInterrupt):
+                        await main_loop(mock_settings, mock_client, queue, lock)
+
+            mock_task_class.assert_called_once()
+
+    async def test_resolves_channel_entity(self) -> None:
+        """main_loop() should call resolve_channel_entity for each channel."""
+        from mko_telebot.monitor import main_loop
+
+        mock_settings = MagicMock()
+        mock_settings.channels.channels_delay = 30
+        mock_settings.channels.stagger_start_seconds = 5
+
+        mock_channel_config = MagicMock()
+        mock_channel_config.name = "channel_a"
+        mock_channel_config.scan_interval = 420
+        mock_channel_config.history_limit = 50
+        mock_channel_config.overlap = 5
+        mock_channel_config.forward_to = []
+        mock_channel_config.keywords = []
+
+        mock_settings.channels.channels = {"channel_a": mock_channel_config}
+
+        mock_client = MagicMock()
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+
+        with (
+            patch("mko_telebot.monitor.Task") as mock_task_class,
+            patch("mko_telebot.monitor.process_and_reschedule", new_callable=AsyncMock),
+        ):
+            mock_task_instance = MagicMock()
+            mock_task_instance.resolve_channel_entity = AsyncMock()
+            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.load_state = AsyncMock()
+            mock_task_instance.resolve_targets_entities = AsyncMock()
+            mock_task_class.return_value = mock_task_instance
+
+            get_count = 0
+
+            async def mock_get():
+                nonlocal get_count
+                get_count += 1
+                if get_count > 1:
+                    raise KeyboardInterrupt()
+                return MagicMock()
+
+            with patch.object(queue, "get", side_effect=mock_get):
+                with patch("asyncio.sleep", return_value=None):
+                    with pytest.raises(KeyboardInterrupt):
+                        await main_loop(mock_settings, mock_client, queue, lock)
+
+            mock_task_instance.resolve_channel_entity.assert_awaited_once()
+
+    async def test_loads_state(self) -> None:
+        """main_loop() should call load_state for each channel."""
+        from mko_telebot.monitor import main_loop
+
+        mock_settings = MagicMock()
+        mock_settings.channels.channels_delay = 30
+        mock_settings.channels.stagger_start_seconds = 5
+
+        mock_channel_config = MagicMock()
+        mock_channel_config.name = "channel_b"
+        mock_channel_config.scan_interval = 420
+        mock_channel_config.history_limit = 50
+        mock_channel_config.overlap = 5
+        mock_channel_config.forward_to = []
+        mock_channel_config.keywords = []
+
+        mock_settings.channels.channels = {"channel_b": mock_channel_config}
+
+        mock_client = MagicMock()
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+
+        with (
+            patch("mko_telebot.monitor.Task") as mock_task_class,
+            patch("mko_telebot.monitor.process_and_reschedule", new_callable=AsyncMock),
+        ):
+            mock_task_instance = MagicMock()
+            mock_task_instance.resolve_channel_entity = AsyncMock()
+            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.load_state = AsyncMock()
+            mock_task_instance.resolve_targets_entities = AsyncMock()
+            mock_task_class.return_value = mock_task_instance
+
+            get_count = 0
+
+            async def mock_get():
+                nonlocal get_count
+                get_count += 1
+                if get_count > 1:
+                    raise KeyboardInterrupt()
+                return MagicMock()
+
+            with patch.object(queue, "get", side_effect=mock_get):
+                with patch("asyncio.sleep", return_value=None):
+                    with pytest.raises(KeyboardInterrupt):
+                        await main_loop(mock_settings, mock_client, queue, lock)
+
+            mock_task_instance.load_state.assert_awaited_once()
+
+    async def test_puts_tasks_in_queue(self) -> None:
+        """main_loop() should put tasks in the queue during initialization."""
+        from mko_telebot.monitor import main_loop
+
+        mock_settings = MagicMock()
+        mock_settings.channels.channels_delay = 30
+        mock_settings.channels.stagger_start_seconds = 5
+
+        mock_channel_config = MagicMock()
+        mock_channel_config.name = "channel_c"
+        mock_channel_config.scan_interval = 420
+        mock_channel_config.history_limit = 50
+        mock_channel_config.overlap = 5
+        mock_channel_config.forward_to = []
+        mock_channel_config.keywords = []
+
+        mock_settings.channels.channels = {"channel_c": mock_channel_config}
+
+        mock_client = MagicMock()
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+
+        with (
+            patch("mko_telebot.monitor.Task") as mock_task_class,
+            patch("mko_telebot.monitor.process_and_reschedule", new_callable=AsyncMock),
+        ):
+            mock_task_instance = MagicMock()
+            mock_task_instance.resolve_channel_entity = AsyncMock()
+            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.load_state = AsyncMock()
+            mock_task_instance.resolve_targets_entities = AsyncMock()
+            mock_task_class.return_value = mock_task_instance
+
+            get_count = 0
+
+            async def mock_get():
+                nonlocal get_count
+                get_count += 1
+                if get_count > 1:
+                    raise KeyboardInterrupt()
+                return MagicMock()
+
+            with patch.object(queue, "get", side_effect=mock_get):
+                with patch("asyncio.sleep", return_value=None):
+                    with pytest.raises(KeyboardInterrupt):
+                        await main_loop(mock_settings, mock_client, queue, lock)
+
+            # Task should have been put in queue during setup
+            assert queue.qsize() == 1
+
+
+# ---------------------------------------------------------------------------
+# TestRescheduleTask
+# ---------------------------------------------------------------------------
+
+
+class TestRescheduleTask:
+    """Tests for reschedule_task()."""
+
+    async def test_calculates_delay_and_puts_task_in_queue(self) -> None:
+        """reschedule_task() should sleep for scan_interval + jitter then put task in queue."""
+        from mko_telebot.monitor import reschedule_task
+
+        mock_task = MagicMock()
+        mock_task.channel_name = "test_channel"
+        mock_task.scan_interval = 420
+
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("random.uniform", return_value=15.0),
+        ):
+            await reschedule_task(mock_task, queue)
+
+            expected_delay = 420 + 15.0
+            mock_sleep.assert_awaited_once_with(expected_delay)
+            assert not queue.empty()
+
+    async def test_puts_task_back_in_queue(self) -> None:
+        """reschedule_task() should put the task back in the queue."""
+        from mko_telebot.monitor import reschedule_task
+
+        mock_task = MagicMock()
+        mock_task.channel_name = "reschedule_test"
+        mock_task.scan_interval = 60
+
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            patch("random.uniform", return_value=20.0),
+        ):
+            await reschedule_task(mock_task, queue)
+            queued_task = queue.get_nowait()
+            assert queued_task is mock_task
+
+    async def test_uses_random_jitter(self) -> None:
+        """reschedule_task() should use random.uniform for jitter."""
+        from mko_telebot.monitor import reschedule_task
+
+        mock_task = MagicMock()
+        mock_task.scan_interval = 300
+
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            patch("random.uniform", return_value=22.5) as mock_random,
+        ):
+            await reschedule_task(mock_task, queue)
+            mock_random.assert_called_once()
+            args = mock_random.call_args[0]
+            assert args[0] == 10
+            assert args[1] == 30
