@@ -43,11 +43,10 @@ platforms = ["Linux", "Windows"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src/*"]
+where = ["src"]
+include = ["mko_telebot*"]
 exclude = ["tests/.pytest_cache*"]
 namespaces = false
-
 
 # Black configuration
 [tool.black]
@@ -123,7 +122,6 @@ combine-as-imports = true
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-
 
 # MyPy config (project-level)
 [tool.mypy]
