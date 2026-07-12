@@ -493,45 +493,87 @@ class TestForwardToUsers:
 # ---------------------------------------------------------------------------
 
 class TestProcessMessages:
-    """Tests for process_messages()."""
+    """Tests for process_messages().
 
+    Tests verify actual behavior by checking client.send_message/send_file calls
+    instead of mocking internal forward_to_users function.
+    """
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/1")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_forward_on_keyword_match(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
-        """process_messages() should forward messages matching keywords."""
+        """process_messages() should forward messages matching keywords via send_message."""
         messages = [_make_msg_stub(1, "this is a test message")]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            mock_forward.assert_awaited_once()
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        assert mock_client.send_message.await_count == len(mock_task.forward_to_entities)
+        args, _ = mock_client.send_message.call_args
+        assert "test" in args[1]
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/2")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_does_not_forward_on_no_match(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """process_messages() should skip messages not matching keywords."""
         messages = [_make_msg_stub(2, "unrelated content here")]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            mock_forward.assert_not_called()
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        mock_client.send_message.assert_not_called()
+        mock_client.send_file.assert_not_called()
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/10")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_groups_album_messages(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
-        """process_messages() should group messages with same grouped_id into one album."""
+        """process_messages() should group messages with same grouped_id into one album via send_file."""
         group_id = 100
         messages = [
             _make_msg_stub(10, "test photo one", grouped_id=group_id, has_media=True),
             _make_msg_stub(11, "test photo two", grouped_id=group_id, has_media=True),
         ]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            mock_forward.assert_awaited_once()
-            call_args = mock_forward.call_args
-            msg_text = call_args[0][1]
-            assert "test photo one" in msg_text
-            assert "test photo two" in msg_text
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        # Album messages should be sent via send_file (has media)
+        assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
+        args, kwargs = mock_client.send_file.call_args
+        # Verify both texts are combined in caption
+        caption = kwargs.get("caption", "")
+        assert "test photo one" in caption
+        assert "test photo two" in caption
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/20")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_does_not_forward_album_without_keyword_match(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """process_messages() should not forward grouped album with no keyword match."""
         group_id = 200
@@ -539,38 +581,134 @@ class TestProcessMessages:
             _make_msg_stub(20, "random a", grouped_id=group_id, has_media=True),
             _make_msg_stub(21, "random b", grouped_id=group_id, has_media=True),
         ]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            mock_forward.assert_not_called()
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        mock_client.send_message.assert_not_called()
+        mock_client.send_file.assert_not_called()
 
-    async def test_handles_empty_message_list(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
-    ) -> None:
-        """process_messages() should handle empty message list without error."""
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages([], mock_task, mock_client, mock_settings)
-            mock_forward.assert_not_called()
-
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/30")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_processes_individual_messages_separately(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """process_messages() should process individual messages separately."""
         messages = [
             _make_msg_stub(30, "test one"),
             _make_msg_stub(31, "test two"),
         ]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            assert mock_forward.await_count == 2
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        # 2 messages × 2 forward targets = 4 calls
+        assert mock_client.send_message.await_count == 4
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/70")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_groups_by_grouped_id_correctly(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should correctly group messages by grouped_id."""
+        # Two separate groups, both containing "test" keyword
+        messages = [
+            _make_msg_stub(100, "test group one", grouped_id=100, has_media=True),
+            _make_msg_stub(101, "test group one more", grouped_id=100, has_media=True),
+            _make_msg_stub(200, "test group two", grouped_id=200, has_media=True),
+            _make_msg_stub(300, "standalone test", grouped_id=None, has_media=False),  # standalone
+        ]
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        # 2 albums (each to 2 targets) + 1 text (to 2 targets) = 6 total calls
+        assert mock_client.send_file.await_count == 4  # 2 albums (2 targets each)
+        assert mock_client.send_message.await_count == 2  # 1 standalone text (2 targets)
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_uses_msg_id_when_no_grouped_id(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should use message id as group key when grouped_id is None."""
+        # Each message should be processed individually
+        messages = [
+            _make_msg_stub(1, "test unique one"),
+            _make_msg_stub(2, "test unique two"),
+        ]
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        # Both messages should trigger forward (different grouped_id means different groups)
+        # 2 messages × 2 forward targets = 4 calls
+        assert mock_client.send_message.await_count == 4
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_skips_messages_without_text(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """process_messages() should skip messages with no text content."""
         messages = [_make_msg_stub(40, text="")]
-        with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
-            await process_messages(messages, mock_task, mock_client, mock_settings)
-            mock_forward.assert_not_called()
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        mock_client.send_message.assert_not_called()
+        mock_client.send_file.assert_not_called()
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/50")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="@testuser")
+    async def test_includes_sender_tag_in_caption(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should include sender tag in forwarded message caption."""
+        messages = [_make_msg_stub(50, "test message")]
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        args, _ = mock_client.send_message.call_args
+        caption = args[1]
+        assert "Author: @testuser" in caption
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/60")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_includes_source_link_in_caption(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should include source link in forwarded message caption."""
+        messages = [_make_msg_stub(60, "test message")]
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        args, _ = mock_client.send_message.call_args
+        caption = args[1]
+        assert "Source: https://t.me/test/60" in caption
 
 
 # ---------------------------------------------------------------------------
