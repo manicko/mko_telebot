@@ -61,21 +61,27 @@ class Task:
         self.overlap = config.overlap
 
     async def resolve_targets_entities(self, client: Any) -> None:
-        """Resolve each forward target to a Telethon entity and store them."""
-        self.forward_to_entities = []
-        for ent in self.forward_to:
-            try:
-                entity = await client.get_entity(ent)
-                self.forward_to_entities.append(entity)
-                # Small randomized pause to look "human" and avoid rate limits
-                await asyncio.sleep(random.uniform(0, 3))
-            except Exception as e:
-                logger.error(
-                    f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
-                )
-                raise TelegramServiceError(
-                    f"Failed to resolve entity for target {ent}"
-                ) from e
+            """Resolve each forward target to a Telethon entity and store them.
+
+            All entities are resolved into a temporary list first, then assigned
+            atomically to forward_to_entities. This ensures no partial state remains
+            if any resolution fails.
+            """
+            entities: list[object] = []
+            for ent in self.forward_to:
+                try:
+                    entity = await client.get_entity(ent)
+                    entities.append(entity)
+                    # Small randomized pause to look "human" and avoid rate limits
+                    await asyncio.sleep(random.uniform(0, 3))
+                except Exception as e:
+                    logger.error(
+                        f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
+                    )
+                    raise TelegramServiceError(
+                        f"Failed to resolve entity for target {ent}"
+                    ) from e
+            self.forward_to_entities = entities
 
     async def resolve_channel_entity(self, client: Any) -> None:
         """Resolve channel_name to a Telethon channel entity."""

@@ -328,8 +328,8 @@ class TestResolveTargetsEntities:
         mock_client.get_entity.side_effect = [entity1, ValueError("Not found")]
         with pytest.raises(TelegramServiceError, match="Failed to resolve entity for target"):
             await task.resolve_targets_entities(mock_client)
-        # The first entity was already appended before the error
-        assert len(task.forward_to_entities) == 1
+        # No partial state - atomic assignment means forward_to_entities remains empty
+        assert task.forward_to_entities == []
 
     async def test_handles_empty_targets(self) -> None:
         """resolve_targets_entities() should handle empty forward_to list."""
