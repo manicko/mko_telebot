@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from telethon.errors import FloodWaitError
 
 from mko_telebot.core.channels import ChannelConfig
 from mko_telebot.core.errors import StateError, TelegramServiceError
@@ -296,6 +297,36 @@ class TestResolveChannelEntity:
             await task.resolve_channel_entity(mock_client)
         assert task.channel_entity is None
 
+    async def test_raises_on_flood_wait_error(self) -> None:
+        """resolve_channel_entity() should raise TelegramServiceError on FloodWaitError."""
+        config = _make_config(name="@test_channel")
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_client.get_entity.side_effect = FloodWaitError(request=None)
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for channel"):
+            await task.resolve_channel_entity(mock_client)
+        assert task.channel_entity is None
+
+    async def test_raises_on_connection_error(self) -> None:
+        """resolve_channel_entity() should raise TelegramServiceError on connection errors."""
+        config = _make_config(name="@test_channel")
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_client.get_entity.side_effect = OSError("Connection failed")
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for channel"):
+            await task.resolve_channel_entity(mock_client)
+        assert task.channel_entity is None
+
+    async def test_raises_on_timeout_error(self) -> None:
+        """resolve_channel_entity() should raise TelegramServiceError on timeout errors."""
+        config = _make_config(name="@test_channel")
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_client.get_entity.side_effect = TimeoutError("Connection timed out")
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for channel"):
+            await task.resolve_channel_entity(mock_client)
+        assert task.channel_entity is None
+
 
 # ---------------------------------------------------------------------------
 # resolve_targets_entities
@@ -339,6 +370,69 @@ class TestResolveTargetsEntities:
         await task.resolve_targets_entities(mock_client)
         assert task.forward_to_entities == []
         mock_client.get_entity.assert_not_called()
+
+    async def test_calls_sleep_between_resolutions(self) -> None:
+        """resolve_targets_entities() should call asyncio.sleep between entity resolutions."""
+        config = _make_config(
+            name="@test_channel", forward_to=["@target1", "@target2"]
+        )
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        entity1, entity2 = MagicMock(), MagicMock()
+        mock_client.get_entity.side_effect = [entity1, entity2]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await task.resolve_targets_entities(mock_client)
+
+        # Sleep is called after each successful resolution (rate limiting)
+        assert mock_sleep.await_count == 2
+
+    async def test_raises_on_flood_wait_error(self) -> None:
+        """resolve_targets_entities() should raise TelegramServiceError on FloodWaitError."""
+        config = _make_config(
+            name="@test_channel", forward_to=["@target1", "@target2"]
+        )
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_client.get_entity.side_effect = FloodWaitError(request=None)
+
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for target"):
+            await task.resolve_targets_entities(mock_client)
+
+        assert task.forward_to_entities == []
+
+    async def test_error_on_first_target_stops_resolution(self) -> None:
+        """resolve_targets_entities() should stop on first error without resolving remaining targets."""
+        config = _make_config(
+            name="@test_channel", forward_to=["@target1", "@target2", "@target3"]
+        )
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_client.get_entity.side_effect = ValueError("Not found")
+
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for target"):
+            await task.resolve_targets_entities(mock_client)
+
+        # Only one call should be made before error
+        mock_client.get_entity.assert_awaited_once_with("@target1")
+        assert task.forward_to_entities == []
+
+    async def test_atomic_assignment_all_or_nothing(self) -> None:
+        """resolve_targets_entities() should only assign forward_to_entities on complete success."""
+        config = _make_config(
+            name="@test_channel", forward_to=["@target1", "@target2"]
+        )
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        entity1 = MagicMock()
+        # First succeeds, second fails
+        mock_client.get_entity.side_effect = [entity1, ValueError("Not found")]
+
+        with pytest.raises(TelegramServiceError, match="Failed to resolve entity for target"):
+            await task.resolve_targets_entities(mock_client)
+
+        # Atomic behavior: no partial state assigned
+        assert task.forward_to_entities == []
 
 
 # ---------------------------------------------------------------------------
