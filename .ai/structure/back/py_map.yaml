@@ -9,6 +9,7 @@
   - rich.table
   - mko_telebot.core.errors
   - mko_telebot.core.paths
+  - mko_telebot.monitor_client
   - mko_telebot.monitor
   - mko_telebot.logging
   - mko_telebot.core.config
@@ -44,21 +45,59 @@
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.monitor
   layer: unknown
   imports:
+  - telethon
+  - mko_telebot.core
+  - mko_telebot.core.models
+  - monitor_client
+  - monitor_forward
+  classes: []
+  functions: []
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.monitor_client
+  layer: unknown
+  imports:
   - pathlib
   - telethon
-  - telethon.errors
   - mko_telebot.core
   - mko_telebot.core.errors
   - mko_telebot.core.models
+  - telethon.tl.custom.message
   classes: []
   functions:
   - create_client
   - build_message_link
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.monitor_forward
+  layer: unknown
+  imports:
+  - typing
+  - telethon
+  - telethon.errors
+  - telethon.tl.custom.message
+  - mko_telebot.core
+  - mko_telebot.core.errors
+  - mko_telebot.core.models
+  - monitor_client
+  classes: []
+  functions: []
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\__init__.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.__init__
   layer: unknown
   imports: []
   classes: []
+  functions: []
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\ast_nodes.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.ast_nodes
+  layer: unknown
+  imports:
+  - dataclasses
+  classes:
+  - ASTNode
+  - ExactMatch
+  - OrOperation
+  - Sequence
+  - Wildcard
+  - Exclusion
   functions: []
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\channels.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.channels
@@ -75,6 +114,7 @@
   functions:
   - validate_channel_name
   - strip_defaults_from_channels
+  - apply_defaults_to_channels
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\config.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.config
   layer: unknown
@@ -111,6 +151,19 @@
   - StateError
   functions:
   - __init__
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\matcher.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.matcher
+  layer: unknown
+  imports:
+  - ast_nodes
+  - parser
+  classes: []
+  functions:
+  - ast_to_regex
+  - patterns_for_node
+  - _check_patterns_match
+  - evaluate_query
+  - search_match
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\models.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.models
   layer: unknown
@@ -126,14 +179,8 @@
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.parser
   layer: unknown
   imports:
-  - dataclasses
+  - ast_nodes
   classes:
-  - ASTNode
-  - ExactMatch
-  - OrOperation
-  - Sequence
-  - Wildcard
-  - Exclusion
   - PatternParser
   functions:
   - __init__
@@ -144,9 +191,7 @@
   - _parse_or_expr
   - _parse_and_expr
   - _parse_term
-  - ast_to_regex
-  - patterns_for_node
-  - search_match
+  - parse_query
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\paths.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.paths
   layer: unknown
@@ -169,7 +214,7 @@
   - session_dir
   - log_dir
   - config_file
-  - secrets_file
+  - telethon_config_file
   - log_config_file
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.task
@@ -177,6 +222,7 @@
   imports:
   - datetime
   - pathlib
+  - typing
   - mko_telebot.core
   - mko_telebot.core.paths
   - mko_telebot.core.errors
@@ -200,18 +246,26 @@
   - validate_api_hash
   - validate_not_placeholder
   - validate_api_id
+  - validate_proxy
   - validate_phone_or_token
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\utils.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.utils
   layer: unknown
   imports:
-  - os
   - pathlib
-  - typing
   classes: []
   functions:
-  - list_files_in_directory
   - ensure_path_exists
-  - resolve_path
-  - load_config
-  - merge_dicts
+- path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\__init__.py
+  module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.__init__
+  layer: unknown
+  imports:
+  - channels
+  - config
+  - errors
+  - matcher
+  - models
+  - paths
+  - task
+  classes: []
+  functions: []
