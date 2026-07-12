@@ -14,7 +14,7 @@ related:
 
 **Target format:** `ClassName.method` for methods, bare name for top-level functions. Case-sensitive.
 **Always run first:** `list_symbols` to discover exact names.
-**Always run after editing:** `uv run ruff check <file>`
+**Always run after editing:** `uv run ruff check <file>` and `uv run basedpyright <file>`
 
 ---
 
@@ -37,5 +37,6 @@ Before editing any Python file:
 
 After EVERY edit:
 1. Run `uv run ruff check <file>` immediately
-2. If ruff reports E111/E112/E113/E114/E117 (indentation errors): fix before proceeding
-3. If tests fail due to your changes: fix before proceeding
+2. Run `uv run basedpyright <file>` to verify type hints
+3. If ruff reports E111/E112/E113/E114/E117 (indentation errors): fix before proceeding
+4. If tests fail due to your changes: fix before proceeding

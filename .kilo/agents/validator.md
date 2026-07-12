@@ -41,9 +41,10 @@ permission:
     "npm run typecheck*": allow
     "pnpm typecheck*": allow
     "yarn typecheck*": allow
-    "pytest*": allow
-    "ruff*": allow
-    "mypy*": allow
+    "*pytest*": allow
+    "*ruff*": allow
+    "*mypy*": allow
+    "*basedpyright*": allow
     "alembic*": allow
 
      # === DOCKER: read-only allowed ===

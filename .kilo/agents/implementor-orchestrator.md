@@ -39,6 +39,7 @@ permission:
     "uv run pytest*": allow
     "uv run ruff check*": allow
     "uv run mypy*": allow
+    "uv run basedpyright*": allow
     "npm run build": allow
     "npm run test": allow
     "npm run lint": allow

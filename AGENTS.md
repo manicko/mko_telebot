@@ -14,7 +14,8 @@ CLI tool **Telegram classified monitor** designed to track messages with customi
 |------|---------|
 | Test | `uv run pytest <path>` |
 | Lint | `uv run ruff check <path>` |
-| Type check | `uv run mypy <path>` |
+| Type check (mypy) | `uv run mypy <path>` |
+| Type check (basedpyright) | `uv run basedpyright <path>` |
 | Add dependency | `uv add <package>` |
 
 ## Architecture
@@ -35,7 +36,7 @@ CLI tool **Telegram classified monitor** designed to track messages with customi
 
 ## Indentation
 
-This project uses **4 spaces** — never tabs. When editing, read the full function/class and rewrite it entirely — never patch nested blocks in place. Never reindent surrounding code. After every edit, run `uv run ruff check <path>` and fix any reported indentation issue immediately — do not assume the model got it right.
+This project uses **4 spaces** — never tabs. When editing, read the full function/class and rewrite it entirely — never patch nested blocks in place. Never reindent surrounding code. After every edit, run `uv run ruff check <path>` and `uv run basedpyright <path>` and fix any reported issues immediately — do not assume the model got it right.
 
 ## References
 

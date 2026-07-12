@@ -143,7 +143,7 @@ Applied to every channel that does not override a given field. Configurable as a
 |-------|------|---------|-------------|-------------|
 | `scan_interval` | `int` | `420` | ≥ 60 | Interval in seconds between scanning the channel for new messages. |
 | `history_limit` | `int` | `50` | ≥ 1 | Maximum number of historical messages to fetch on first scan. |
-| `history_days` | `int` or `null` | `null` | any positive int | Number of days of historical messages to fetch. `null` means no day-based limit. |
+| `history_days` | `int` or `null` | `null` | any positive int | Number of days of historical messages to fetch. `null` means no day-based limit. When set, messages older than this cutoff are excluded from scanning. |
 | `overlap` | `int` | `5` | ≥ 1 | Number of overlapping messages between consecutive scans — avoids gaps from messages arriving during a scan. |
 | `forward_to` | `list[str]` | `[]` | — | List of target entities (channel @username, chat ID, or t.me link) to forward matched messages to. |
 | `keywords` | `list[str]` | `[]` | — | Keyword patterns for filtering messages. Only messages matching at least one keyword are forwarded. An empty list forwards all messages. |
@@ -168,9 +168,9 @@ The keyword filtering system supports a flexible pattern syntax for matching mes
 
 | Operator | Description | Example |
 |----------|-------------|---------|
-| `|` | OR — matches either side | `(barcelona | барселона)` matches "barcelona" OR "барселона" |
+| `|` | OR — matches either side | `(barcelona \| барселона)` matches "barcelona" OR "барселона" |
 | `-` | Exclusion — excludes matches | `-rent*` excludes messages containing words starting with "rent" |
-| `()` | Grouping — groups subexpressions | `(bike* | велосипед)` groups OR alternatives |
+| `()` | Grouping — groups subexpressions | `(bike* \| велосипед)` groups OR alternatives |
 | `*` | Wildcard — matches any non-space characters | `bike*` matches "bike", "biker", "bicycle" but not "bike rental" |
 
 ### Pattern Types
@@ -180,7 +180,7 @@ The keyword filtering system supports a flexible pattern syntax for matching mes
 | Exact match | Whole word match with word boundaries | `alert` matches "alert" but not "alerts" |
 | Wildcard | `*` matches non-space characters | `bike*` matches "bike", "biker", "bicycle" |
 | Sequence (implicit) | Space-separated terms act as AND | `barcelona bicycle` requires both terms present |
-| OR expression | Pipe-separated alternatives act as OR | `barcelona|барселона` matches either |
+| OR expression | Pipe-separated alternatives act as OR | `barcelona\|барселона` matches either |
 
 ### Evaluation Semantics
 
@@ -244,7 +244,7 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `session` | `str` | `"first_session"` | Session name or path. Determines the session file name used by Telethon to persist authentication. |
+| `session` | `str` | `"first_session"` | Session name or path. Determines the session file name used by Telethon to persist authentication. Path traversal characters (`/`, `\`, `..`) are rejected for security. |
 | `api_id` | `int` | _required_ | Telegram API ID. Obtain from [my.telegram.org/apps](https://my.telegram.org/apps). Must be a positive integer. The placeholder value `12345` is rejected. |
 | `api_hash` | `str` (SecretStr) | _required_ | Telegram API hash. Obtain from [my.telegram.org/apps](https://my.telegram.org/apps). Stored as a SecretStr. Minimum length: 32, max length: 64. Values starting with `YOUR_` are rejected as placeholders. |
 | `device_model` | `str` or `null` | `null` | Device model string sent to Telegram (optional). Values starting with `YOUR_` are rejected. |
@@ -252,15 +252,15 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 | `system_lang_code` | `str` or `null` | `null` | System language code (e.g. `en-US`). |
 | `lang_code` | `str` or `null` | `null` | Telegram interface language code (e.g. `ru`). |
 | `app_version` | `str` or `null` | `null` | Application version string sent to Telegram (optional). |
-| `proxy` | `dict` or `null` | `null` | Proxy configuration for Telethon SOCKS5 proxy. Requires `proxy_type`, `addr`, `port`. Optional: `username`, `password`, `rdns`. See [Proxy Configuration](#proxy-configuration). |
+| `proxy` | `ProxyConfig` or `null` | `null` | Proxy configuration for Telethon SOCKS4/SOCKS5/HTTP proxy. Uses dedicated `ProxyConfig` Pydantic model with SecretStr for credentials. Requires `proxy_type`, `addr`, `port`. Optional: `username`, `password`, `rdns`. See [Proxy Configuration](#proxy-configuration). |
 
 ---
 
-### Proxy Configuration
+## Proxy Configuration
 
 Telethon supports SOCKS4, SOCKS5, and HTTP proxies via the `proxy` field in `ClientConfig`. Requires `python-socks[asyncio]` package (optional dependency available via `pip install -e ".[proxy]"`).
 
-#### Required Fields
+### Required Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -268,15 +268,15 @@ Telethon supports SOCKS4, SOCKS5, and HTTP proxies via the `proxy` field in `Cli
 | `addr` | `str` | Proxy server IP address or hostname (non-empty) |
 | `port` | `int` | Proxy server port (1-65535) |
 
-#### Optional Fields
+### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `username` | `str` | Authentication username (if required) |
-| `password` | `str` | Authentication password (if required) |
+| `username` | `str` (SecretStr) | Authentication username (if required). Stored as SecretStr to prevent credential exposure. |
+| `password` | `str` (SecretStr) | Authentication password (if required). Stored as SecretStr to prevent credential exposure. |
 | `rdns` | `bool` | Remote DNS resolution (SOCKS5 only, default: `true`) |
 
-#### SOCKS5 Example
+### SOCKS5 Example
 
 ```yaml
 TELETHON_API:
@@ -363,12 +363,16 @@ Handler `filename` values that are relative paths are automatically resolved aga
 
 ## SecretStr Handling
 
-Sensitive fields use Pydantic's [`SecretStr`](https://docs.pydantic.dev/latest/concepts/fields/#secret-fields) type:
+Sensitive fields use Pydantic's [`SecretStr`](https://docs.pydantic.dev/latest/concepts/fields/#secret-fields) type to prevent credential exposure in logs, error messages, and serialization output.
+
+### Sensitive Fields
 
 | Field | Location | Purpose |
 |-------|----------|---------|
 | `phone_or_token` | `telethon_config.yaml` → `TELETHON_API.phone_or_token` | Phone number or bot token |
 | `api_hash` | `telethon_config.yaml` → `TELETHON_API.client.api_hash` | Telegram API hash |
+| `username` | `telethon_config.yaml` → `TELETHON_API.client.proxy.username` | Proxy authentication username |
+| `password` | `telethon_config.yaml` → `TELETHON_API.client.proxy.password` | Proxy authentication password |
 
 ### How SecretStr Works
 
@@ -384,7 +388,7 @@ The application rejects placeholder values to prevent accidental use of template
 - **api_id:** The value `12345` is rejected as a template placeholder.
 - **api_hash:** Any value starting with `YOUR_` is rejected.
 - **phone_or_token:** Any value starting with `YOUR_` is rejected.
-- **device_model, system_version, session:** Any value starting with `YOUR_` is rejected.
+- **device_model, system_version, session, proxy username/password:** Any value starting with `YOUR_` or `PLACEHOLDER_` is rejected.
 
 If any field fails validation, a `ConfigError` with a descriptive message is raised during `load()`.
 
@@ -418,6 +422,8 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 | `api_id value 12345 is a template placeholder` | `api_id` is still the template value |
 | `phone_or_token appears to be a placeholder value` | `phone_or_token` value starts with `YOUR_` |
 | `Invalid channel name: contains forbidden path character` | Channel name contains `/`, `\`, or `..` |
+| `proxy_type must be one of {...}` | Invalid proxy type value |
+| `rdns must be a boolean if provided` | `rdns` field has non-boolean value |
 
 ---
 

@@ -34,9 +34,10 @@ permission:
     # === BUILD & TEST ===
     
     "uv *": allow
-    "pytest*": allow
-    "ruff*": allow
-    "mypy*": allow
+    "*pytest*": allow
+    "*ruff*": allow
+    "*mypy*": allow
+    "*basedpyright*": allow
     "alembic*": allow
     "npm test*": allow
     "npm run lint*": allow

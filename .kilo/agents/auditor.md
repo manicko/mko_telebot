@@ -155,6 +155,11 @@ permission:
      "pip install *": ask
      "pip uninstall *": ask
      "uv run*": allow
+     "uv *": allow
+     "*pytest*": allow
+     "*ruff*": allow
+     "*mypy*": allow
+     "*basedpyright*": allow
      "npm uninstall *": ask
      "uv pip uninstall *": ask
      "apt remove *": ask
