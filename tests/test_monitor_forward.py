@@ -1,4 +1,4 @@
-"""Tests for monitor_forward module — process_task function."""
+"""Tests for monitor_forward module — process_task and _send_with_retry functions."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from telethon.errors import FloodWaitError, WorkerBusyTooLongRetryError
+from telethon.errors import FloodWaitError, RPCError, WorkerBusyTooLongRetryError
 
 from mko_telebot.core.errors import TelegramServiceError
-from mko_telebot.monitor_forward import process_task
+from mko_telebot.monitor_forward import _send_with_retry, process_task
 
 
 # ---------------------------------------------------------------------------
@@ -22,6 +22,8 @@ def mock_client() -> MagicMock:
     """Create a mock Telethon client with async method stubs."""
     client = MagicMock()
     client.iter_messages = MagicMock()
+    client.send_message = AsyncMock()
+    client.send_file = AsyncMock()
     return client
 
 
@@ -195,3 +197,117 @@ class TestProcessTask:
             await process_task(mock_task, mock_client, mock_settings)
             mock_process.assert_not_called()
             mock_logger.info.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# TestSendWithRetry
+# ---------------------------------------------------------------------------
+
+
+class TestSendWithRetry:
+    """Tests for _send_with_retry() helper function."""
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_sends_text_message(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should send text message via send_message."""
+        target = MagicMock()
+        result = await _send_with_retry(
+            mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+        )
+        assert result is True
+        mock_client.send_message.assert_awaited_once()
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_sends_media_message(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should send media via send_file."""
+        target = MagicMock()
+        media = [MagicMock()]
+        result = await _send_with_retry(
+            mock_client, target, "Caption", media, max_tries=3, channel_name="test"
+        )
+        assert result is True
+        mock_client.send_file.assert_awaited_once()
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_flood_wait(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should retry on FloodWaitError and return True on success."""
+        target = MagicMock()
+        mock_client.send_message.side_effect = [FloodWaitError(request=None), None]
+        result = await _send_with_retry(
+            mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+        )
+        assert result is True
+        assert mock_client.send_message.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_worker_busy(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should retry on WorkerBusyTooLongRetryError."""
+        target = MagicMock()
+        mock_client.send_message.side_effect = [WorkerBusyTooLongRetryError(request=None), None]
+        result = await _send_with_retry(
+            mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+        )
+        assert result is True
+        assert mock_client.send_message.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_rpc_error(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should retry on RPCError."""
+        target = MagicMock()
+        mock_client.send_message.side_effect = [RPCError(request=None, message="error"), None]
+        result = await _send_with_retry(
+            mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+        )
+        assert result is True
+        assert mock_client.send_message.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_returns_false_after_all_retries_fail(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should return False when all retries fail."""
+        target = MagicMock()
+        mock_client.send_message.side_effect = FloodWaitError(request=None)
+        result = await _send_with_retry(
+            mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+        )
+        assert result is False
+        assert mock_client.send_message.await_count == 3
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_logs_info_on_success(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should log info on successful send."""
+        target = MagicMock()
+        target.id = 12345
+        with patch("mko_telebot.monitor_forward.logger") as mock_logger:
+            await _send_with_retry(
+                mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+            )
+            mock_logger.info.assert_called_once()
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_logs_warning_on_retry(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock
+    ) -> None:
+        """_send_with_retry() should log warning on retry."""
+        target = MagicMock()
+        target.id = 12345
+        mock_client.send_message.side_effect = [FloodWaitError(request=None), None]
+        with patch("mko_telebot.monitor_forward.logger") as mock_logger:
+            await _send_with_retry(
+                mock_client, target, "Hello", None, max_tries=3, channel_name="test"
+            )
+            mock_logger.warning.assert_called_once()
+            assert "Flood wait" in mock_logger.warning.call_args[0][0]

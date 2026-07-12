@@ -20,6 +20,71 @@ from .monitor_client import build_message_link, build_sender_tag
 logger = logging.getLogger(__name__)
 
 
+async def _send_with_retry(
+    client: TelegramClient,
+    target: Any,
+    caption: str,
+    msg_media: list[Any] | None,
+    max_tries: int,
+    channel_name: str,
+) -> bool:
+    """Send message to target with retry logic for transient Telegram API errors.
+
+    Implements exponential backoff with jitter for FloodWaitError,
+    WorkerBusyTooLongRetryError, and RPCError.
+
+    Args:
+        client: The Telethon client instance.
+        target: Destination entity for the message.
+        caption: Text content for the message or media caption.
+        msg_media: List of media objects if sending files, None otherwise.
+        max_tries: Maximum number of retry attempts.
+        channel_name: Channel name for logging context.
+
+    Returns:
+        True if message was sent successfully, False after all retries exhausted.
+    """
+    for attempt in range(max_tries):
+        try:
+            if msg_media:
+                await client.send_file(
+                    target, msg_media, caption=caption or None, link_preview=False
+                )
+            else:
+                await client.send_message(target, caption or "", link_preview=False)
+
+            logger.info(
+                f"{channel_name}: forwarded message to {getattr(target, 'id', target)}"
+            )
+            return True
+
+        except FloodWaitError as e:
+            wait_time = e.seconds + random.uniform(5, 10) + (2**attempt)
+            logger.warning(
+                f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
+                f"for {getattr(target, 'id', target)}"
+            )
+            await asyncio.sleep(wait_time)
+
+        except WorkerBusyTooLongRetryError as e:
+            wait_time = (2**attempt) + random.uniform(0, 3)
+            logger.warning(
+                f"Worker busy retry error {e}, retry {attempt + 1}/{max_tries} "
+                f"for {getattr(target, 'id', target)}"
+            )
+            await asyncio.sleep(wait_time)
+
+        except RPCError as e:
+            wait_time = (2**attempt) + random.uniform(0, 3)
+            logger.warning(
+                f"RPC error {e}, retry {attempt + 1}/{max_tries} "
+                f"for {getattr(target, 'id', target)}"
+            )
+            await asyncio.sleep(wait_time)
+
+    return False
+
+
 async def forward_to_users(
     msg: Message,
     msg_text: str | None,
@@ -30,16 +95,16 @@ async def forward_to_users(
 ) -> None:
     """Forward message or album to targets, appending author and link.
 
-    Implements retry logic with exponential backoff and jitter for transient
-    Telegram API errors (FloodWaitError, WorkerBusyTooLongRetryError, RPCError).
+    Uses _send_with_retry for retry logic with exponential backoff and jitter
+    for transient Telegram API errors.
 
     Args:
-        msg (telethon.tl.custom.message.Message): The main message object (used to extract author and link).
-        msg_text (str): Text content (combined text and captions).
-        msg_media (list): List of message.media objects, if any.
-        task (Task): Task configuration including forwarding targets.
-        client (TelegramClient): The Telethon client instance.
-        settings (TelepostSettings): Application settings (used for max_retries).
+        msg: The main message object (used to extract author and link).
+        msg_text: Text content (combined text and captions).
+        msg_media: List of message.media objects, if any.
+        task: Task configuration including forwarding targets.
+        client: The Telethon client instance.
+        settings: Application settings (used for max_retries).
 
     """
 
@@ -60,61 +125,20 @@ async def forward_to_users(
 
     caption = "\n\n".join(caption_lines).strip()
 
-    # Send to each target with retry loop
-
+    # Send to each target with retry logic
     for target in task.forward_to_entities:
-        max_tries = settings.telethon.max_retries
-
-        for attempt in range(max_tries):
-            try:
-                if msg_media:
-                    await client.send_file(
-                        target, msg_media, caption=caption or None, link_preview=False
-                    )
-
-                else:
-                    await client.send_message(target, caption or "", link_preview=False)
-
-                logger.info(
-                    f"{task.channel_name}: forwarded message to {getattr(target, 'id', target)}"
-                )
-
-                break
-
-            except FloodWaitError as e:
-                wait_time = e.seconds + random.uniform(5, 10) + (2**attempt)
-
-                logger.warning(
-                    f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
-                    f"for {getattr(target, 'id', target)}"
-                )
-
-                await asyncio.sleep(wait_time)
-
-            except WorkerBusyTooLongRetryError as e:
-                wait_time = (2**attempt) + random.uniform(0, 3)
-
-                logger.warning(
-                    f"Worker busy retry error {e}, retry {attempt + 1}/{max_tries} "
-                    f"for {getattr(target, 'id', target)}"
-                )
-
-                await asyncio.sleep(wait_time)
-
-            except RPCError as e:
-                wait_time = (2**attempt) + random.uniform(0, 3)
-
-                logger.warning(
-                    f"RPC error {e}, retry {attempt + 1}/{max_tries} "
-                    f"for {getattr(target, 'id', target)}"
-                )
-
-                await asyncio.sleep(wait_time)
-
-        else:
+        success = await _send_with_retry(
+            client,
+            target,
+            caption,
+            msg_media or None,
+            settings.telethon.max_retries,
+            task.channel_name,
+        )
+        if not success:
             logger.error(
                 f"Failed to send to {getattr(target, 'id', target)} "
-                f"after {max_tries} attempts"
+                f"after {settings.telethon.max_retries} attempts"
             )
 
         await asyncio.sleep(random.uniform(5, 10))
