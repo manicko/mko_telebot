@@ -171,7 +171,7 @@ async def process_messages(
             )
 
 
-async def process_task(task: Task, client: TelegramClient, settings: TelepostSettings):
+async def process_task(task: Task, client: TelegramClient, settings: TelepostSettings) -> None:
     """Fetch and process recent messages from a specific Telegram channel.
 
     Args:
