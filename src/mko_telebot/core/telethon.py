@@ -5,6 +5,82 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 
+class ProxyConfig(BaseModel):
+    """Proxy configuration for Telethon SOCKS5/SOCKS4/HTTP proxy.
+
+    Uses SecretStr for username and password to prevent credential exposure
+    in logs and serialization.
+
+    Attributes:
+        proxy_type: Proxy type ('socks5', 'socks4', or 'http').
+        addr: Proxy server address/hostname.
+        port: Proxy server port (1-65535).
+        rdns: Remote DNS resolution (SOCKS5 only).
+        username: Proxy authentication username.
+        password: Proxy authentication password.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    proxy_type: str = Field(..., description="Proxy type")
+    addr: str = Field(..., description="Proxy server address")
+    port: int = Field(..., ge=1, le=65535, description="Proxy server port")
+    rdns: bool | None = Field(default=None, description="Remote DNS resolution")
+    username: SecretStr | None = Field(default=None, description="Proxy username")
+    password: SecretStr | None = Field(default=None, description="Proxy password")
+
+    @field_validator("addr")
+    @classmethod
+    def validate_addr(cls, v: str) -> str:
+        """Validate addr is non-empty."""
+        if not v:
+            raise ValueError("proxy must contain non-empty 'addr' field")
+        return v
+
+    @field_validator("proxy_type")
+    @classmethod
+    def validate_proxy_type(cls, v: str) -> str:
+        """Validate proxy_type is one of the allowed values."""
+        valid_types = {"socks5", "socks4", "http"}
+        if v not in valid_types:
+            raise ValueError(
+                f"proxy_type must be one of {valid_types}, got '{v}'"
+            )
+        return v
+
+    @field_validator("username", "password")
+    @classmethod
+    def validate_not_placeholder(cls, v: SecretStr | None) -> SecretStr | None:
+        """Reject placeholder values for proxy credentials."""
+        if v is not None:
+            value = v.get_secret_value()
+            if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
+                raise ValueError(
+                    f"{v} appears to be a placeholder value. "
+                    "Replace with your actual value."
+                )
+        return v
+
+    def to_dict(self) -> dict[str, object]:
+        """Convert to Telethon-compatible dict format.
+
+        Returns:
+            Dict with plain string values for username and password.
+        """
+        result: dict[str, object] = {
+            "proxy_type": self.proxy_type,
+            "addr": self.addr,
+            "port": self.port,
+        }
+        if self.rdns is not None:
+            result["rdns"] = self.rdns
+        if self.username is not None:
+            result["username"] = self.username.get_secret_value()
+        if self.password is not None:
+            result["password"] = self.password.get_secret_value()
+        return result
+
+
 class ClientConfig(BaseModel):
     """
     Configuration for Telegram client (Telethon).
@@ -34,11 +110,9 @@ class ClientConfig(BaseModel):
         default=None, description="System language code"
     )
     lang_code: str | None = Field(default=None, description="Interface language code")
-    proxy: dict[str, object] | None = Field(
+    proxy: ProxyConfig | None = Field(
         default=None,
-        description="Proxy configuration for Telethon. SOCKS5 format: "
-        "{'proxy_type': 'socks5', 'addr': '...', 'port': int, "
-        "'rdns': bool, 'username': str | None, 'password': str | None}",
+        description="Proxy configuration for Telethon. Use ProxyConfig model.",
     )
 
     @field_validator("api_hash")
@@ -71,45 +145,6 @@ class ClientConfig(BaseModel):
                 "api_id value 12345 is a template placeholder. "
                 "Replace with your actual API ID from https://my.telegram.org/apps."
             )
-        return v
-
-    @field_validator("proxy")
-    @classmethod
-    def validate_proxy(cls, v: dict[str, object] | None) -> dict[str, object] | None:
-        """Validate proxy configuration for Telethon SOCKS5 proxy.
-
-        Validates that the proxy dict contains required fields and valid values.
-        Telethon requires python-socks[asyncio] for proxy support.
-
-        Args:
-            v: Proxy configuration dict or None.
-
-        Returns:
-            The validated proxy dict or None.
-
-        Raises:
-            ValueError: If proxy configuration is invalid.
-        """
-        if v is None:
-            return v
-
-        valid_types = {"socks5", "socks4", "http"}
-        proxy_type = v.get("proxy_type")
-        if proxy_type not in valid_types:
-            raise ValueError(
-                f"proxy_type must be one of {valid_types}, got '{proxy_type}'"
-            )
-
-        if "addr" not in v or not isinstance(v.get("addr"), str) or not v.get("addr"):
-            raise ValueError("proxy must contain non-empty 'addr' field")
-
-        port = v.get("port")
-        if not isinstance(port, int) or not (1 <= port <= 65535):
-            raise ValueError("proxy 'port' must be integer 1-65535")
-
-        if "rdns" in v and not isinstance(v.get("rdns"), bool):
-            raise ValueError("'rdns' must be a boolean if provided")
-
         return v
 
 
@@ -146,4 +181,4 @@ class TelethonConfig(BaseModel):
         return v
 
 
-__all__ = ["ClientConfig", "TelethonConfig"]
+__all__ = ["ProxyConfig", "ClientConfig", "TelethonConfig"]

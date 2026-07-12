@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import itertools
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic import SecretStr
 
 from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
 from mko_telebot.monitor_client import (
@@ -74,20 +72,16 @@ def mock_settings() -> MagicMock:
     settings.telethon.phone_or_token.get_secret_value.return_value = "+1234567890"
     settings.telethon.max_retries = 3
 
-    def mock_model_dump(mode: str | None = None) -> dict[str, Any]:
-        """Mock model_dump that serializes SecretStr when mode='json'."""
-        result: dict[str, Any] = {
-            "api_id": 123456,
-            "api_hash": SecretStr("test_hash_abcdef123456") if mode == "json" else "test_hash_abcdef123456",
-            "session": "test_session",
-        }
-        if mode == "json":
-            result["api_hash"] = result["api_hash"].get_secret_value() if isinstance(
-                result["api_hash"], SecretStr
-            ) else result["api_hash"]
-        return result
-
-    settings.telethon.client.model_dump.side_effect = mock_model_dump
+    # Set up client attributes for create_client
+    settings.telethon.client.api_id = 123456
+    settings.telethon.client.api_hash.get_secret_value.return_value = "test_hash_abcdef123456"
+    settings.telethon.client.session = "test_session"
+    settings.telethon.client.proxy = None
+    settings.telethon.client.app_version = "1.0.0"
+    settings.telethon.client.device_model = None
+    settings.telethon.client.system_version = None
+    settings.telethon.client.lang_code = "en"
+    settings.telethon.client.system_lang_code = "en"
     return settings
 
 
@@ -121,11 +115,15 @@ class TestCreateClient:
         ):
             mock_paths.session_dir = session_dir
             settings = MagicMock()
-            settings.telethon.client.model_dump.return_value = {
-                "api_id": 123456,
-                "api_hash": "hash",
-                "session": "my_session",
-            }
+            settings.telethon.client.api_id = 123456
+            settings.telethon.client.api_hash.get_secret_value.return_value = "hash"
+            settings.telethon.client.session = "my_session"
+            settings.telethon.client.proxy = None
+            settings.telethon.client.app_version = None
+            settings.telethon.client.device_model = None
+            settings.telethon.client.system_version = None
+            settings.telethon.client.lang_code = None
+            settings.telethon.client.system_lang_code = None
             create_client(settings)
 
         expected_path = str(session_dir / "my_session.session")
@@ -143,11 +141,15 @@ class TestCreateClient:
         ):
             mock_paths.session_dir = session_dir
             settings = MagicMock()
-            settings.telethon.client.model_dump.return_value = {
-                "api_id": 123456,
-                "api_hash": "hash",
-                "session": "custom.session",
-            }
+            settings.telethon.client.api_id = 123456
+            settings.telethon.client.api_hash.get_secret_value.return_value = "hash"
+            settings.telethon.client.session = "custom.session"
+            settings.telethon.client.proxy = None
+            settings.telethon.client.app_version = None
+            settings.telethon.client.device_model = None
+            settings.telethon.client.system_version = None
+            settings.telethon.client.lang_code = None
+            settings.telethon.client.system_lang_code = None
             create_client(settings)
 
         expected_path = str(session_dir / "custom.session")
@@ -163,39 +165,40 @@ class TestCreateClient:
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
-            settings.telethon.client.model_dump.return_value = {
-                "api_id": 999888,
-                "api_hash": "test_hash_value",
-                "session": "s1",
-                "app_version": "1.0.0",
-            }
+            settings.telethon.client.api_id = 999888
+            settings.telethon.client.api_hash.get_secret_value.return_value = "test_hash_value"
+            settings.telethon.client.session = "s1"
+            settings.telethon.client.app_version = "1.0.0"
+            settings.telethon.client.device_model = "TestDevice"
+            settings.telethon.client.system_version = "TestOS"
+            settings.telethon.client.lang_code = "en"
+            settings.telethon.client.system_lang_code = "en"
+            settings.telethon.client.proxy = None
             create_client(settings)
 
         mock_tc.assert_called_once()
         _, kwargs = mock_tc.call_args
         assert kwargs["api_id"] == 999888
         assert kwargs["api_hash"] == "test_hash_value"
+        assert kwargs["app_version"] == "1.0.0"
 
     def test_unwraps_secretstr_api_hash(self) -> None:
-        """create_client() should unwrap SecretStr api_hash using mode='json'."""
+        """create_client() should unwrap SecretStr api_hash."""
         with (
             patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
             patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
-
-            def model_dump_json(mode: str | None = None) -> dict[str, Any]:
-                result: dict[str, Any] = {
-                    "api_id": 111222,
-                    "api_hash": SecretStr("real_secret_hash_value"),
-                    "session": "secret_session",
-                }
-                if mode == "json":
-                    result["api_hash"] = result["api_hash"].get_secret_value()
-                return result
-
-            settings.telethon.client.model_dump.side_effect = model_dump_json
+            settings.telethon.client.api_id = 111222
+            settings.telethon.client.api_hash.get_secret_value.return_value = "real_secret_hash_value"
+            settings.telethon.client.session = "secret_session"
+            settings.telethon.client.proxy = None
+            settings.telethon.client.app_version = None
+            settings.telethon.client.device_model = None
+            settings.telethon.client.system_version = None
+            settings.telethon.client.lang_code = None
+            settings.telethon.client.system_lang_code = None
             create_client(settings)
 
         mock_tc.assert_called_once()
@@ -204,24 +207,40 @@ class TestCreateClient:
         assert kwargs["api_hash"] == "real_secret_hash_value"
         assert isinstance(kwargs["api_hash"], str)
 
-    def test_calls_model_dump_with_json_mode(self) -> None:
-        """create_client() should call model_dump with mode='json' for SecretStr serialization."""
+    def test_handles_proxy_config(self) -> None:
+        """create_client() should convert ProxyConfig to dict for Telethon."""
         with (
             patch("mko_telebot.monitor_client.APP_PATHS") as mock_paths,
             patch("mko_telebot.monitor_client.TelegramClient") as mock_tc,
         ):
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
+            settings.telethon.client.api_id = 123456
+            settings.telethon.client.api_hash.get_secret_value.return_value = "hash"
+            settings.telethon.client.session = "test_session"
+            settings.telethon.client.app_version = None
+            settings.telethon.client.device_model = None
+            settings.telethon.client.system_version = None
+            settings.telethon.client.lang_code = None
+            settings.telethon.client.system_lang_code = None
 
-            def model_dump_json(mode: str | None = None) -> dict[str, Any]:
-                return {"api_id": 111222, "api_hash": "hash", "session": "s"}
-
-            settings.telethon.client.model_dump.side_effect = model_dump_json
+            # Create mock ProxyConfig with to_dict method
+            mock_proxy = MagicMock()
+            mock_proxy.to_dict.return_value = {
+                "proxy_type": "socks5",
+                "addr": "proxy.example.com",
+                "port": 1080,
+                "username": "user",
+                "password": "pass",
+            }
+            settings.telethon.client.proxy = mock_proxy
             create_client(settings)
 
         mock_tc.assert_called_once()
-        # Verify model_dump was called with mode='json'
-        settings.telethon.client.model_dump.assert_called_once_with(mode="json")
+        _, kwargs = mock_tc.call_args
+        assert kwargs["proxy"]["proxy_type"] == "socks5"
+        assert kwargs["proxy"]["addr"] == "proxy.example.com"
+        mock_proxy.to_dict.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,4 @@
-"""Telegram client creation and authentication module.
-
-Provides functions to create and start a Telethon client for monitoring.
-"""
+from __future__ import annotations
 
 import logging
 from pathlib import Path
@@ -29,10 +26,18 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
 
     """
 
-    client_config = settings.telethon.client.model_dump(mode='json')
+    client = settings.telethon.client
 
-    session = client_config.get("session", "first_session")
+    # Build proxy dict for Telethon compatibility
+    proxy_dict: dict[str, object] | None = None
+    if client.proxy is not None:
+        proxy_dict = client.proxy.to_dict()
 
+    # Build api_hash string (SecretStr must be converted)
+    api_hash = client.api_hash.get_secret_value()
+
+    # Get session path
+    session = client.session
     session_path = Path(session)
 
     if not session_path.suffix:
@@ -42,9 +47,17 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
 
     session_path.parent.mkdir(parents=True, exist_ok=True)
 
-    client_config["session"] = str(session_path)
-
-    return TelegramClient(**client_config)
+    return TelegramClient(
+        session=str(session_path),
+        api_id=client.api_id,
+        api_hash=api_hash,
+        proxy=proxy_dict,
+        app_version=client.app_version,
+        device_model=client.device_model,
+        system_version=client.system_version,
+        lang_code=client.lang_code,
+        system_lang_code=client.system_lang_code,
+    )
 
 
 async def start_client(client: TelegramClient, settings: TelepostSettings) -> bool:
