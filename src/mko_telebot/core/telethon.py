@@ -126,7 +126,23 @@ class ClientConfig(BaseModel):
             )
         return v
 
-    @field_validator("session", "app_version", "device_model", "system_version")
+    @field_validator("session")
+    @classmethod
+    def validate_session(cls, v: str | None) -> str | None:
+        """Reject placeholder and path traversal values for session field."""
+        if v is None:
+            return v
+        if v.startswith("YOUR_") or v.startswith("PLACEHOLDER_"):
+            raise ValueError(
+                f"{v} appears to be a placeholder value. Replace with your actual value."
+            )
+        if "/" in v or "\\" in v or ".." in v:
+            raise ValueError(
+                "session must not contain path traversal characters"
+            )
+        return v
+
+    @field_validator("app_version", "device_model", "system_version")
     @classmethod
     def validate_not_placeholder(cls, v: str | None) -> str | None:
         """Reject placeholder values for credential fields."""

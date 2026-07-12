@@ -474,6 +474,51 @@ class TestValidators:
                 session="PLACEHOLDER_SESSION",
             )
 
+    def test_rejects_session_with_forward_slash(self) -> None:
+        """ClientConfig should reject session containing forward slash."""
+        with pytest.raises(ValueError, match="path traversal"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                session="session/name",
+            )
+
+    def test_rejects_session_with_backslash(self) -> None:
+        """ClientConfig should reject session containing backslash."""
+        with pytest.raises(ValueError, match="path traversal"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                session="session\\name",
+            )
+
+    def test_rejects_session_with_double_dot(self) -> None:
+        """ClientConfig should reject session containing double dot."""
+        with pytest.raises(ValueError, match="path traversal"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                session="session..name",
+            )
+
+    def test_accepts_valid_session_name(self) -> None:
+        """ClientConfig should accept standard session names like user_session."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            session="user_session",
+        )
+        assert config.session == "user_session"
+
+    def test_accepts_valid_session_with_dot_suffix(self) -> None:
+        """ClientConfig should accept session names with .session suffix."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            session="user.session",
+        )
+        assert config.session == "user.session"
+
     def test_defaults_stripping(self) -> None:
         """ChannelsConfig should remove DEFAULTS key from channels dict."""
         channel = ChannelConfig(name="@test")
