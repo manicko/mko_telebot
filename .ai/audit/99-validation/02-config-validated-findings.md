@@ -58,7 +58,12 @@ Remove the UTF-8 BOM from `keyw_config_example_keep.yaml` and convert to standar
 - documentation at `docs/11-guides/configuration.md` line 277 specifies `rdns` as optional bool
 
 **Recommendation:**
-Add type validation for the `rdns` field in `validate_proxy()` to ensure it is a boolean if provided. This improves configuration reliability and provides early error detection.
+Add type validation for the `rdns` field in `validate_proxy()` at `telethon.py` line 108. After the existing checks for proxy_type, addr, and port, add:
+```python
+if 'rdns' in proxy_value and not isinstance(proxy_value['rdns'], bool):
+    raise ValueError("'rdns' must be a boolean if provided")
+```
+This improves configuration reliability by catching invalid types before Telethon processes the proxy configuration.
 
 ---
 

@@ -23,9 +23,9 @@ problems-only: true
 
 Before performing audit checks, trace the complete data flow:
 
-1. **Full Pipeline Mapping** — Trace the entire path: `CLI command` → `config loading` → `Google Sheets API call` → `raw data` → `post extraction` → `image processing` → `queue` → `Telegram API call` → `cleanup`.
-2. **Config Propagation Trace** — For each config section, trace exactly how it flows from YAML → Pydantic model → service constructor → function parameter. Identify every hop.
-3. **Message Lifecycle** — Pick a single post and trace it from the Google Sheets cell to the Telegram message. Document every transformation.
+1. **Full Pipeline Mapping** — Trace the entire path: `CLI command` → `config loading` → `Telegram client auth` → `per-channel message fetching` → `keyword matching` → `message forwarding`.
+2. **Config Propagation Trace** — For each config section, trace exactly how it flows from YAML → Pydantic model → function parameter. Identify every hop.
+3. **Message Lifecycle** — Pick a single message and trace it from the Telegram channel to the forwarded message. Document every transformation.
 4. **Error Path Mapping** — For each stage in the pipeline, identify what happens on failure. Does the error propagate correctly? Is cleanup guaranteed?
 
 ---
@@ -54,7 +54,7 @@ Run the complete test suite.
 
 ## Audit Scope
 
-End-to-end data flow from CLI invocation through config loading, data fetching, processing, posting, and cleanup. Cross-layer interaction verification.
+End-to-end data flow from CLI invocation through config loading, Telegram client auth, message fetching, processing, and forwarding. Cross-layer interaction verification.
 
 ---
 
@@ -66,64 +66,59 @@ End-to-end data flow from CLI invocation through config loading, data fetching, 
 
 | Config Section | Expected Consumer | Verification |
 |----------------|-------------------|--------------|
-| `google_sheets.*` | `GSheetsReader.__init__()` → API calls | Verify spreadsheet_id, credentials_file, token_file, scopes all reach the reader. |
-| `telethon.*` | `TelegramPoster.__init__()` → `TelegramClient()` | Verify api_id, api_hash, session all reach the client. |
-| `posts.*` | `PostProcessor` / `TelegramService` | Verify max_photos and cache_dir are used. |
-| `chats.*` | `TelegramService._push_posts_to_queue()` | Verify chat_id, topic_id, range_names, delay_minutes all reach the posting loop. |
+| `telethon.*` | `TelegramClient()` | Verify api_id, api_hash, session all reach the client. |
+| `scan_interval` | `monitor.py` main loop | Verify interval controls monitoring frequency. |
+| `channels` | `Task` creation in monitor.py | Verify channel_name, forward_to, keywords all reach the Task. |
 
-**For each field, document:** YAML key → Pydantic model field → constructor parameter → function call. If any hop is missing or broken, that is a finding.
+**For each field, document:** YAML key → Pydantic model field → function parameter. If any hop is missing or broken, that is a finding.
 
 ### 2. Message Lifecycle Trace
 
-**Trace a single post from Google Sheets to Telegram. Document every transformation.**
+**Trace a single message from Telegram channel to forwarded message. Document every transformation.**
 
 | Stage | Input | Output | Verification |
 |-------|-------|--------|--------------|
-| Google Sheets API | spreadsheet_id, range_name | `list[list]` (raw rows) | Verify data is returned correctly. |
-| PostProcessor.get_posts() | raw rows, filter_col, filter_value, txt_col, photo_col, max_photos | `list[list]` ([text, [photo_paths]]) | Verify filter logic, photo extraction, max_photos limit. |
-| ImageCache.resize_image() | original photo path | cached/resized photo path | Verify caching, resize, error handling. |
-| Task creation | chat_id, topic_id, text, photos, chat_name, count, max_count | `Task` object | Verify all fields are populated. |
-| Queue → Sender | `Task` from queue | Telegram API call | Verify chat_id, text, photos, topic_id are passed correctly. |
-| Cleanup | used_cache_files set | unused files removed | Verify only used files are kept. |
+| Telegram message fetch | channel_name | `Message` objects | Verify messages are fetched correctly. |
+| Keyword matching | message text, keywords | match/no-match | Verify filter logic is correct. |
+| Album grouping | messages with media_group_id | grouped message list | Verify album logic works. |
+| Task state update | processed messages | `last_msg_id` update | Verify state is persisted. |
+| Forwarding | matched messages, targets | Telegram API call | Verify messages are forwarded correctly. |
 
 **If any transformation is incorrect, missing, or loses data, that is a finding.**
 
-### 3. Multi-Chat Flow Correctness
+### 3. Multi-Channel Flow Correctness
 
 | Check | Description |
 |-------|-------------|
-| Each chat gets its own posts | Posts from `range_names` of chat A are not sent to chat B. |
-| Chat-specific delays | `delay_minutes` is applied per-chat, not globally. |
-| Chat-specific topics | `topic_id` is correctly scoped to its chat. |
-| All chats are processed | Every chat in the config list is processed, not just the first one. |
-| Empty chats are handled | A chat with no matching posts is skipped gracefully (no crash, no empty messages). |
+| Each channel gets its own messages | Messages from channel A are not fetched for channel B. |
+| Channel-specific delays | `scan_interval` is applied per-channel. |
+| All channels are processed | Every channel in the config list is processed, not just the first one. |
+| Empty channels are handled | A channel with no new messages is skipped gracefully (no crash). |
 
-**Evidence required:** Read the multi-chat loop in `TelegramService.run()`. Verify posts are correctly scoped to each chat.
+**Evidence required:** Read the multi-channel loop in `monitor.py`. Verify messages are correctly scoped to each channel.
 
 ### 4. Error Propagation & Cleanup
 
 | Check | Description |
 |-------|-------------|
-| Config error stops before posting | If config is invalid, the CLI reports the error and exits without attempting to post. |
-| Google Sheets failure is handled | If the API returns no data or an error, the service logs the error and continues (or exits gracefully). |
-| Telegram failure doesn't crash the app | If sending to one chat fails, other chats are still processed. |
-| Image processing failure is non-fatal | If one image fails to resize, the post is still sent (with original image or without it). |
-| Cleanup runs on success | After all posts are sent, unused cache files are removed. |
-| Cleanup runs on failure | If posting fails mid-way, cache cleanup still runs (via `try/finally` or similar). |
-| KeyboardInterrupt is handled | Pressing Ctrl+C during posting stops gracefully without stack traces. |
+| Config error stops before fetching | If config is invalid, the CLI reports the error and exits without attempting to fetch. |
+| Telegram failure doesn't crash the app | If sending to one channel fails, other channels are still processed. |
+| State save failures handled | If state save fails, the error is logged but processing continues. |
+| Cleanup runs on success | After all messages are forwarded, resources are cleaned up. |
+| Cleanup runs on failure | If forwarding fails mid-way, cleanup still runs. |
+| KeyboardInterrupt is handled | Pressing Ctrl+C during monitoring stops gracefully. |
 
-**Evidence required:** Read error handling at each stage. Verify `try/finally` or context managers are used where needed. Check that `cleanup_unused()` is called in all exit paths.
+**Evidence required:** Read error handling at each stage. Verify `try/finally` or context managers are used where needed.
 
 ### 5. Data Integrity
 
 | Check | Description |
 |-------|-------------|
-| No data loss between stages | Every row that passes the filter becomes a post. No rows are silently dropped. |
-| Photo paths are valid | Photo paths from Google Sheets are resolved correctly (relative to what base?). |
-| Text content is preserved | Post text is not truncated, modified, or escaped incorrectly. |
-| Post count is accurate | `count` and `max_count` in Task correctly reflect the actual post number and total. |
+| No message loss between stages | Every message that matches keywords is forwarded. No messages are silently dropped. |
+| Text content is preserved | Message text is not truncated or modified incorrectly. |
+| Duplicate prevention works | Messages with same id are not re-forwarded. |
 
-**Evidence required:** Trace data through each transformation. Check for off-by-one errors, truncation, or incorrect path resolution.
+**Evidence required:** Trace data through each transformation. Check for off-by-one errors or incorrect state management.
 
 ---
 

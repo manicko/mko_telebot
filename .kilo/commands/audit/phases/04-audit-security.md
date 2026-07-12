@@ -23,11 +23,11 @@ problems-only: true
 
 Before performing audit checks, discover the security surface:
 
-1. **Secret Discovery** — Identify all secrets and sensitive values: Telegram api_id/api_hash, bot tokens, Google OAuth2 credentials, spreadsheet IDs. Map where each is stored and how it flows through the code.
-2. **Credential File Discovery** — Locate `credentials.json`, `token.json`, Telethon session files. Check where they are stored, how they are created, who has access.
+1. **Secret Discovery** — Identify all secrets and sensitive values: Telegram api_id/api_hash, bot tokens, session names. Map where each is stored and how it flows through the code.
+2. **Credential File Discovery** — Locate Telethon session files. Check where they are stored, how they are created, who has access.
 3. **Logging Discovery** — Search all `logger` calls. Identify any that might log sensitive data (tokens, API keys, credentials, file paths to secrets).
 4. **Config Security Discovery** — Check how secrets are loaded: from config files, environment variables, or hardcoded. Verify config file permissions and .gitignore coverage.
-5. **Input Validation Discovery** — Identify all external inputs: config values, Google Sheets data, file paths from sheets. Check for path traversal, injection, or other input attacks.
+5. **Input Validation Discovery** — Identify all external inputs: config values, channel names, file paths. Check for path traversal or other input attacks.
 
 ---
 
@@ -77,7 +77,7 @@ Run the project's test suite.
 
 ## Audit Scope
 
-Secret management (Telegram API credentials, Google OAuth2 tokens), credential file handling, logging security, config security, input validation, path traversal prevention.
+Secret management (Telegram API credentials), session file handling, logging security, config security, input validation, path traversal prevention.
 
 ---
 
@@ -87,22 +87,20 @@ Secret management (Telegram API credentials, Google OAuth2 tokens), credential f
 
 | Check | Description |
 |-------|-------------|
-| No hardcoded API keys | `api_id`, `api_hash`, `bot_token` come from config, never from source code. |
-| No hardcoded OAuth2 credentials | Google `credentials.json` path comes from config, not hardcoded. |
-| No hardcoded spreadsheet IDs | Spreadsheet ID comes from config. |
-| No hardcoded file paths to secrets | Paths to `credentials.json`, `token.json` use `PathResolver`, not hardcoded strings. |
-| Test fixtures use fake values | Test mocks use obviously fake values (`"test_token"`, `12345`), not real credentials. |
+| No hardcoded API keys | `api_id`, `api_hash`, `phone_or_token` come from config, never from source code. |
+| No hardcoded session names | Session file name comes from config, not hardcoded values. |
+| Test fixtures use fake values | Test mocks use obviously fake values (`"test_api_hash"`, `12345`), not real credentials. |
 
 **Evidence required:** Grep results for hardcoded values. Read config loading code. Read test fixtures.
 
-### 2. Credential File Security
+### 2. Session File Security
 
 | Check | Description |
 |-------|-------------|
-| Credentials in user directory | `credentials.json`, `token.json`, session files are stored in `USER_DIR` (via platformdirs), not in the package directory. |
-| Credentials in `.gitignore` | All credential and session files are listed in `.gitignore`. |
-| No credentials in config templates | `config_example.yaml` contains only placeholder values. |
-| Token file not logged | The path to `token.json` may be logged, but its contents are never logged. |
+| Sessions in user directory | Telethon session files are stored in `USER_DIR` (via platformdirs), not in the package directory. |
+| Sessions in `.gitignore` | Session files (`.session`, `.session-journal`) are in `.gitignore`. |
+| No sessions in config templates | `keyw_config_example_keep.yaml` contains only placeholder values. |
+| Session file not logged | The path to session file may be logged, but its contents are never logged. |
 
 **Evidence required:** Read `.gitignore`. Read config templates. Check file paths in code.
 
@@ -110,7 +108,7 @@ Secret management (Telegram API credentials, Google OAuth2 tokens), credential f
 
 | Check | Description |
 |-------|-------------|
-| Secrets never logged | `api_hash`, `bot_token`, `api_id`, OAuth2 tokens are never passed to any logger call. |
+| Secrets never logged | `api_hash`, `phone_or_token`, `session` are never passed to any logger call. |
 | Config models not dumped | Entire Pydantic config models are not logged (they contain secrets). |
 | Error messages don't leak secrets | Exception messages and error responses don't include credential values. |
 | File paths to secrets are OK | Logging the *path* to a credentials file is acceptable; logging the *contents* is not. |
@@ -131,12 +129,11 @@ Secret management (Telegram API credentials, Google OAuth2 tokens), credential f
 
 | Check | Description |
 |-------|-------------|
-| Path traversal prevention | File paths from Google Sheets (photo paths) are validated before use. No user-supplied path can escape the intended directory. |
-| Photo path validation | Photo paths from config/sheets are checked for existence and validity before processing. |
+| Path traversal prevention | Channel names are validated before use. No user-supplied path can escape the intended directory. |
+| Session name validation | Session names are validated for placeholder values. |
 | Config value validation | All config values are validated by Pydantic before use (no raw strings passed to file operations). |
-| Spreadsheet ID format | Spreadsheet ID is validated for basic format (non-empty, no path separators). |
 
-**Evidence required:** Read photo path handling code. Read config validators. Check for `os.path` or `pathlib` operations on user-supplied paths.
+**Evidence required:** Read path handling code. Read config validators. Check for `pathlib` operations on user-supplied paths.
 
 ### 6. Telethon Session Security
 

@@ -23,10 +23,10 @@ problems-only: true
 
 Before performing audit checks, discover the service layer architecture:
 
-1. **Service Discovery** — Locate all service classes. Map their responsibilities: what does each service class do? What are its dependencies?
-2. **Class Responsibility Mapping** — For each class: is it a service, a processor, a reader, a cache, a model? Does it have a single responsibility?
-3. **Dependency Graph** — Map how services depend on each other. Identify the composition root (where services are instantiated and wired together).
-4. **Data Transformation Chain** — Trace how raw data (from Google Sheets) is transformed into posts, then into Telegram messages. Identify each transformation step.
+1. **Service Discovery** — Locate all service modules. Map their responsibilities: what does each module do? What are its dependencies?
+2. **Module Responsibility Mapping** — For each module: what is its purpose? Does it have a focused, single responsibility?
+3. **Dependency Graph** — Map how modules depend on each other. Identify the composition root (where components are instantiated and wired together).
+4. **Message Processing Chain** — Trace how Telegram messages are processed for forwarding: entity resolution, keyword matching, album grouping, and message sending. Identify each transformation step.
 
 ---
 
@@ -60,7 +60,7 @@ Search for functions/methods defined but never called outside tests.
 
 ## Audit Scope
 
-Service classes (TelegramService, PostProcessor, ImageCache, TelegramPoster, GSheetsReader), Task model, business logic, data transformations.
+Service classes (monitor_forward.py, monitor_client.py), Task model, business logic, Telegram message processing.
 
 ---
 
@@ -70,65 +70,31 @@ Service classes (TelegramService, PostProcessor, ImageCache, TelegramPoster, GSh
 
 | Check | Description |
 |-------|-------------|
-| Each class has one reason to change | `ImageCache` handles only image caching. `PostProcessor` handles only post extraction. `TelegramPoster` handles only Telegram API communication. |
-| No god classes | No single class handles config loading, data fetching, image processing, AND posting. |
-| Separation of concerns | Image processing is separate from post processing, which is separate from Telegram communication. |
+| Each module has focused responsibilities | `monitor_forward.py` handles message processing and forwarding. `monitor_client.py` handles Telethon client wrapper. |
+| Task combines config and resolution | Task is designed to hold channel configuration with integrated entity resolution methods. |
 
-**Evidence required:** Read each service class. If a class has methods that belong to different domains, that is a finding.
+**Evidence required:** Read each module. Verify the design follows the documented purpose: "Per-channel state management."
 
 ### 2. Dependency Direction
 
 | Check | Description |
 |-------|-------------|
 | Services depend on abstractions/models | Services receive Pydantic models, not raw dicts or YAML data. |
-| No circular dependencies | Service A does not import Service B while Service B imports Service A. |
-| Composition root is clear | The main service (`TelegramService`) composes all sub-services. Sub-services do not compose the main service. |
+| No circular dependencies | Import chains between modules are acyclic. |
+| Composition root is clear | `monitor.py` coordinates the monitoring loop with Task and client. |
 
-**Evidence required:** Trace import chains between service classes. Verify the dependency graph is acyclic.
+**Evidence required:** Trace import chains between modules. Verify the dependency graph is acyclic.
 
-### 3. Image Processing Correctness
-
-| Check | Description |
-|-------|-------------|
-| Image cache works correctly | Resized images are cached and reused. Cache key is deterministic (same input → same cache path). |
-| Resize handles errors gracefully | If an image cannot be opened/resized, the error is caught and the original path is returned (not a crash). |
-| Cleanup removes unused files | `cleanup_unused()` removes cached files that were not used in the current run. |
-| No orphaned temp files | After posting completes (success or failure), no temporary image files remain. |
-
-**Evidence required:** Read `ImageCache` class. Trace the full lifecycle: resize → cache → use → cleanup. Check for `try/finally` around file operations.
-
-### 4. Post Processing Correctness
+### 3. Message Processing Correctness
 
 | Check | Description |
 |-------|-------------|
-| Filter logic is correct | Rows are filtered by the configured column and value. Rows where the filter column is out of range are included (not silently dropped). |
-| Photo extraction handles both cases | Photo column content is handled whether it is a directory path (multiple photos) or a single file path. |
-| Max photos limit is enforced | `max_photos` is applied to limit the number of photos per post. |
-| Empty posts handled | Posts with no text and no photos are handled gracefully (not sent as empty messages). |
+| Keyword filtering is correct | Messages are filtered by configured keywords using the parser module. |
+| Album grouping works | Messages with grouped media are correctly grouped before forwarding. |
+| Duplicate prevention | `last_msg_id` prevents re-processing of already-seen messages. |
+| Forwarding handles errors | `forward_to_users` retries on FloodWaitError and RPCError. |
 
-**Evidence required:** Read `PostProcessor.get_posts()`. Trace the filter logic and photo extraction logic. Check edge cases.
-
-### 5. Telegram Posting Correctness
-
-| Check | Description |
-|-------|-------------|
-| Retry logic works | `FloodWaitError`, `SlowModeWaitError`, and other transient errors trigger retries with appropriate backoff. |
-| Non-retryable errors fail fast | Permanent errors (e.g., chat not found) do not trigger infinite retries. |
-| Posts are shuffled | Post order is randomized before sending (if configured). |
-| Delay between posts is respected | `delay_minutes` is converted to seconds and applied between posts. |
-| Topic/forum support | `topic_id` is passed correctly to `send_message` and `send_file` for forum topics. |
-
-**Evidence required:** Read `TelegramPoster` and the posting loop. Verify retry logic, delay handling, and topic support.
-
-### 6. Task Model Integrity
-
-| Check | Description |
-|-------|-------------|
-| Task carries all required data | The `Task` model includes chat_id, topic_id, text, photos, chat_name, count, max_count. |
-| Task status tracking | Task has a status field to track success/failure. |
-| No business logic in Task | Task is a data container (dataclass), not a service. |
-
-**Evidence required:** Read `task.py`. Verify it is a pure data class with no methods that belong in a service.
+**Evidence required:** Read `monitor_forward.py`. Trace the message processing pipeline. Check for keyword matching and album grouping logic.
 
 ---
 

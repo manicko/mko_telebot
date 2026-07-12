@@ -37,10 +37,10 @@ validated: yes
 **Recommendation:** Remove UTF-8 BOM, use standard UTF-8 encoding.
 
 ### INT-001 (HIGH) — Documentation
-**File:** `.kilo/commands/audit/phases/05-audit-integrations.md`, `.kilo/commands/audit/phases/06-audit-data-flow.md`  
-**Issue:** Audit spec references Google Sheets integration (GSheetsReader, GoogleSheetsConfig) that does not exist in codebase.  
-**Evidence:** No matches for GSheetsReader, GoogleSheetsConfig, spreadsheet_id in codebase; no Google API dependencies in pyproject.toml.  
-**Recommendation:** Update audit spec to reflect actual Telegram-only architecture.
+**File:** `.kilo/commands/audit/phases/05-audit-integrations.md`, `.kilo/commands/audit/phases/06-audit-data-flow.md`, `.kilo/commands/audit/phases/03-audit-services.md`, `.kilo/commands/audit/phases/04-audit-security.md`, `.kilo/commands/audit/phases/07-audit-tests.md`  
+**Issue:** Audit spec references Google Sheets integration (GSheetsReader, GoogleSheetsConfig, spreadsheet_id, OAuth2) that does not exist in codebase.  
+**Evidence:** No matches for GSheetsReader, GoogleSheetsConfig, spreadsheet_id in codebase; no Google API dependencies in pyproject.toml; docs/00-overview/overview.md describes only Telegram integration.  
+**Recommendation:** Remove all Google Sheets integration references from the audit spec. The project is Telegram-only and has never implemented Google Sheets integration. This is an audit spec error, not a missing feature.
 
 ---
 
@@ -131,7 +131,7 @@ validated: yes
 
 ### High Priority (Mandatory)
 1. **CFG-001**: Fix UTF-8 BOM in YAML template (trivial effort)
-2. **INT-001**: Update audit spec to reflect actual Telegram-only architecture (small effort)
+2. **INT-001**: Remove all Google Sheets integration references from the audit spec (small effort)
 3. **TST-001, TST-002**: Add tests for critical orchestration functions (medium effort)
 4. **QLT-001**: Add `-> None` return type to `process_task` (trivial)
 

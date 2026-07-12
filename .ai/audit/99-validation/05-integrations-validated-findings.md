@@ -41,9 +41,9 @@ validated: yes
 - No Google-related dependencies in pyproject.toml (no google-api-python-client, google-auth, etc.)
 - docs/00-overview/overview.md describes only Telegram integration with no mention of Google Sheets
 
-**Recommendation:** Either implement the Google Sheets integration as documented in the spec, or update the audit spec to reflect the actual architecture which only includes Telegram integration.
+**Recommendation:** Remove all Google Sheets integration references from the audit spec. The project is Telegram-only and has never implemented Google Sheets integration. This is an audit spec error, not a missing feature.
 
-**Effort:** large (would require full implementation) or small (spec update)
+**Effort:** small (spec update only)
 **Priority:** mandatory
 
 ---
@@ -117,7 +117,7 @@ validated: yes
 
 ## Mandatory Fixes
 
-- INT-001: Google Sheets Integration Not Implemented Despite Spec Requirements — The audit spec requires GSheetsReader integration that does not exist in the codebase. This is a spec/code mismatch requiring spec correction.
+- INT-001: Google Sheets Integration Not Implemented Despite Spec Requirements — Remove all Google Sheets integration references from the audit spec. The project is Telegram-only and has never implemented Google Sheets integration.
 
 ## Advisory Recommendations
 

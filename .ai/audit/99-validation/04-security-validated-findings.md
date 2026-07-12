@@ -57,6 +57,10 @@
 - `.gitignore:190-191` - `*token.json` and `*.session*` patterns cover token/session files correctly
 - `docs/11-guides/configuration.md:53-72` - User config directory is platform-specific and outside project root
 
+**Recommendation:** Remove the line `**user*.yamls` from `.gitignore`. This pattern serves no practical purpose because: (1) User config files (`telethon_config.yaml`, `config.yaml`, `log_config.yaml`) are stored outside the project directory via `platformdirs`; (2) The pattern contains two errors: `yamls` (should be `.yaml`) and malformed glob syntax (`**user*.yamls` should be `**/*user*.yaml`); (3) Files in the external user config directory are inherently unreachable by this gitignore entry.
+
+> **Status:** Fixed - removed `**user*.yamls` and `**/user/*` patterns from `.gitignore` (lines were dead code; user configs isolated via platformdirs).
+
 ---
 
 ### SEC-003: Proxy Credentials Stored as Plain Strings Without Protection
@@ -101,7 +105,7 @@ None - no security vulnerabilities classified as mandatory were identified.
 ## Advisory Recommendations
 
 - SEC-001: Add explicit path traversal validation for the session field in `ClientConfig`
-- SEC-002: Update `.gitignore` pattern `**user*.yamls` to standard format or clarify user config isolation
+- SEC-002: Remove `**user*.yamls` from `.gitignore` (dead code: user configs stored via platformdirs are already isolated outside project)
 - SEC-003: Consider using SecretStr for proxy username/password fields to prevent accidental credential exposure
 
 ## Doc Updates Needed

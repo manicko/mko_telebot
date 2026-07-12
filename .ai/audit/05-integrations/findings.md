@@ -36,9 +36,9 @@ validated: no
 - Codebase grep returns no matches for `GSheetsReader`, `GoogleSheetsConfig`, `google_sheets`, or `spreadsheet_id`
 - No Google-related dependencies in pyproject.toml (no google-api-python-client, google-auth, etc.)
 
-**Recommendation:** Either implement the Google Sheets integration as documented in the spec, or update the audit spec to reflect the actual architecture which only includes Telegram integration. The codebase overview (docs/00-overview/overview.md) does not mention any Google Sheets features, confirming this was never an implemented feature.
+**Recommendation:** Remove all Google Sheets integration references from the audit spec. The project is Telegram-only and has never implemented Google Sheets integration. This is an audit spec error, not a missing feature.
 
-**Effort:** large (would require full implementation) or small (spec update)
+**Effort:** small (spec update only)
 **Priority:** mandatory
 
 ---
@@ -62,7 +62,7 @@ validated: no
 - No import or handling of `WorkerBusyTooLongRetryError` anywhere in codebase
 - No catch for `OSError` in the message sending or fetching functions
 
-**Recommendation:** Add exception handling for OSError and WorkerBusyTooLongRetryError in `monitor_forward.py`'s `forward_to_users()` and `process_task()` functions, following the existing retry pattern with exponential backoff and jitter.
+**Recommendation:** Add exception handling for `WorkerBusyTooLongRetryError` in `monitor_forward.py`'s `forward_to_users()` and `process_task()` functions, following the existing retry pattern with exponential backoff and jitter. OSError handling is not required as RPCError already covers network-level failures.
 
 **Effort:** small
 **Priority:** recommended
@@ -105,15 +105,13 @@ validated: no
 
 ## Mandatory Fixes
 
-- INT-001: Google Sheets Integration Not Implemented Despite Spec Requirements — The spec requires GSheetsReader integration that does not exist in the codebase.
+- INT-001: Google Sheets Integration Not Implemented Despite Spec Requirements — Remove all Google Sheets integration references from the audit spec. The project is Telegram-only and has never implemented Google Sheets integration.
 
 ## Advisory Recommendations
 
-- INT-002: Missing OSError and WorkerBusyTooLongRetryError Handling in Telegram Integration
+- INT-002: Missing WorkerBusyTooLongRetryError Handling in Telegram Integration
 - INT-003: Proxy Credentials Exposed Without SecretStr Protection
 
 ## Doc Updates Needed
 
 None
-
----
