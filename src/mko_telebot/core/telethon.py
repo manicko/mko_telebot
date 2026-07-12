@@ -38,7 +38,7 @@ class ClientConfig(BaseModel):
         default=None,
         description="Proxy configuration for Telethon. SOCKS5 format: "
         "{'proxy_type': 'socks5', 'addr': '...', 'port': int, "
-        "'username': str | None, 'password': str | None}",
+        "'rdns': bool, 'username': str | None, 'password': str | None}",
     )
 
     @field_validator("api_hash")
@@ -106,6 +106,9 @@ class ClientConfig(BaseModel):
         port = v.get("port")
         if not isinstance(port, int) or not (1 <= port <= 65535):
             raise ValueError("proxy 'port' must be integer 1-65535")
+
+        if "rdns" in v and not isinstance(v.get("rdns"), bool):
+            raise ValueError("'rdns' must be a boolean if provided")
 
         return v
 

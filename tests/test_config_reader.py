@@ -669,3 +669,47 @@ class TestProxyConfig:
             api_hash="a" * 32,
         )
         assert config.proxy is None
+
+    def test_valid_proxy_with_rdns_true(self) -> None:
+        """ClientConfig should accept proxy with rdns=True."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "socks5",
+                "addr": "127.0.0.1",
+                "port": 1080,
+                "rdns": True,
+            },
+        )
+        assert config.proxy is not None
+        assert config.proxy.get("rdns") is True
+
+    def test_valid_proxy_with_rdns_false(self) -> None:
+        """ClientConfig should accept proxy with rdns=False."""
+        config = ClientConfig(
+            api_id=123456,
+            api_hash="a" * 32,
+            proxy={
+                "proxy_type": "socks5",
+                "addr": "127.0.0.1",
+                "port": 1080,
+                "rdns": False,
+            },
+        )
+        assert config.proxy is not None
+        assert config.proxy.get("rdns") is False
+
+    def test_invalid_proxy_rdns_not_boolean(self) -> None:
+        """ClientConfig should reject proxy with non-boolean rdns."""
+        with pytest.raises(ValueError, match="rdns"):
+            ClientConfig(
+                api_id=123456,
+                api_hash="a" * 32,
+                proxy={
+                    "proxy_type": "socks5",
+                    "addr": "127.0.0.1",
+                    "port": 1080,
+                    "rdns": "true",
+                },
+            )
