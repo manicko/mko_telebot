@@ -428,6 +428,22 @@ class TestForwardToUsers:
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_worker_busy_retry(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """forward_to_users() should retry on WorkerBusyTooLongRetryError."""
+        from telethon.errors import WorkerBusyTooLongRetryError
+
+        msg = _make_msg_with_link(7, "test_channel")
+        mock_client.send_message.side_effect = itertools.cycle([
+            WorkerBusyTooLongRetryError(request=None),
+            None,
+        ])
+
+        await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
+        assert mock_client.send_message.await_count >= 2
+
+    @patch("asyncio.sleep", return_value=None)
     async def test_exhausts_retries(
         self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
     ) -> None:

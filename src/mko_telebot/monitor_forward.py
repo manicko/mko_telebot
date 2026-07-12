@@ -9,7 +9,7 @@ import random
 from typing import Any
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError, RPCError
+from telethon.errors import FloodWaitError, RPCError, WorkerBusyTooLongRetryError
 from telethon.tl.custom.message import Message
 
 from mko_telebot.core import Task, search_match
@@ -31,7 +31,7 @@ async def forward_to_users(
     """Forward message or album to targets, appending author and link.
 
     Implements retry logic with exponential backoff and jitter for transient
-    Telegram API errors (FloodWaitError, RPCError).
+    Telegram API errors (FloodWaitError, WorkerBusyTooLongRetryError, RPCError).
 
     Args:
         msg (telethon.tl.custom.message.Message): The main message object (used to extract author and link).
@@ -86,6 +86,16 @@ async def forward_to_users(
 
                 logger.warning(
                     f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
+                    f"for {getattr(target, 'id', target)}"
+                )
+
+                await asyncio.sleep(wait_time)
+
+            except WorkerBusyTooLongRetryError as e:
+                wait_time = (2**attempt) + random.uniform(0, 3)
+
+                logger.warning(
+                    f"Worker busy retry error {e}, retry {attempt + 1}/{max_tries} "
                     f"for {getattr(target, 'id', target)}"
                 )
 
@@ -196,6 +206,10 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         logger.warning(f"Flood wait {e.seconds}s while fetching {task.channel_name}")
 
         await asyncio.sleep(e.seconds + random.uniform(10, 15))
+
+    except WorkerBusyTooLongRetryError as e:
+        logger.warning(f"Worker busy retry while fetching {task.channel_name}: {e}")
+        await asyncio.sleep(random.uniform(5, 10))
 
     except TelegramServiceError as e:
         logger.error(f"Error fetching messages in {task.channel_name}: {e}")
