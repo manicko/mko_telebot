@@ -1,0 +1,47 @@
+id: TASK_013_tst_fix_over_mocking
+
+title: Fix over-mocking in process_messages tests
+
+priority: high
+
+status: pending
+
+depends_on:
+  - TASK_004_int_remove_google_sheets_spec_refs
+
+description: >
+  The process_messages tests in test_monitor.py mock forward_to_users (same module)
+  and verify only mock call counts, not actual behavior. Refactor to test meaningful
+  outcomes without mocking internal functions.
+
+goals:
+  - Remove mock of forward_to_users in process_messages tests
+  - Test actual grouping and filtering logic outcomes
+  - Verify meaningful side effects
+  - Maintain test reliability without mocking
+
+files:
+  - path: tests/test_monitor.py
+
+    targets:
+      - type: test_class
+        name: TestProcessMessages
+
+changes:
+  - action: replace_function_body
+    description: >
+      Refactor tests to test actual behavior instead of mock call counts
+
+    code_hint: |
+      # Instead of mocking forward_to_users and asserting call counts,
+      # test the actual outcomes:
+      # - verify message grouping by grouped_id works correctly
+      # - verify keyword filtering returns correct messages
+      # - verify result state changes are correct
+      # - use integration-style tests with controlled inputs
+
+acceptance_criteria:
+  - process_messages tests verify actual behavior
+  - No internal functions mocked
+  - Test coverage maintained or improved
+  - All tests pass

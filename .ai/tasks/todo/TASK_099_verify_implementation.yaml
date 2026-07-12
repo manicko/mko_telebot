@@ -1,0 +1,59 @@
+id: TASK_099_verify_implementation
+
+title: Verify all implementation tasks completed successfully
+
+priority: high
+
+status: pending
+
+type: verification
+
+depends_on:
+  - TASK_001_cli_fix_package_discovery
+  - TASK_002_cfg_remove_utf8_bom
+  - TASK_003_cfg_validate_proxy_rdns
+  - TASK_004_int_remove_google_sheets_spec_refs
+  - TASK_005_int_add_worker_busy_retry
+  - TASK_006_int_protect_proxy_credentials
+  - TASK_007_sec_validate_session_name
+  - TASK_008_df_atomic_entity_resolution
+  - TASK_009_df_wrap_state_save_errors
+  - TASK_010_tst_test_process_and_forward_functions
+  - TASK_011_tst_test_setup_logging_and_resolve_path
+  - TASK_012_tst_parser_unit_tests
+  - TASK_013_tst_fix_over_mocking
+  - TASK_014_qlt_fix_return_type_annotation
+  - TASK_015_qlt_extract_retry_helper
+  - TASK_016_tst_entity_resolution_error_scenarios
+
+verifies:
+  - TASK_001_cli_fix_package_discovery
+  - TASK_002_cfg_remove_utf8_bom
+  - TASK_003_cfg_validate_proxy_rdns
+  - TASK_004_int_remove_google_sheets_spec_refs
+  - TASK_005_int_add_worker_busy_retry
+  - TASK_006_int_protect_proxy_credentials
+  - TASK_007_sec_validate_session_name
+  - TASK_008_df_atomic_entity_resolution
+  - TASK_009_df_wrap_state_save_errors
+  - TASK_010_tst_test_process_and_forward_functions
+  - TASK_011_tst_test_setup_logging_and_resolve_path
+  - TASK_012_tst_parser_unit_tests
+  - TASK_013_tst_fix_over_mocking
+  - TASK_014_qlt_fix_return_type_annotation
+  - TASK_015_qlt_extract_retry_helper
+  - TASK_016_tst_entity_resolution_error_scenarios
+
+verification_steps:
+  - build: "uv run mypy --strict src/mko_telebot"
+  - test: "uv run pytest tests/ -v"
+  - lint: "uv run ruff check src/mko_telebot"
+  - smoke_check: "uv run python -c 'from mko_telebot.cli import app'"
+
+pass_criteria:
+  - mypy --strict passes with no errors
+  - All pytest tests pass
+  - ruff check passes with no errors
+  - Package imports correctly without PYTHONPATH
+
+failure_action: return failed tasks to rework

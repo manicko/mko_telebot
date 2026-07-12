@@ -1,0 +1,41 @@
+id: TASK_003_cfg_validate_proxy_rdns
+
+title: Add type validation for proxy rdns field in ClientConfig
+
+priority: low
+
+status: pending
+
+depends_on: []
+
+description: >
+  Add validation for the optional rdns field in ClientConfig.validate_proxy().
+  Currently the validator checks proxy_type, addr, and port but skips rdns.
+  According to documentation, rdns should be a boolean for SOCKS5 remote DNS resolution.
+
+goals:
+  - Add type validation for rdns field
+  - Validate that rdns is boolean if provided
+  - Prevent runtime errors from invalid rdns types
+
+files:
+  - path: src/mko_telebot/core/telethon.py
+
+    targets:
+      - type: method
+        name: validate_proxy
+        class: ClientConfig
+
+changes:
+  - action: add_code
+    description: >
+      Add rdns type validation after existing proxy field checks
+
+    code_hint: |
+      if 'rdns' in proxy_value and not isinstance(proxy_value['rdns'], bool):
+          raise ValueError("'rdns' must be a boolean if provided")
+
+acceptance_criteria:
+  - rdns boolean validation raises ValueError for non-boolean values
+  - Existing proxy validation tests pass
+  - mypy type check passes

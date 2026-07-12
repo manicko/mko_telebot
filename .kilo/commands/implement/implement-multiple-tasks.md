@@ -32,6 +32,7 @@ Follow the process below step by step
 
 - `AGENTS.md`
 - `docs/SPEC.md`
+- `README.md`
 
 Summarize into `{MAIN_CONTEXT}`
 

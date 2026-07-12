@@ -1,0 +1,50 @@
+id: TASK_016_tst_entity_resolution_error_scenarios
+
+title: Add error scenario tests for entity resolution
+
+priority: medium
+
+status: pending
+
+depends_on:
+  - TASK_005_int_add_worker_busy_retry
+
+description: >
+  Add tests for FloodWaitError and timeout scenarios in resolve_channel_entity
+  and verify async sleep calls between target resolutions in resolve_targets_entities.
+
+goals:
+  - Test FloodWaitError handling in resolve_channel_entity
+  - Test timeout/connection failure scenarios
+  - Verify error propagation to TelegramServiceError
+  - Verify async sleep between entity resolutions
+
+files:
+  - path: tests/test_task.py
+
+    targets:
+      - type: test_class
+        name: TestResolveChannelEntity
+
+changes:
+  - action: add_top_level
+    description: >
+      Add tests for network error scenarios and rate limiting behavior
+
+    code_hint: |
+      # Test resolve_channel_entity with:
+      # - FloodWaitError raises TelegramServiceError with wait time
+      # - Connection errors raise TelegramServiceError
+      # - Timeout errors raise TelegramServiceError
+      # - Successful resolution returns entity
+      
+      # Test resolve_targets_entities with:
+      # - Async sleep called between resolutions (rate limiting)
+      # - Error on first target stops all resolution
+      # - Partial success after all succeed (atomic behavior)
+
+acceptance_criteria:
+  - All error scenario tests pass
+  - Rate limiting behavior verified
+  - TelegramServiceError raised correctly
+  - Coverage for error paths improved

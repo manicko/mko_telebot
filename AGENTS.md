@@ -42,5 +42,6 @@ This project uses **4 spaces** — never tabs. When editing, read the full funct
 - [Project structure](.ai/structure/map.md)
 - [Full structure + dependencies](.ai/structure/**)
 - [Specification](docs/SPEC.md)
+- [Readme](README.md)
 - [Commands](.ai/context/commands.md)
 - [Python code standards](.ai/context/python-code-standards.md)

@@ -1,0 +1,64 @@
+id: TASK_008_df_atomic_entity_resolution
+
+title: Refactor Task resolve_targets_entities for atomic state updates
+
+priority: medium
+
+status: pending
+
+depends_on: []
+
+description: >
+  Refactor resolve_targets_entities() in Task class to resolve all entities into
+  a temporary list first, then assign to forward_to_entities only if all succeed.
+  Currently entities are appended one-by-one, leaving partial state on error.
+
+goals:
+  - Resolve all target entities into temporary list
+  - Assign forward_to_entities atomically after all succeed
+  - Prevent inconsistent intermediate state on error
+  - Update tests to expect all-or-nothing behavior
+
+files:
+  - path: src/mko_telebot/core/task.py
+
+    targets:
+      - type: method
+        name: resolve_targets_entities
+        class: Task
+
+  - path: tests/test_task.py
+
+    targets:
+      - type: test
+        name: test_resolve_targets_entities_partial_failure
+
+changes:
+  - action: replace_function_body
+    description: >
+      Refactor to collect entities first, then assign atomically
+
+    code_hint: |
+      # Current implementation appends in loop:
+      for forward_to in self.forward_to:
+          try:
+              entity = await client.get_entity(forward_to)
+              self.forward_to_entities.append(entity)
+          except Exception:
+              raise TelegramServiceError(...)
+      
+      # New implementation:
+      entities = []
+      for forward_to in self.forward_to:
+          try:
+              entity = await client.get_entity(forward_to)
+              entities.append(entity)
+          except Exception:
+              raise TelegramServiceError(...)
+      self.forward_to_entities = entities
+
+acceptance_criteria:
+  - All entities resolved before assignment
+  - No partial state on error
+  - Tests updated to reflect atomic behavior
+  - mypy type check passes

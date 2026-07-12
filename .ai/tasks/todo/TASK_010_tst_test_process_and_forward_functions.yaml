@@ -1,0 +1,70 @@
+id: TASK_010_tst_test_process_and_forward_functions
+
+title: Add tests for process_task, run_monitor, main_loop, and reschedule_task
+
+priority: high
+
+status: pending
+
+depends_on:
+  - TASK_004_int_remove_google_sheets_spec_refs
+
+description: >
+  Add test coverage for critical orchestration functions currently missing tests:
+  process_task, run_monitor, main_loop, and reschedule_task in monitor_forward.py
+  and monitor.py.
+
+goals:
+  - Test process_task message fetching and state update logic
+  - Test run_monitor startup, loop entry, and cleanup
+  - Test main_loop task creation and queue management
+  - Test reschedule_task delay and queue put operations
+
+files:
+  - path: tests/test_monitor_forward.py
+    targets:
+      - type: test_class
+        name: TestProcessTask
+
+  - path: tests/test_monitor.py
+    targets:
+      - type: test_class
+        name: TestRunMonitor
+      - type: test_class
+        name: TestMainLoop
+      - type: test_class
+        name: TestRescheduleTask
+
+changes:
+  - action: add_top_level
+    description: >
+      Create test classes for critical orchestration functions
+
+    code_hint: |
+      # test_process_task covers:
+      # - successful message fetching with iter_messages
+      # - FloodWaitError handling with retry logic
+      # - TelegramServiceError propagation
+      # - last_msg_id update after processing
+      
+      # test_run_monitor covers:
+      # - client startup and run_monitor orchestration
+      # - KeyboardInterrupt graceful shutdown
+      # - MkoTelebotError handling with cleanup
+      
+      # test_main_loop covers:
+      # - task creation from config
+      # - entity resolution calls
+      # - state loading
+      # - queue population
+      
+      # test_reschedule_task covers:
+      # - delay calculation (random 5-10s)
+      # - queue put operation
+      # - async sleep behavior
+
+acceptance_criteria:
+  - All new test classes pass
+  - Test coverage for process_task >= 80%
+  - Test coverage for run_monitor >= 80%
+  - Test coverage for main_loop >= 80%

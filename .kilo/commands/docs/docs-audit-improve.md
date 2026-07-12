@@ -20,6 +20,7 @@ Audit tasks must remain focused on their intended audit scope while becoming mor
 Study the following project documentation:
 
 * `docs/SPEC.md`
+* `README.md`
 * `docs/STRUCT.md`
 * `docs/**`
 

@@ -1,0 +1,45 @@
+id: TASK_001_cli_fix_package_discovery
+
+title: Fix pyproject.toml package discovery for src-layout
+
+priority: medium
+
+status: pending
+
+depends_on: []
+
+description: >
+  Fix the [tool.setuptools.packages.find] configuration in pyproject.toml to use
+  the correct src-layout pattern. Change from `where = ["."]` with `include = ["src/*"]`
+  to `where = ["src"]` with `include = ["mko_telebot*"]`.
+
+goals:
+  - Fix setuptools package discovery configuration
+  - Ensure package is importable without PYTHONPATH manipulation
+  - Follow standard src-layout conventions
+
+files:
+  - path: pyproject.toml
+    targets:
+      - type: section
+        name: tool.setuptools.packages.find
+
+    semantic_anchors:
+      insert_before:
+        type: section
+        value: tool.setuptools.packages.find
+
+changes:
+  - action: replace_value
+    description: >
+      Update the where and include values for correct src-layout package discovery
+
+    code_hint: |
+      [tool.setuptools.packages.find]
+      where = ["src"]
+      include = ["mko_telebot*"]
+
+acceptance_criteria:
+  - Package imports correctly via `uv run python -c "from mko_telebot.cli import app"`
+  - No PYTHONPATH required for import
+  - mypy and ruff checks pass unchanged

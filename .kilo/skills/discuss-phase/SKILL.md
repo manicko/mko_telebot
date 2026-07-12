@@ -152,6 +152,7 @@ Analyze the phase to identify gray areas worth discussing.
 - [AGENTS.md](AGENTS.md)
 - [project rules](.ai\context\**)
 - [specification](docs\SPEC.md)
+- [README.md](README.md)
 
 
 (if exist) and determine:**

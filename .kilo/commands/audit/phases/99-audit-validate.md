@@ -53,8 +53,9 @@ For every finding, verify:
 
 **"Dead code" findings — mandatory spec cross-reference:**
 1. Check `docs/SPEC.md` for the feature.
-2. Check Pydantic models / `StrEnum` values.
-3. Check config templates.
+2. Check `README.md` for the feature.
+3. Check Pydantic models / `StrEnum` values.
+4. Check config templates.
 
 If the spec, models, or config reference the component → **reject the "dead code" label** and reclassify as `[SPEC-DEVIATION]` (missing integration, not dead code).
 

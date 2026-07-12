@@ -1,0 +1,44 @@
+id: TASK_009_df_wrap_state_save_errors
+
+title: Wrap Task save_state errors in process_and_reschedule
+
+priority: medium
+
+status: pending
+
+depends_on: []
+
+description: >
+  Wrap save_state() call in process_and_reschedule() with try/except to handle
+  disk/permission errors gracefully. Currently StateError propagates up and could
+  cause message re-processing on restart.
+
+goals:
+  - Add try/except around task.save_state() call
+  - Log errors without crashing the monitoring loop
+  - Preserve in-memory state for continued operation
+
+files:
+  - path: src/mko_telebot/monitor.py
+
+    targets:
+      - type: function
+        name: process_and_reschedule
+
+changes:
+  - action: add_code
+    description: >
+      Wrap save_state in try/except to log errors gracefully
+
+    code_hint: |
+      try:
+          await task.save_state()
+      except StateError as e:
+          logger.error("Failed to save task state: %s", e)
+          # Continue with in-memory state for next iteration
+
+acceptance_criteria:
+  - State save failures logged without crashing
+  - Monitoring continues after save failure
+  - StateError still raised for explicit state operations
+  - Tests pass

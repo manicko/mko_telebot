@@ -413,3 +413,4 @@ Supports: Bash, Zsh, Fish, and PowerShell.
 
 - [Configuration Guide](../11-guides/configuration.md) — detailed field-by-field config reference.
 - [Specification](../../docs/SPEC.md) — project specification and architecture.
+- [README](README.md) — project overview and quick start.

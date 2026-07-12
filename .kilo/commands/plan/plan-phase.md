@@ -30,6 +30,7 @@ Stop and wait for the response.
 Load {MAIN_CONTEXT} from:
 
 docs/SPEC.md
+README.md
 docs/*
 
 Summarize it and keep as {MAIN_CONTEXT} 

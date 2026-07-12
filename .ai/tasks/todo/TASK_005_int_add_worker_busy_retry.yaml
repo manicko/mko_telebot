@@ -1,0 +1,54 @@
+id: TASK_005_int_add_worker_busy_retry
+
+title: Add WorkerBusyTooLongRetryError handling in monitor_forward
+
+priority: medium
+
+status: pending
+
+depends_on: []
+
+description: >
+  Add exception handling for WorkerBusyTooLongRetryError in forward_to_users() and
+  process_task() functions in monitor_forward.py. This Telethon-specific error
+  should trigger retries with exponential backoff like FloodWaitError.
+
+goals:
+  - Import WorkerBusyTooLongRetryError from telethon.errors
+  - Add retry handling for WorkerBusyTooLongRetryError
+  - Follow existing retry pattern with exponential backoff
+
+files:
+  - path: src/mko_telebot/monitor_forward.py
+
+    targets:
+      - type: function
+        name: forward_to_users
+
+    semantic_anchors:
+      insert_after:
+        type: import_from
+        module: telethon.errors
+        name: RPCError
+
+changes:
+  - action: add_code
+    description: >
+      Add WorkerBusyTooLongRetryError to exception handling in forward_to_users()
+      and create dedicated retry handling
+
+    code_hint: |
+      # Add to imports:
+      from telethon.errors import WorkerTooBusyTooLongRetryError
+      
+      # Add to exception handling in forward_to_users():
+      except WorkerTooBusyTooLongRetryError as e:
+          # Apply same retry logic as FloodWaitError
+          wait_time = get_exponential_backoff_with_jitter(attempt)
+          await asyncio.sleep(wait_time)
+          continue
+
+acceptance_criteria:
+  - WorkerTooBusyTooLongRetryError triggers retries with backoff
+  - Existing FloodWaitError tests still pass
+  - mypy type check passes
