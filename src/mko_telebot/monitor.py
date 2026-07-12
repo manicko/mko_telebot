@@ -11,6 +11,7 @@ from telethon import TelegramClient
 
 from mko_telebot.core import Task
 from mko_telebot.core.models import TelepostSettings
+from mko_telebot.core.errors import StateError
 from .monitor_client import start_client
 from .monitor_forward import process_task
 
@@ -58,7 +59,11 @@ async def process_and_reschedule(
     async with lock:
         await process_task(task, client, settings)
 
-        await task.save_state()
+        try:
+            await task.save_state()
+        except StateError as e:
+            logger.error("Failed to save task state for %s: %s", task.channel_name, e)
+            # Continue with in-memory state for next iteration
 
     asyncio.create_task(reschedule_task(task, queue))
 

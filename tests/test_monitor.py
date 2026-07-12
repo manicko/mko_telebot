@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import itertools
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
+from mko_telebot.core.errors import StateError, TelegramAuthError, TelegramServiceError
 from mko_telebot.monitor_client import (
     build_message_link,
     build_sender_tag,
@@ -16,6 +17,7 @@ from mko_telebot.monitor_client import (
     start_client,
 )
 from mko_telebot.monitor_forward import forward_to_users, process_messages
+from mko_telebot.monitor import process_and_reschedule
 
 
 
@@ -569,3 +571,52 @@ class TestProcessMessages:
         with patch("mko_telebot.monitor_forward.forward_to_users", new_callable=AsyncMock) as mock_forward:
             await process_messages(messages, mock_task, mock_client, mock_settings)
             mock_forward.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# process_and_reschedule
+# ---------------------------------------------------------------------------
+
+class TestProcessAndReschedule:
+    """Tests for process_and_reschedule()."""
+
+    async def test_calls_save_state_on_success(
+        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """process_and_reschedule() should call save_state after processing."""
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+        mock_task.save_state = AsyncMock()
+
+        with patch("mko_telebot.monitor.process_task", new_callable=AsyncMock):
+            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+            mock_task.save_state.assert_awaited_once()
+
+    async def test_continues_after_save_state_error(
+        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """process_and_reschedule() should log error and continue when save_state raises StateError."""
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+        mock_task.save_state = AsyncMock(side_effect=StateError("Disk error"))
+
+        with (
+            patch("mko_telebot.monitor.process_task", new_callable=AsyncMock),
+            patch("mko_telebot.monitor.logger") as mock_logger,
+        ):
+            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+            mock_logger.error.assert_called_once()
+            # Verify that state save error was logged
+            assert "Failed to save task state" in mock_logger.error.call_args[0][0]
+
+    async def test_still_raises_for_other_exceptions(
+        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """process_and_reschedule() should let non-StateError exceptions propagate."""
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+        mock_task.save_state = AsyncMock(side_effect=ValueError("Unexpected error"))
+
+        with patch("mko_telebot.monitor.process_task", new_callable=AsyncMock):
+            with pytest.raises(ValueError, match="Unexpected error"):
+                await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
