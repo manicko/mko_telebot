@@ -52,11 +52,11 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
         api_id=client.api_id,
         api_hash=api_hash,
         proxy=proxy_dict,
-        app_version=client.app_version,
-        device_model=client.device_model,
-        system_version=client.system_version,
-        lang_code=client.lang_code,
-        system_lang_code=client.system_lang_code,
+        app_version=client.app_version or "",
+        device_model=client.device_model or "",
+        system_version=client.system_version or "",
+        lang_code=client.lang_code or "",
+        system_lang_code=client.system_lang_code or "",
     )
 
 
