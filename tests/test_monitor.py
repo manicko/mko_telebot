@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -771,7 +771,7 @@ class TestRunMonitor:
     async def test_starts_client_and_runs_loop(self) -> None:
         """run_monitor() should start client and enter main loop on success."""
         mock_client = MagicMock()
-        mock_client.disconnect = AsyncMock()
+        mock_client.disconnect = Mock()
 
         mock_settings = MagicMock()
 
@@ -787,12 +787,12 @@ class TestRunMonitor:
                     await monitor.run_monitor(mock_settings, mock_client)
 
                 mock_loop.assert_awaited_once()
-                mock_client.disconnect.assert_awaited_once()
+                mock_client.disconnect.assert_called_once()
 
     async def test_does_not_run_loop_on_auth_failure(self) -> None:
         """run_monitor() should not enter main_loop if start_client fails."""
         mock_client = MagicMock()
-        mock_client.disconnect = AsyncMock()
+        mock_client.disconnect = Mock()
 
         mock_settings = MagicMock()
 
@@ -800,7 +800,7 @@ class TestRunMonitor:
             from mko_telebot.monitor import run_monitor
 
             await run_monitor(mock_settings, mock_client)
-            mock_client.disconnect.assert_not_awaited()
+            mock_client.disconnect.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

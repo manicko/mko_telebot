@@ -134,5 +134,5 @@ async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> Non
         try:
             await main_loop(settings, client, queue, lock)
         finally:
-            await client.disconnect()
+            client.disconnect()
             logger.info("Telethon client disconnected.")
