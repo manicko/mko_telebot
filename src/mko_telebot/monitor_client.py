@@ -29,7 +29,7 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
     client = settings.telethon.client
 
     # Build proxy dict for Telethon compatibility
-    proxy_dict: dict[str, object] | None = None
+    proxy_dict: dict[str, str | int | bool] | None = None
     if client.proxy is not None:
         proxy_dict = client.proxy.to_dict()
 
@@ -51,7 +51,7 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
         session=str(session_path),
         api_id=client.api_id,
         api_hash=api_hash,
-        proxy=proxy_dict,
+        proxy=proxy_dict,  # pyright: ignore[reportArgumentType]
         app_version=client.app_version or "",
         device_model=client.device_model or "",
         system_version=client.system_version or "",
@@ -74,12 +74,11 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
 
     try:
         if settings.telethon.is_user:
-            await client.start(
+            await client.start(  # pyright: ignore[reportGeneralTypeIssues]
                 phone=settings.telethon.phone_or_token.get_secret_value()
             )
-
         else:
-            await client.start(
+            await client.start(  # pyright: ignore[reportGeneralTypeIssues]
                 bot_token=settings.telethon.phone_or_token.get_secret_value()
             )
 
