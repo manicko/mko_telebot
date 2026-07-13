@@ -16,13 +16,14 @@ from mko_telebot.core import Task, search_match
 from mko_telebot.core.errors import TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 from .monitor_client import build_message_link, build_sender_tag
+from telethon.hints import Entity
 
 logger = logging.getLogger(__name__)
 
 
 async def _send_with_retry(
     client: TelegramClient,
-    target: Any,
+    target: Entity,
     caption: str,
     msg_media: list[Any] | None,
     max_tries: int,
@@ -59,7 +60,7 @@ async def _send_with_retry(
             return True
 
         except FloodWaitError as e:
-            wait_time = e.seconds + random.uniform(5, 10) + (2**attempt)
+            wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
             logger.warning(
                 f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
                 f"for {getattr(target, 'id', target)}"
@@ -67,7 +68,7 @@ async def _send_with_retry(
             await asyncio.sleep(wait_time)
 
         except WorkerBusyTooLongRetryError as e:
-            wait_time = (2**attempt) + random.uniform(0, 3)
+            wait_time = (2 ** attempt) + random.uniform(0, 3)
             logger.warning(
                 f"Worker busy retry error {e}, retry {attempt + 1}/{max_tries} "
                 f"for {getattr(target, 'id', target)}"
@@ -75,7 +76,7 @@ async def _send_with_retry(
             await asyncio.sleep(wait_time)
 
         except RPCError as e:
-            wait_time = (2**attempt) + random.uniform(0, 3)
+            wait_time = (2 ** attempt) + random.uniform(0, 3)
             logger.warning(
                 f"RPC error {e}, retry {attempt + 1}/{max_tries} "
                 f"for {getattr(target, 'id', target)}"
@@ -206,6 +207,11 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
     """
 
     logger.debug(f"{task.channel_name} is processed")
+
+    # Ensure channel_entity is resolved before fetching messages
+    if task.channel_entity is None:
+        logger.error(f"Channel entity not resolved for {task.channel_name}")
+        return
 
     min_id = max(1, task.last_msg_id - task.overlap + 1)
 

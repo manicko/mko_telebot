@@ -5,7 +5,6 @@ import logging
 import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 import aiofiles  # async I/O
 
@@ -14,6 +13,8 @@ from mko_telebot.core.utils import ensure_path_exists
 from mko_telebot.core.paths import APP_PATHS
 from mko_telebot.core.errors import TelegramServiceError, StateError
 from mko_telebot.core.channels import ChannelConfig
+from telethon import TelegramClient
+from telethon.hints import Entity
 
 logger = logging.getLogger(__name__)
 
@@ -45,49 +46,57 @@ class Task:
 
     def __init__(self, config: ChannelConfig, last_msg_id: int = 0) -> None:
         """Initialize Task from a ChannelConfig instance."""
-        self.channel_name = config.name
-        self.channel_entity = None
-        self.forward_to = config.forward_to
-        self.forward_to_entities: list[object] = []
-        self.keywords = config.keywords
-        self.scan_interval = config.scan_interval
-        self.history_limit = config.history_limit
-        self.history_days = config.history_days
+        self.channel_name: str = config.name
+        self.channel_entity: Entity | None = None
+        self.forward_to: list[str] = config.forward_to
+        self.forward_to_entities: list[Entity] = []
+        self.keywords: list[str] = config.keywords
+        self.scan_interval: int = config.scan_interval
+        self.history_limit: int = config.history_limit
+        self.history_days: int | None = config.history_days
         # offset_date computed from history_days (if provided)
         self.state_file: Path | None = None
         self.offset_date: datetime | None = None
         self.set_offset_date()
         # ensure last_msg_id is int and non-null
-        self.last_msg_id = last_msg_id or 0
-        self.overlap = config.overlap
+        self.last_msg_id: int = last_msg_id or 0
+        self.overlap: int = config.overlap
 
-    async def resolve_targets_entities(self, client: Any) -> None:
-            """Resolve each forward target to a Telethon entity and store them.
+    async def resolve_targets_entities(self, client: TelegramClient) -> None:
+        """Resolve each forward target to a Telethon entity and store them.
 
-            All entities are resolved into a temporary list first, then assigned
-            atomically to forward_to_entities. This ensures no partial state remains
-            if any resolution fails.
-            """
-            entities: list[object] = []
-            for ent in self.forward_to:
-                try:
-                    entity = await client.get_entity(ent)
-                    entities.append(entity)
-                    # Small randomized pause to look "human" and avoid rate limits
-                    await asyncio.sleep(random.uniform(0, 3))
-                except Exception as e:
-                    logger.error(
-                        f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
-                    )
-                    raise TelegramServiceError(
-                        f"Failed to resolve entity for target {ent}"
-                    ) from e
-            self.forward_to_entities = entities
+        All entities are resolved into a temporary list first, then assigned
+        atomically to forward_to_entities. This ensures no partial state remains
+        if any resolution fails.
+        """
+        entities: list[Entity] = []
+        for ent in self.forward_to:
+            try:
+                result = await client.get_entity(ent)
+                if isinstance(result, list):
+                    continue
+                entities.append(result)
+                # Small randomized pause to look "human" and avoid rate limits
+                await asyncio.sleep(random.uniform(0, 3))
+            except Exception as e:
+                logger.error(
+                    f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
+                )
+                raise TelegramServiceError(
+                    f"Failed to resolve entity for target {ent}"
+                ) from e
+        self.forward_to_entities = entities
 
-    async def resolve_channel_entity(self, client: Any) -> None:
+    async def resolve_channel_entity(self, client: TelegramClient) -> None:
         """Resolve channel_name to a Telethon channel entity."""
         try:
-            self.channel_entity = await client.get_entity(self.channel_name)
+            result = await client.get_entity(self.channel_name)
+            # get_entity can return Entity or List[Entity], we expect single Entity
+            if isinstance(result, list):
+                raise TelegramServiceError(
+                    f"Unexpected list result for channel {self.channel_name}"
+                )
+            self.channel_entity = result
         except Exception as e:
             logger.error(
                 f"Failed to resolve entity for channel {self.channel_name}: {e}"
