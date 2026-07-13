@@ -9,7 +9,8 @@ from typing import Any
 
 import aiofiles  # async I/O
 
-from mko_telebot.core import utils
+# mko_telebot/core/utils.py
+from mko_telebot.core.utils import ensure_path_exists
 from mko_telebot.core.paths import APP_PATHS
 from mko_telebot.core.errors import TelegramServiceError, StateError
 from mko_telebot.core.channels import ChannelConfig
@@ -99,7 +100,7 @@ class Task:
         """Determine and create (if needed) the path to the state file for this channel."""
         self.state_file = state_dir / f"{self.channel_name}.json"
         try:
-            utils.ensure_path_exists(self.state_file)
+            ensure_path_exists(self.state_file)
             logger.debug(
                 f"State file for channel {self.channel_name} is ready: {self.state_file}"
             )

@@ -148,7 +148,7 @@ class TestResolveStateFile:
         task = _make_task(config)
         with (
             patch("mko_telebot.core.task.state_dir", tmp_path),
-            patch("mko_telebot.core.task.utils.ensure_path_exists", side_effect=ValueError("Cannot create")),
+            patch("mko_telebot.core.task.ensure_path_exists", side_effect=ValueError("Cannot create")),
         ):
             with pytest.raises(StateError, match="Failed to create or verify state file"):
                 task.resolve_state_file()
