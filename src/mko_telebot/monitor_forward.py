@@ -175,9 +175,6 @@ async def process_messages(
             msg_content[group_id]["text"].append(msg.message)
 
         if getattr(msg, "media", None):
-            if getattr(msg.media, "caption", None):
-                msg_content[group_id]["text"].append(msg.media.caption)
-
             msg_content[group_id]["media"].append(msg.media)
 
     for album_id, content in msg_content.items():
