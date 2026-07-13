@@ -62,13 +62,13 @@ class ProxyConfig(BaseModel):
                 )
         return v
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> dict[str, str | int | bool]:
         """Convert to Telethon-compatible dict format.
 
         Returns:
             Dict with plain string values for username and password.
         """
-        result: dict[str, object] = {
+        result: dict[str, str | int | bool] = {
             "proxy_type": self.proxy_type,
             "addr": self.addr,
             "port": self.port,
