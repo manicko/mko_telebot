@@ -49,7 +49,7 @@ async def _send_with_retry(
         try:
             if msg_media:
                 await client.send_file(
-                    target, msg_media, caption=caption or None, link_preview=False
+                    target, msg_media, caption=caption, link_preview=False
                 )
             else:
                 await client.send_message(target, caption or "", link_preview=False)
