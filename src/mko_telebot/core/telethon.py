@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from typing import ClassVar
 
 
 class ProxyConfig(BaseModel):
@@ -20,7 +21,7 @@ class ProxyConfig(BaseModel):
         password: Proxy authentication password.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     proxy_type: str = Field(..., description="Proxy type")
     addr: str = Field(..., description="Proxy server address")
@@ -97,7 +98,7 @@ class ClientConfig(BaseModel):
         proxy: Optional SOCKS5 proxy configuration for Telethon
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     api_id: int = Field(..., gt=0, description="Telegram API ID")
     api_hash: SecretStr = Field(
         ..., min_length=32, max_length=64, description="Telegram API hash"
@@ -174,7 +175,7 @@ class TelethonConfig(BaseModel):
         max_retries: Number of times to retry posting on failure
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     is_user: bool = Field(default=True, description="True for user, False for bot")
     phone_or_token: SecretStr = Field(
         ..., min_length=5, description="Phone number or bot token"
