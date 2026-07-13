@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from typing import ClassVar
 
 
 class LogLevel(StrEnum):
@@ -30,7 +31,7 @@ class ChannelConfig(BaseModel):
         overlap: Number of overlapping messages between scans.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     name: str = Field(..., description="Channel identifier (@username or t.me/...)")
     forward_to: list[str] = Field(
         default_factory=list, description="Target entities to forward messages to"
@@ -68,7 +69,7 @@ class ChannelDefaults(BaseModel):
     Same fields as ChannelConfig minus the name field.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     forward_to: list[str] = Field(
         default_factory=list, description="Target entities to forward messages to"
     )
@@ -99,7 +100,7 @@ class ChannelsConfig(BaseModel):
         stagger_start_seconds: Stagger offset for initial scan start.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     defaults: ChannelDefaults = Field(
         default_factory=ChannelDefaults,
         description="Default settings applied to all channels",
