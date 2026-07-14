@@ -166,3 +166,74 @@ None — all findings are advisory.
 | ID | Original Type | New Type | Rationale |
 |----|---------------|----------|-----------|
 | — | — | — | — |
+
+---
+
+## Research Addendum: CFG-002 and CFG-003 Clarification
+
+### CFG-002: LogLevel StrEnum — Removal Recommended
+
+**Finding**: `LogLevel` is dead code and should be removed.
+
+**Evidence**:
+- `LogLevel` defined in `src/mko_telebot/core/channels.py:11-18` with values DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Exported via `__all__` in channels.py and `__init__.py` but **no code references `LogLevel.`** anywhere
+- Python's `logging` module already provides `logging.DEBUG`, `logging.INFO`, etc. as integer constants
+- `logging.py:41` uses `logging.INFO` directly, not `LogLevel.INFO`
+- No YAML configuration schema references `LogLevel`
+- No Pydantic model uses `LogLevel` as a field type
+
+**Actionable Recommendation**: Remove `LogLevel` entirely. Complete code changes:
+1. Remove lines 11-20 in `src/mko_telebot/core/channels.py` (enum + docstring)
+2. Remove `"LogLevel"` from `__all__` in `src/mko_telebot/core/channels.py:151`
+3. Remove `"LogLevel"` import and export from `src/mko_telebot/core/__init__.py:7,21`
+
+**Impact**: Zero — codebase does not use this enum.
+
+### CFG-003: Type Safety Warnings — Specific Implementation Approach
+
+**Finding**: 31 type warnings in config.py (20) and channels.py (11), requiring targeted fixes.
+
+**Classification by Warning Type**:
+
+| Warning Type | Count | Location | Recommended Fix |
+|--------------|-------|----------|-----------------|
+| Unannotated class attributes | 3 | config.py:122-124 | Add `self.config_path: Path` etc. annotations |
+| Explicit `Any` in function signatures | 3 | config.py:50,78,179 | Use `dict[str, Any]` consistently for YAML data |
+| Implicit `Any` from `model_dump()` | 8 | channels.py:131-147 | Annotate loop variables: `default_value: Any` |
+| `UnusedCallResult` | 1 | channels.py:121 | Assign pop result to `_` |
+| Unknown types from YAML loading | 16 | config.py:66,89,197,200 | Use `dict[str, Any]` consistently |
+
+**Specific Code Changes**:
+
+**config.py — Add class attribute annotations (lines 122-124)**:
+```python
+        self.config_path: Path = config_path
+        self.secrets_path: Path = secrets_path
+        self.log_config_path: Path | None = log_config_path
+        self._settings: TelepostSettings | None = None
+```
+
+**config.py — Annotate YAML loaded data (line 66)**:
+```python
+        data: dict[str, Any] = yaml.safe_load(f)
+```
+
+**channels.py — Annotate loop variables in `apply_defaults_to_channels` (lines 130-141)**:
+```python
+        update_data: dict[str, Any] = {}
+        for field_name, default_value in defaults_data.items():
+            current_val: Any = getattr(channel, field_name)
+```
+
+**channels.py — Fix unused result (line 121)**:
+```python
+_ = self.channels.pop("DEFAULTS", None)
+```
+
+**Rationale**: YAML configuration files are inherently dynamic (`dict[str, Any]`). The warnings stem from:
+1. Python lacking typed YAML — `yaml.safe_load()` returns `Any`
+2. Missing annotation syntax for class attributes in `__init__`
+3. Pydantic's `model_dump()` returning `dict[str, Any]` for runtime-dumped data
+
+These changes satisfy `basedpyright` while maintaining runtime flexibility.

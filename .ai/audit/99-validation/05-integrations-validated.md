@@ -67,6 +67,21 @@ validated_date: 2026-07-14
 
 **Recommendation:** Update tests to use `FloodWaitError(request=None, capture=30)` or similar to verify actual wait time handling, though this is a test quality improvement rather than a critical bug.
 
+### Recommendation Clarification for INT-002
+
+**Specific Test Updates Required:**
+
+| File | Line | Current Code | Recommended Change |
+|------|------|--------------|-------------------|
+| tests/test_monitor_forward.py | 115 | `raise FloodWaitError(request=None)` | `raise FloodWaitError(request=None, capture=30)` |
+| tests/test_monitor_forward.py | 241 | `FloodWaitError(request=None), None` | `FloodWaitError(request=None, capture=30), None` |
+| tests/test_monitor_forward.py | 280 | `FloodWaitError(request=None)` | `FloodWaitError(request=None, capture=30)` |
+| tests/test_monitor_forward.py | 307 | `FloodWaitError(request=None), None` | `FloodWaitError(request=None, capture=30), None` |
+| tests/test_monitor.py | 428 | `FloodWaitError(request=None),` | `FloodWaitError(request=None, capture=30),` |
+| tests/test_monitor.py | 476 | `FloodWaitError(request=None)` | `FloodWaitError(request=None, capture=30)` |
+
+**Note:** The FloodWaitError constructor accepts `capture` parameter (not `seconds`) which sets the wait duration. Using `capture=30` simulates a realistic 30-second wait period from Telegram's API.
+
 ---
 
 ### INT-003: Client lifecycle uses synchronous disconnect() but should handle potential async cleanup
@@ -117,6 +132,50 @@ validated_date: 2026-07-14
 > - **See also:** —
 
 **Recommendation:** Consider adding special handling for `FloodWaitError` during entity resolution to wait for the specified duration before re-raising, allowing the monitor to potentially recover from temporary rate limiting during startup.
+
+### Recommendation Clarification for INT-004
+
+**Implementation Approach:**
+
+Modify both `resolve_channel_entity()` and `resolve_targets_entities()` methods in `src/mko_telebot/core/task.py` to add special-case handling for `FloodWaitError`:
+
+```python
+from telethon.errors import FloodWaitError
+
+async def resolve_channel_entity(self, client: TelegramClient) -> None:
+    """Resolve channel_name to a Telethon channel entity."""
+    try:
+        result = await client.get_entity(self.channel_name)
+        if isinstance(result, list):
+            raise TelegramServiceError(
+                f"Unexpected list result for channel {self.channel_name}"
+            )
+        self.channel_entity = result
+    except FloodWaitError as e:
+        # Special handling: wait for the specified duration before re-raising
+        logger.warning(
+            f"Flood wait {e.seconds}s while resolving channel {self.channel_name}"
+        )
+        await asyncio.sleep(e.seconds + random.uniform(5, 10))
+        raise TelegramServiceError(
+            f"Failed to resolve entity for channel {self.channel_name} after flood wait"
+        ) from e
+    except Exception as e:
+        logger.error(
+            f"Failed to resolve entity for channel {self.channel_name}: {e}"
+        )
+        raise TelegramServiceError(
+            f"Failed to resolve entity for channel {self.channel_name}"
+        ) from e
+```
+
+Apply the same pattern to `resolve_targets_entities()` at lines 81-87.
+
+**Rationale:** This approach:
+1. Waits for the specified `e.seconds` plus jitter before re-raising
+2. Still raises `TelegramServiceError` to signal the caller that resolution failed
+3. Gives the monitor a chance to recover during rate-limit windows
+4. Follows the same pattern used in `monitor_forward.py:232-235` for `process_task()`
 
 ---
 

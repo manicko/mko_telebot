@@ -1,0 +1,61 @@
+# Add matcher internal function tests - TST-002
+
+id: TASK_020_tst_002_matcher_internal_tests
+title: Add tests for matcher internal functions
+priority: medium
+
+depends_on:
+  - TASK_016_qlt_001_sequence_type
+
+source_reference: .ai/audit/99-validation/07-tests-validated.md
+source_section: TST-002
+source_blocks:
+  - "TST-002: No direct tests for core/matcher.py internal functions"
+
+description: >
+  The matcher module has 4 internal functions (ast_to_regex, patterns_for_node,
+  evaluate_query, _check_patterns_match) that implement core pattern matching
+  logic. Add unit tests in tests/test_matcher.py to verify these functions
+  independently for improved bug localization and coverage.
+
+goals:
+  - Add tests for ast_to_regex function
+  - Add tests for patterns_for_node function
+  - Add tests for evaluate_query function
+  - Add tests for exclusion pattern handling
+
+files:
+  - path: tests/test_matcher.py
+    targets:
+      - type: new_file
+
+changes:
+  - action: add_top_level
+    description: Create test_matcher.py with unit tests for matcher internals
+    code_hint: |
+      # Tests for ast_to_regex, patterns_for_node, evaluate_query
+      def test_ast_to_regex_exact_match():
+          """Test regex generation for exact match nodes."""
+      
+      def test_ast_to_regex_wildcard():
+          """Test regex generation with wildcard patterns."""
+      
+      def test_ast_to_regex_with_word_boundaries():
+          """Test word boundary handling in regex patterns."""
+      
+      def test_patterns_for_node_flattening():
+          """Test patterns_for_node correctly flattens sequence nodes."""
+      
+      def test_evaluate_query_exclusion_order():
+          """Test exclusions processed before inclusions."""
+
+acceptance_criteria:
+  - test_matcher.py created with unit tests
+  - All internal matcher functions have dedicated tests
+  - Tests verify regex and pattern handling behavior
+  - All tests pass
+
+risk: low
+risk_justification: >
+  Test-only addition. No production code changes. Improves test coverage
+  and bug localization capabilities without affecting functionality.

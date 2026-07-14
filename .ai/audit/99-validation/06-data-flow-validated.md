@@ -113,11 +113,24 @@ for channel_name in channels_list:
 - `channels.py` line 48-50: No validation constraint on `history_days`.
 - `task.py` line 127: `if not self.history_days: return` treats 0 the same as None.
 
-**Recommendation:** Add `ge=1` constraint to `history_days` field in `ChannelConfig` to ensure semantic correctness, or update the logic to explicitly handle 0 as an invalid value.
+**Recommendation:** Add `gt=0` constraint to `history_days` field in both `ChannelConfig` and `ChannelDefaults` classes. This ensures the field accepts either `None` (no limit) or integers >=1 (valid day count), matching the documented semantics that `history_days` represents "number of days of history to fetch."
 
 **effort:** trivial
 
 ---
+
+## Research Findings: DF-003 Clarification
+
+**Date:** 2026-07-14
+**Research:** Analyzed channels.py field validator patterns and task.py usage
+
+**Evidence:**
+- `history_limit` and `overlap` fields use `ge=1` constraint (channels.py lines 46, 52)
+- `stagger_start_seconds` uses `ge=0` since 0 is a valid value (line 115)
+- `set_offset_date()` checks `if not self.history_days:` which evaluates `False` for both `None` and `0`
+- The semantic intent is clear: `history_days` should be `None` (no limit) or `>=1` (valid day count)
+
+**Decision:** Use `gt=0` constraint (greater than 0) instead of `ge=1`. This is functionally equivalent but more semantically precise since the valid values are `None` OR `int > 0`. This aligns with the pattern used for similar optional numeric fields and ensures type safety at the model level rather than relying on runtime logic.
 
 ## Summary
 

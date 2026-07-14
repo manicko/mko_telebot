@@ -1,0 +1,47 @@
+# Configuration error message improvement - CFG-004
+
+id: TASK_004_cfg_004_config_error_message
+title: Improve ConfigError message to guide users to run init
+priority: low
+
+depends_on:
+  - TASK_002
+
+source_reference: .ai/audit/99-validation/02-config-validated.md
+source_section: CFG-004
+source_blocks:
+  - "CFG-004: ConfigError message doesn't guide user to run init"
+
+description: >
+  When a configuration file is missing, the ConfigError is raised with only
+  the file path. Update the error message to include actionable guidance
+  directing users to run 'mko-telebot init' to create the missing
+  configuration files.
+
+goals:
+  - Improve user experience for configuration errors
+  - Provide actionable guidance in error messages
+
+files:
+  - path: src/mko_telebot/core/config.py
+    targets:
+      - type: method
+        name: __init__
+        class: TelepostConfigReader
+
+changes:
+  - action: replace_in_body
+    description: Update error message to include actionable guidance
+    old_snippet: 'raise ConfigError("Configuration file not found", path=path)'
+    new_snippet: 'raise ConfigError(f"Configuration file not found at {path}. Run '\''mko-telebot init'\'' to create default configuration files.", path=path)'
+    target: TelepostConfigReader.__init__
+
+acceptance_criteria:
+  - Error message includes guidance to run init command
+  - Error message still includes the file path
+  - Tests pass
+
+risk: low
+risk_justification: >
+  Simple error message update with no behavior changes. Users receive
+  better guidance when configuration is missing.

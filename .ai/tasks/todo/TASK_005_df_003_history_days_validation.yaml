@@ -1,0 +1,56 @@
+# History days validation - DF-003
+
+id: TASK_005_df_003_history_days_validation
+title: Add gt=0 constraint to history_days field in ChannelConfig
+priority: low
+
+depends_on:
+  - TASK_002
+
+source_reference: .ai/audit/99-validation/06-data-flow-validated.md
+source_section: DF-003
+source_blocks:
+  - "DF-003: history_days=0 accepted but treated as if not set"
+  - "Research Findings: DF-003 Clarification"
+
+description: >
+  The history_days field in ChannelConfig lacks a gt=0 constraint, allowing
+  history_days=0. However, set_offset_date() treats history_days=0 as falsy,
+  resulting in offset_date=None (no limit). This silently converts user intent
+  ("fetch 0 days of history") to unexpected behavior ("fetch all history").
+
+goals:
+  - Add gt=0 constraint to history_days in ChannelConfig
+  - Add gt=0 constraint to history_days in ChannelDefaults
+  - Ensure history_days accepts either None (no limit) or int > 0
+
+files:
+  - path: src/mko_telebot/core/channels.py
+    targets:
+      - type: class
+        name: ChannelConfig
+      - type: class
+        name: ChannelDefaults
+
+changes:
+  - action: replace_in_body
+    description: Add gt=0 constraint to history_days in ChannelConfig
+    old_snippet: 'history_days: int | None = Field(default=None, description="...')'
+    new_snippet: 'history_days: int | None = Field(default=None, description="...", gt=0)'
+    target: ChannelConfig
+  - action: replace_in_body
+    description: Add gt=0 constraint to history_days in ChannelDefaults
+    old_snippet: 'history_days: int | None = Field(default=None, description="...')'
+    new_snippet: 'history_days: int | None = Field(default=None, description="...", gt=0)'
+    target: ChannelDefaults
+
+acceptance_criteria:
+  - history_days field rejects value 0 with validation error
+  - history_days field accepts None for no limit
+  - history_days field accepts positive integers >= 1
+  - Tests pass
+
+risk: low
+risk_justification: >
+  Simple constraint addition to Pydantic field. No behavior changes for valid
+  inputs - only rejects invalid input (0) that was already mishandled.

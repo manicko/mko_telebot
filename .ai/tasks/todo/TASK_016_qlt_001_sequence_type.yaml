@@ -1,0 +1,51 @@
+# Fix Sequence type for covariance - QLT-001
+
+id: TASK_016_qlt_001_sequence_type
+title: Change list[Message] to Sequence[Message] in process_messages signature
+priority: low
+
+depends_on:
+  - TASK_015
+
+source_reference: .ai/audit/99-validation/08-quality-validated.md
+source_section: QLT-001
+source_blocks:
+  - "QLT-001: Type checker errors in test files"
+
+description: >
+  The process_messages function uses list[Message] which is invariant and
+  prevents mock-based tests from substituting list[MagicMock]. Change to
+  Sequence[Message] which is covariant and allows mock substitutes.
+
+goals:
+  - Allow mock-based testing with MagicMock
+  - Fix basedpyright type warnings in test files
+  - Maintain type safety for production code
+
+files:
+  - path: src/mko_telebot/monitor_forward.py
+    targets:
+      - type: function
+        name: process_messages
+
+changes:
+  - action: replace_signature
+    description: Change list[Message] to Sequence[Message] in function signature
+    old_signature: 'async def process_messages(task: Task, messages: list[Message]) -> None:'
+    new_signature: 'async def process_messages(task: Task, messages: Sequence[Message]) -> None:'
+    target: process_messages
+  - action: add_import
+    description: Import Sequence from typing
+    code_hint: 'from typing import Sequence'
+    target: process_messages module imports
+
+acceptance_criteria:
+  - Sequence type used for messages parameter
+  - basedpyright warnings resolved in test files
+  - Behavior unchanged
+  - Tests pass
+
+risk: low
+risk_justification: >
+  Type hint change with no runtime impact. Sequence is a supertype of list,
+  so all existing callers continue to work. Enables proper mock-based testing.

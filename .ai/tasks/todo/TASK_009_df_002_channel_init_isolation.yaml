@@ -1,0 +1,69 @@
+# Channel initialization error isolation - DF-002
+
+id: TASK_009_df_002_channel_init_isolation
+title: Add error isolation for channel initialization to prevent single failure aborting all monitoring
+priority: high
+
+depends_on:
+  - TASK_008_df_001_empty_channels_validation
+
+source_reference: .ai/audit/99-validation/06-data-flow-validated.md
+source_section: DF-002
+source_blocks:
+  - "DF-002: Single channel resolution failure aborts all channel monitoring at startup"
+
+description: >
+  If resolve_channel_entity() or resolve_targets_entities() fails for any
+  channel during the initial setup loop in main_loop(), the exception propagates
+  and crashes the entire application. Wrap the channel initialization in a
+  try/except block to log errors for failed channels while continuing to
+  initialize remaining channels.
+
+goals:
+  - Isolate channel initialization failures
+  - Continue monitoring valid channels when one fails
+  - Log errors for failed channels with actionable details
+
+files:
+  - path: src/mko_telebot/monitor.py
+    targets:
+      - type: function
+        name: main_loop
+
+changes:
+  - action: replace_in_body
+    description: Wrap channel initialization in try/except block
+    old_snippet: |
+      for channel_name in channels_list:
+          channel_settings = channels[channel_name]
+          task = Task(config=channel_settings)
+          await task.resolve_channel_entity(client)
+          task.resolve_state_file()
+          await task.load_state()
+          await task.resolve_targets_entities(client)
+          await queue.put(task)
+    new_snippet: |
+      for channel_name in channels_list:
+          try:
+              channel_settings = channels[channel_name]
+              task = Task(config=channel_settings)
+              await task.resolve_channel_entity(client)
+              task.resolve_state_file()
+              await task.load_state()
+              await task.resolve_targets_entities(client)
+              await queue.put(task)
+          except TelegramServiceError as e:
+              logger.error(f"Failed to initialize channel {channel_name}: {e}")
+              continue
+    target: main_loop channel initialization loop
+
+acceptance_criteria:
+  - Failed channel initialization logs error but doesn't crash
+  - Other channels continue to be initialized
+  - Empty channels case still handled by TASK_008
+
+risk: medium
+risk_justification: >
+  Changes error handling in startup sequence. Must ensure failed channels are
+  properly skipped and logged without affecting other channel initialization.
+  Uses existing TelegramServiceError pattern consistent with project.

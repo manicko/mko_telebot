@@ -1,0 +1,49 @@
+# Update CLI documentation - CLI-001
+
+id: TASK_006_cli_001_update_documentation
+title: Update CLI documentation for KeyboardInterrupt message
+priority: low
+
+depends_on:
+  - TASK_001
+
+source_reference: .ai/audit/99-validation/01-cli-validated.md
+source_section: CLI-001
+source_blocks:
+  - "CLI-001: KeyboardInterrupt message mismatch between code and documentation"
+
+description: >
+  The CLI code prints "Shutdown requested" on KeyboardInterrupt but the
+  documentation incorrectly states "Monitoring stopped by user." Update the
+  documentation to match the actual code behavior.
+
+goals:
+  - Update CLI reference documentation to match code
+  - Ensure documentation accuracy
+
+files:
+  - path: docs/99-reference/cli-reference.md
+    targets:
+      - type: document_section
+        location: lines around 163, 170
+
+changes:
+  - action: replace_value
+    description: Update documentation text at line 163
+    old_snippet: 'Monitoring stopped by user.'
+    new_snippet: 'Shutdown requested'
+    target: cli-reference.md line 163
+  - action: replace_value
+    description: Update documentation text at line 170
+    old_snippet: 'Monitoring stopped by user.'
+    new_snippet: 'Shutdown requested'
+    target: cli-reference.md line 170
+
+acceptance_criteria:
+  - Documentation text matches actual code output
+  - No other documentation changes required
+
+risk: low
+risk_justification: >
+  Pure documentation update with no code changes. Zero risk of breaking
+  functionality.

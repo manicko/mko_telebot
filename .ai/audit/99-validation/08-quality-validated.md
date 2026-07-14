@@ -37,9 +37,7 @@
 - `tests/test_parser.py:413:34` - `list[ExactMatch]` cannot be assigned to `list[ASTNode]` - invariance issue
 - `tests/test_monitor.py:516:32` - Argument of type "list[MagicMock]" cannot be assigned to parameter "messages" of type "list[Message]"
 
-**Recommendation:** Two valid approaches:
-1. Add `# type: ignore[...]` comments on test files for mock-related type conflicts (simplest)
-2. Make tested functions more mock-friendly by accepting `Sequence[Message]` instead of `list[Message]` for better covariance
+**Recommendation:** Use `Sequence[Message]` instead of `list[Message]` for the `messages` parameter in `process_messages()` signature. This is covariant and allows `list[MagicMock]` substitutes in mock-based tests. Import `Sequence` from `typing` and update the type hint.
 
 **Validation Decision:** **SPEC-DEVIATION** - The production code's type signatures create friction with standard mock-based testing patterns. Consider using `Sequence` instead of `list` for parameter types to allow covariance in substitutability.
 
@@ -67,9 +65,7 @@
 - `tests/test_parser.py:152:22` - `_consume` is used (acceptable for parser unit tests)
 - `tests/test_parser.py:250:25` - `_parse_term` is used (acceptable for parser unit tests)
 
-**Recommendation:** 
-- For `_send_with_retry`: Either make public (`send_with_retry`) or use `# pragma: no cover` with explanation
-- For parser protected methods: Acceptable for white-box testing; no change needed
+**Recommendation:** Remove `TestSendWithRetry` test class from test_monitor_forward.py. The `_send_with_retry` private function is adequately tested through the `forward_to_users` and `process_messages` tests in test_monitor.py which verify the end-to-end behavior. Testing private implementation details couples tests to internal structure and creates maintenance overhead.
 
 **Validation Decision:** **PARTIALLY VALIDATED** - The `_send_with_retry` access is a SPEC-DEVIATION requiring attention. Parser internal method access is acceptable for thorough unit testing.
 
@@ -196,8 +192,8 @@
 
 | ID | Action |
 |----|--------|
-| QLT-001 | Consider `Sequence` instead of `list` in process_messages signature, or add type ignores in test files |
-| QLT-002 | Either make `_send_with_retry` public or remove test coverage for it |
+| QLT-001 | Change `messages: list[Message]` to `messages: Sequence[Message]` in `process_messages()` signature; import `Sequence` from `typing` |
+| QLT-002 | Remove `TestSendWithRetry` class from test_monitor_forward.py; private implementation is tested through integration tests |
 
 ---
 

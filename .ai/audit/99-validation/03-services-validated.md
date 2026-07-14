@@ -66,6 +66,27 @@ validated_date: 2026-07-14
 
 **Recommendation:** Either treat empty keywords as forward all or reject empty keywords during validation.
 
+### Recommendation Clarification for SRV-002
+
+**Chosen Approach:** Treat empty keywords as "forward all messages" to align with documented behavior.
+
+**Pattern to Follow:** Based on existing field_validator patterns in `core/telethon.py` (lines 33-50), the validation should be added as a `@field_validator` on the `keywords` field in `ChannelConfig` and `ChannelDefaults`.
+
+**Implementation Approach:**
+1. Add a `field_validator` in `src/mko_telebot/core/channels.py` on the `keywords` field
+2. The validator should accept empty lists (keeping them as-is) since empty = forward-all is the intended semantics
+3. Change the matching logic in `monitor_forward.py:183` from:
+   ```python
+   if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
+   ```
+   to:
+   ```python
+   if msg_text and (not task.keywords or any(search_match(msg_text, kw) for kw in task.keywords)):
+   ```
+   This treats empty keywords as a universal match (forward-all), and non-empty keywords as the current AND-based matching.
+
+**Rationale:** The documentation at `docs/11-guides/configuration.md:149` explicitly states "An empty list forwards all messages" — the implementation should honor this contract rather than reject valid configuration.
+
 ---
 
 ### SRV-003: Proxy types not using StrEnum as required by project rules

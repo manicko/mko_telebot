@@ -1,0 +1,50 @@
+# Empty channels validation - DF-001
+
+id: TASK_008_df_001_empty_channels_validation
+title: Add validation for empty channels configuration to prevent infinite hang
+priority: high
+
+depends_on:
+  - TASK_001_cfg_002_remove_loglevel_enum
+
+source_reference: .ai/audit/99-validation/06-data-flow-validated.md
+source_section: DF-001
+source_blocks:
+  - "DF-001: Empty channels configuration causes infinite hang in main_loop"
+
+description: >
+  When channels.channels is an empty dictionary, main_loop() adds zero tasks
+  to the queue, then enters while True: queue.get() which blocks indefinitely.
+  Add validation in main_loop() to ensure at least one channel is configured,
+  log an error and exit gracefully rather than hanging forever.
+
+goals:
+  - Prevent application from hanging on empty channels configuration
+  - Provide clear error message when no channels configured
+  - Follow project error handling patterns
+
+files:
+  - path: src/mko_telebot/monitor.py
+    targets:
+      - type: function
+        name: main_loop
+
+changes:
+  - action: insert_in_body
+    description: Add validation check after channels loading
+    code_hint: |
+      if not channels:
+          logger.error("No channels configured. Please add at least one channel to your configuration.")
+          raise ConfigError("No channels configured in configuration file")
+    target: main_loop after channel loading loop
+
+acceptance_criteria:
+  - Empty channels configuration raises ConfigError with clear message
+  - Application exits gracefully instead of hanging
+  - Tests verify error behavior
+
+risk: medium
+risk_justification: >
+  Changes control flow in main entry point. Must verify error is raised before
+  the blocking queue.get() call. Uses existing ConfigError pattern consistent
+  with project conventions.
