@@ -47,7 +47,7 @@ def resolve_path(path: str | Path, base_dir: Path | None = None) -> Path:
     return (base / path).resolve()
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
+def _load_yaml(path: Path) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
     """Load and parse a YAML file, returning a dict.
 
     Args:
@@ -63,19 +63,19 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         raise ConfigError("Configuration file not found", path=path)
     try:
         with path.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            data = yaml.safe_load(f)  # pyright: ignore[reportAny]
         if not isinstance(data, dict):
             raise ConfigError(
                 "Expected a top-level mapping in YAML file", path=path
             )
-        return data
+        return data  # pyright: ignore[reportUnknownVariableType]
     except yaml.YAMLError as e:
         raise ConfigError("Malformed YAML in configuration file", path=path) from e
     except OSError as e:
         raise ConfigError("Cannot read configuration file", path=path) from e
 
 
-def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
     """Recursively merge overlay into base, returning a new dict.
 
     Args:
@@ -86,9 +86,9 @@ def _merge_dicts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any
         New merged dictionary.
     """
     result = base.copy()
-    for key, value in overlay.items():
+    for key, value in overlay.items():  # pyright: ignore[reportAny]
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _merge_dicts(result[key], value)
+            result[key] = _merge_dicts(result[key], value)  # pyright: ignore[reportAny,reportUnknownArgumentType]
         else:
             result[key] = value
     return result
@@ -119,9 +119,9 @@ class TelepostConfigReader:
             secrets_path: Path to telethon_config.yaml.
             log_config_path: Optional path to log_config.yaml.
         """
-        self.config_path = config_path
-        self.secrets_path = secrets_path
-        self.log_config_path = log_config_path
+        self.config_path: Path = config_path
+        self.secrets_path: Path = secrets_path
+        self.log_config_path: Path | None = log_config_path
         self._settings: TelepostSettings | None = None
 
     @classmethod
@@ -176,7 +176,7 @@ class TelepostConfigReader:
             ) from e
         return self._settings
 
-    def load_logging_config(self) -> dict[str, Any]:
+    def load_logging_config(self) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
         """Load logging configuration from log_config.yaml.
 
         Resolves relative log file paths against APP_PATHS.log_dir.
@@ -194,16 +194,16 @@ class TelepostConfigReader:
             )
         data = _load_yaml(path)
         # Handle LOGGING wrapper key if present
-        logging_data: dict[str, Any] = data.get("LOGGING", data)
+        logging_data = data.get("LOGGING", data)  # pyright: ignore[reportAny]
         # Resolve relative log file paths
-        handlers = logging_data.get("handlers", {})
-        for handler in handlers.values():
+        handlers = logging_data.get("handlers", {})  # pyright: ignore[reportAny]
+        for handler in handlers.values():  # pyright: ignore[reportAny]
             if isinstance(handler, dict) and "filename" in handler:
-                filename = handler["filename"]
+                filename = handler["filename"]  # pyright: ignore[reportUnknownVariableType]
                 handler["filename"] = str(
-                    resolve_path(filename, APP_PATHS.log_dir)
+                    resolve_path(filename, APP_PATHS.log_dir)  # pyright: ignore[reportUnknownArgumentType]
                 )
-        return logging_data
+        return logging_data  # pyright: ignore[reportAny]
 
     @property
     def settings(self) -> TelepostSettings:

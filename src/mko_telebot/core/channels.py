@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
-from typing import ClassVar
+from typing import Any, ClassVar
 
 
 class ChannelConfig(BaseModel):
@@ -106,18 +106,18 @@ class ChannelsConfig(BaseModel):
     @model_validator(mode="after")
     def strip_defaults_from_channels(self) -> ChannelsConfig:
         """Remove 'DEFAULTS' key from channels dict if present."""
-        self.channels.pop("DEFAULTS", None)
+        _ = self.channels.pop("DEFAULTS", None)
         return self
 
     @model_validator(mode="after")
     def apply_defaults_to_channels(self) -> ChannelsConfig:
         """Merge defaults into each channel config where fields are at default values."""
-        defaults_data = self.defaults.model_dump(exclude_none=True)
+        defaults_data: dict[str, Any] = self.defaults.model_dump(exclude_none=True)  # pyright: ignore[reportExplicitAny]
         for channel_key, channel in self.channels.items():
             # Build update data from field defaults
-            update_data: dict[str, object] = {}
-            for field_name, default_value in defaults_data.items():
-                current_val = getattr(channel, field_name)
+            update_data: dict[str, Any] = {}  # pyright: ignore[reportExplicitAny]
+            for field_name, default_value in defaults_data.items():  # pyright: ignore[reportAny]
+                current_val: Any = getattr(channel, field_name)  # pyright: ignore[reportExplicitAny,reportAny]
                 # Get the model's default for this field
                 field_info = ChannelConfig.model_fields[field_name]
                 # Check if field uses default_factory or has a static default
@@ -126,13 +126,13 @@ class ChannelsConfig(BaseModel):
                     # if it's an empty list (the default_factory returns [])
                     # We still want to apply defaults in this case for list fields
                     update_data[field_name] = default_value
-                elif current_val is None or current_val == field_info.default:
+                elif current_val is None or current_val == field_info.default:  # pyright: ignore[reportAny]
                     update_data[field_name] = default_value
             if update_data:
                 # Merge channel's current values with defaults
-                merged_data = channel.model_dump()
+                merged_data: dict[str, Any] = channel.model_dump()  # pyright: ignore[reportExplicitAny]
                 merged_data.update(update_data)
-                self.channels[channel_key] = ChannelConfig(**merged_data)
+                self.channels[channel_key] = ChannelConfig(**merged_data)  # pyright: ignore[reportAny]
         return self
 
 
