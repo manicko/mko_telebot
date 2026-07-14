@@ -180,7 +180,7 @@ async def process_messages(
     for album_id, content in msg_content.items():
         msg_text = "\n".join(content.get("text", []))
 
-        if msg_text and any(search_match(msg_text, kw) for kw in task.keywords):
+        if msg_text and (not task.keywords or any(search_match(msg_text, kw) for kw in task.keywords)):
             logger.debug(f"Keyword match in {task.channel_name}, message {album_id}")
 
             await forward_to_users(

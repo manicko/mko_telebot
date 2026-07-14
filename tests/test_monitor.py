@@ -710,6 +710,28 @@ class TestProcessMessages:
         caption = args[1]
         assert "Source: https://t.me/test/60" in caption
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/45")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_forwards_all_messages_when_keywords_empty(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should forward all messages when keywords list is empty."""
+        mock_task.keywords = []  # Empty keywords = forward all
+        messages = [
+            _make_msg_stub(45, "any random content"),
+            _make_msg_stub(46, "another unrelated message"),
+        ]
+        await process_messages(messages, mock_task, mock_client, mock_settings)
+        # Both messages should be forwarded (2 messages × 2 targets = 4 calls)
+        assert mock_client.send_message.await_count == 4
+
 
 # ---------------------------------------------------------------------------
 # process_and_reschedule
