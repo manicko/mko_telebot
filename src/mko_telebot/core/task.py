@@ -15,6 +15,7 @@ from mko_telebot.core.errors import TelegramServiceError, StateError
 from mko_telebot.core.channels import ChannelConfig
 from telethon import TelegramClient
 from telethon.hints import Entity
+from telethon.errors import FloodWaitError
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,14 @@ class Task:
                 entities.append(result)
                 # Small randomized pause to look "human" and avoid rate limits
                 await asyncio.sleep(random.uniform(0, 3))
+            except FloodWaitError as e:
+                logger.warning(
+                    f"Flood wait {e.seconds}s while resolving targets for channel {self.channel_name}"
+                )
+                await asyncio.sleep(e.seconds + random.uniform(5, 10))
+                raise TelegramServiceError(
+                    f"Failed to resolve target entities for channel {self.channel_name} after flood wait"
+                ) from e
             except Exception as e:
                 logger.error(
                     f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
@@ -97,6 +106,14 @@ class Task:
                     f"Unexpected list result for channel {self.channel_name}"
                 )
             self.channel_entity = result
+        except FloodWaitError as e:
+            logger.warning(
+                f"Flood wait {e.seconds}s while resolving channel {self.channel_name}"
+            )
+            await asyncio.sleep(e.seconds + random.uniform(5, 10))
+            raise TelegramServiceError(
+                f"Failed to resolve entity for channel {self.channel_name} after flood wait"
+            ) from e
         except Exception as e:
             logger.error(
                 f"Failed to resolve entity for channel {self.channel_name}: {e}"
