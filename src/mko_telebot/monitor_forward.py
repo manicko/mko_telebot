@@ -238,6 +238,15 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         logger.warning(f"Worker busy retry while fetching {task.channel_name}: {e}")
         await asyncio.sleep(random.uniform(5, 10))
 
+    except RPCError as e:
+        logger.warning(
+            f"RPC error during message fetching: {type(e).__name__} in {task.channel_name}"
+        )
+        await asyncio.sleep(5)
+        raise TelegramServiceError(
+            f"Failed to fetch messages for {task.channel_name}: {e}"
+        ) from e
+
     except TelegramServiceError as e:
         logger.error(f"Error fetching messages in {task.channel_name}: {e}")
 
