@@ -160,7 +160,7 @@ mko-telebot run
    - Forwards matching messages to configured targets.
    - Saves state (last seen message IDs) per channel.
    - Reschedules each channel for its configured `scan_interval`.
-5. Runs until interrupted by `Ctrl+C` (prints "Monitoring stopped by user.").
+5. Runs until interrupted by `Ctrl+C` (prints "Shutdown requested").
 
 **Error handling:**
 
@@ -175,7 +175,7 @@ mko-telebot run
 
 | Code | Condition |
 |------|-----------|
-| `0` | Normal exit (monitor stopped by user via Ctrl+C). |
+| `0` | Normal exit (Ctrl+C triggers "Shutdown requested" message). |
 | `1` | Configuration error — cannot load or validate config files. |
 
 **Examples:**
