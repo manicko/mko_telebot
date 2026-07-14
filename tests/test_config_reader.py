@@ -540,7 +540,7 @@ class TestValidators:
                 "test_channel": channel,
             },
         )
-        # Defaults should be applied when channel uses default values
+# Defaults should be applied when channel uses default values
         assert config.channels["test_channel"].scan_interval == 600
         assert config.channels["test_channel"].history_limit == 100
 
@@ -556,6 +556,17 @@ class TestValidators:
         # Explicit values should be preserved
         assert config.channels["test_channel"].scan_interval == 300
         assert config.channels["test_channel"].history_limit == 25
+
+    def test_rejects_history_days_zero(self) -> None:
+        """ChannelConfig should reject history_days=0 as invalid."""
+        with pytest.raises(ValueError, match="greater than 0"):
+            ChannelConfig(name="@test", history_days=0)
+
+    def test_rejects_history_days_zero_in_defaults(self) -> None:
+        """ChannelDefaults should reject history_days=0 as invalid."""
+        with pytest.raises(ValueError, match="greater than 0"):
+            ChannelDefaults(history_days=0)
+
 
 # ---------------------------------------------------------------------------
 # Proxy Configuration

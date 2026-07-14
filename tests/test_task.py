@@ -117,7 +117,7 @@ class TestSetOffsetDate:
 
     def test_sets_none_on_invalid_days(self) -> None:
         """set_offset_date() should set offset_date to None when history_days is not int-convertible."""
-        config = _make_config(history_days=0)  # Valid config but we'll set invalid value
+        config = _make_config(history_days=None)  # Use None since 0 is now invalid
         task = _make_task(config)
         task.history_days = "not_a_number"  # type: ignore[assignment]
         task.set_offset_date()

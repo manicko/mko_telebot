@@ -34,7 +34,7 @@ class ChannelConfig(BaseModel):
         default=50, ge=1, description="Maximum number of historical messages to fetch"
     )
     history_days: int | None = Field(
-        default=None, description="Number of days of history to fetch"
+        default=None, description="Number of days of history to fetch", gt=0
     )
     overlap: int = Field(
         default=5, ge=1, description="Number of overlapping messages between scans"
@@ -71,7 +71,7 @@ class ChannelDefaults(BaseModel):
         default=50, ge=1, description="Maximum number of historical messages to fetch"
     )
     history_days: int | None = Field(
-        default=None, description="Number of days of history to fetch"
+        default=None, description="Number of days of history to fetch", gt=0
     )
     overlap: int = Field(
         default=5, ge=1, description="Number of overlapping messages between scans"
