@@ -11,7 +11,7 @@ from telethon import TelegramClient
 
 from mko_telebot.core import Task
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.errors import StateError
+from mko_telebot.core.errors import StateError, ConfigError
 from .monitor_client import start_client
 from .monitor_forward import process_task
 
@@ -89,6 +89,10 @@ async def main_loop(
     channels = settings.channels.channels
 
     channels_list = list(channels.keys())
+
+    if not channels:
+        logger.error("No channels configured. Please add at least one channel to your configuration.")
+        raise ConfigError("No channels configured in configuration file")
 
     stagger_start_seconds = settings.channels.stagger_start_seconds
 

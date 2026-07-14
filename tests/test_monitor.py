@@ -1009,6 +1009,27 @@ class TestMainLoop:
             # Task should have been put in queue during setup
             assert queue.qsize() == 1
 
+    async def test_raises_error_on_empty_channels(self) -> None:
+        """main_loop() should raise ConfigError when no channels configured."""
+        from mko_telebot.core.errors import ConfigError
+        from mko_telebot.monitor import main_loop
+
+        mock_settings = MagicMock()
+        mock_settings.channels.channels_delay = 30
+        mock_settings.channels.stagger_start_seconds = 5
+        mock_settings.channels.channels = {}  # Empty channels
+
+        mock_client = MagicMock()
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+
+        with patch("mko_telebot.monitor.logger") as mock_logger:
+            with pytest.raises(ConfigError, match="No channels configured"):
+                await main_loop(mock_settings, mock_client, queue, lock)
+
+            mock_logger.error.assert_called_once()
+            assert "No channels configured" in mock_logger.error.call_args[0][0]
+
 
 # ---------------------------------------------------------------------------
 # TestRescheduleTask
