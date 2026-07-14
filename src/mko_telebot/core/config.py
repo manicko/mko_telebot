@@ -60,7 +60,10 @@ def _load_yaml(path: Path) -> dict[str, Any]:  # pyright: ignore[reportExplicitA
         ConfigError: If the file cannot be read or parsed.
     """
     if not path.exists():
-        raise ConfigError("Configuration file not found", path=path)
+        raise ConfigError(
+            f"Configuration file not found at {path}. Run 'mko-telebot init' to create default configuration files.",
+            path=path,
+        )
     try:
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)  # pyright: ignore[reportAny]
