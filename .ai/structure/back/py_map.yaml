@@ -104,10 +104,8 @@
   layer: unknown
   imports:
   - __future__
-  - enum
   - pydantic
   classes:
-  - LogLevel
   - ChannelConfig
   - ChannelDefaults
   - ChannelsConfig

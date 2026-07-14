@@ -4,7 +4,7 @@ Provides configuration models, path management, config reader, errors,
 task model, and search matching utilities.
 """
 
-from .channels import ChannelConfig, ChannelDefaults, ChannelsConfig, LogLevel
+from .channels import ChannelConfig, ChannelDefaults, ChannelsConfig
 from .config import TelepostConfigReader, resolve_path
 from .errors import ConfigError, MkoTelebotError
 from .matcher import search_match
@@ -18,7 +18,6 @@ __all__ = [
     "ChannelDefaults",
     "ChannelsConfig",
     "ConfigError",
-    "LogLevel",
     "MkoTelebotError",
     "resolve_path",
     "search_match",

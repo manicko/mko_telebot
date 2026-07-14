@@ -2,20 +2,8 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
-
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 from typing import ClassVar
-
-
-class LogLevel(StrEnum):
-    """Log level values for channel monitoring."""
-
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
 
 
 class ChannelConfig(BaseModel):
@@ -148,4 +136,4 @@ class ChannelsConfig(BaseModel):
         return self
 
 
-__all__ = ["LogLevel", "ChannelConfig", "ChannelDefaults", "ChannelsConfig"]
+__all__ = ["ChannelConfig", "ChannelDefaults", "ChannelsConfig"]
