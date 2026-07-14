@@ -61,7 +61,7 @@ def init(
         if target.exists() and not force:
             skipped += 1
             continue
-        shutil.copy2(item, target)
+        _ = shutil.copy2(item, target)
         copied += 1
 
     console.print(f"[green]Copied {copied} file(s) to {dst}.[/green]")
