@@ -37,7 +37,7 @@ Summarize it and keep as {MAIN_CONTEXT}
 
 ## 2. Ensure Decisions Directory Exists and Load DECISION_*.md files
 
-Load List of files and their numbers from `/.ai/problems/decisions/*`
+Load List of files and their numbers from `.ai/problems/decisions/*`
 
 keep only mentioned by user {file_numbers} (step 0)
 
@@ -53,7 +53,7 @@ keep only mentioned by user {file_numbers} (step 0)
 ### 3.3 Handle Research
 
 Check for existing research with the same file number:
-`/.ai/researches/RESEARCH_{file_number}.md`
+`.ai/researches/RESEARCH_{file_number}.md`
 {file_number} - from previous steps 
 
 **If RESEARCH.md exists**
@@ -106,7 +106,7 @@ Write research findings to: .ai/researches/RESEARCH_{file_number}.md
 
 ```
 Task(
-  prompt="First, read /.kilo/agents/researcher.md for your role and instructions.\n\n" + research_prompt,
+  prompt="First, read .kilo/agents/researcher.md for your role and instructions.\n\n" + research_prompt,
   subagent_type="Researcher",
   description="Research Phase {file_number}"
 )
@@ -130,7 +130,7 @@ Task(
 
 ### 3.4 Check Existing Plans 
 
-**If exists `/.ai/plans/PLAN_{file_number}.md`:
+**If exists `.ai/plans/PLAN_{file_number}.md`:
 ** Offer to select:
  1) Continue planning (add more plans)
  2) View existing
@@ -202,7 +202,7 @@ Before returning PLANNING COMPLETE:
 
 ```
 Task(
-  prompt="First, read /.kilo/agents/planner.md for your role and instructions.\n\n" + filled_prompt,
+  prompt="First, read .kilo/agents/planner.md for your role and instructions.\n\n" + filled_prompt,
   subagent_type="plan",
   description="Plan Phase {file_number}"
 )
@@ -327,7 +327,7 @@ Return what changed.
 
 ```
 Task(
-  prompt="First, read /.kilo/agents/planner.md for your role and instructions.\n\n" + revision_prompt,
+  prompt="First, read .kilo/agents/planner.md for your role and instructions.\n\n" + revision_prompt,
   subagent_type="planner",
   description="Revise Phase {file_number} plans"
 )

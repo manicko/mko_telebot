@@ -253,7 +253,7 @@ for (const file of project.getSourceFiles()) {
 // ======================================================
 // SAVE
 // ======================================================
-const outputDir = "C:/py_dev/mkobi/.ai/structure/front"
+const outputDir = "C:/py_dev/mkobi.ai/structure/front"
 
 
 fs.mkdirSync(

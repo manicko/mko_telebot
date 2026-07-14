@@ -10,7 +10,7 @@
         "npx",
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "${workspaceFolder}"
+        "C:\\py_dev\\mko_telebot\\"
       ]
     },
   }

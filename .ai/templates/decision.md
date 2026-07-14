@@ -295,7 +295,7 @@ The output should answer: "What does the researcher need to investigate? What ch
 - "Easy to use"
 
 **After creation:**
-- File lives in phase directory: `/.ai/problems/decisions/DECISIONS_{file_number}.md`
+- File lives in phase directory: `.ai/problems/decisions/DECISIONS_{file_number}.md`
 - `researcher` uses decisions to focus investigation
 - `planner` uses decisions + research to create executable tasks
 - Downstream agents should NOT need to ask the user again about captured decisions

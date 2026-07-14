@@ -149,7 +149,7 @@ Secret management (Telegram API credentials), session file handling, logging sec
 
 ## Report Output
 
-Write findings to: `/.ai/audit/04-security/findings.md` using template `/.ai/audit/templates/audit-findings.md`.
+Write findings to: `.ai/audit/04-security/findings.md` using template `.ai/audit/templates/audit-findings.md`.
 
 **Write the file incrementally — append blocks of ≤100 lines each. Never write the entire report in a single call.**
 
