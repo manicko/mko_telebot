@@ -42,7 +42,7 @@ Build a clear understanding of:
 
 Process all audit task files:
 
-`.kilo/commands/audit/*.md`
+`/.kilo/commands/audit/*.md`
 
 ---
 

@@ -1,0 +1,41 @@
+id: TASK_099_verify_all_fixes
+title: Verify all type checking fixes
+priority: high
+
+type: verification
+
+depends_on:
+  - task_001
+  - task_002
+  - task_003
+  - task_004
+  - task_005
+  - task_006
+  - task_007
+  - task_008
+  - task_009
+  - task_012
+
+verifies:
+  - TASK_001
+  - TASK_002
+  - TASK_003
+  - TASK_004
+  - TASK_005
+  - TASK_006
+  - TASK_007
+  - TASK_008
+  - TASK_009
+  - TASK_012
+
+verification_steps:
+  - build: uv run ruff check src/mko_telebot/
+  - test: uv run pytest tests/
+  - smoke_check: uv run basedpyright src/mko_telebot/
+
+pass_criteria:
+  - All ruff checks pass
+  - All tests pass
+  - No basedpyright errors in source code
+
+failure_action: return task to rework

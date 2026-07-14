@@ -1,0 +1,56 @@
+id: TASK_007_fix_telethon_model_config
+title: Fix unannotated model_config in telethon.py
+priority: low
+
+depends_on: []
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 7
+
+description: >
+  Add ClassVar[ConfigDict] annotation for model_config in Pydantic model classes.
+  ProxyConfig, ClientConfig, and TelethonConfig all have unannotated model_config
+  that needs ClassVar annotation.
+
+goals:
+  - Add ClassVar import
+  - Annotate model_config in all three classes
+  - Pass type checking
+
+files:
+  - path: src/mko_telebot/core/telethon.py
+    targets:
+      - type: class
+        name: ProxyConfig
+      - type: class
+        name: ClientConfig
+      - type: class
+        name: TelethonConfig
+
+changes:
+  - action: add_import
+    description: >
+      Add `from typing import ClassVar` import at top of file
+
+  - action: modify_field
+    description: >
+      Update model_config in ProxyConfig to:
+      model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+  - action: modify_field
+    description: >
+      Update model_config in ClientConfig to:
+      model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+  - action: modify_field
+    description: >
+      Update model_config in TelethonConfig to:
+      model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+acceptance_criteria:
+  - basedpyright passes on telethon.py
+  - ruff check passes on telethon.py
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/telethon.py
+  - uv run basedpyright src/mko_telebot/core/telethon.py

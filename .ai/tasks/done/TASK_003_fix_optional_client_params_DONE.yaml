@@ -1,0 +1,47 @@
+id: TASK_003_fix_optional_client_params
+title: Fix optional parameters to TelegramClient
+priority: high
+
+depends_on: []
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 3
+
+description: >
+  TelegramClient.__init__() expects str for optional string parameters
+  (app_version, device_model, system_version, lang_code, system_lang_code),
+  but ClientConfig defines them as str | None. Convert None values to empty strings.
+
+goals:
+  - Convert None to "" for optional client parameters
+  - Maintain backward compatibility with config files
+  - Pass type checking
+
+files:
+  - path: src/mko_telebot/monitor_client.py
+    targets:
+      - type: function
+        name: create_client
+    semantic_anchors:
+      insert_after:
+        type: return_statement
+
+changes:
+  - action: modify_code
+    description: >
+      In create_client function, update TelegramClient instantiation to use `or ""`
+      pattern for optional string parameters:
+      app_version=client.app_version or "",
+      device_model=client.device_model or "",
+      system_version=client.system_version or "",
+      lang_code=client.lang_code or "",
+      system_lang_code=client.system_lang_code or ""
+
+acceptance_criteria:
+  - basedpyright passes on monitor_client.py
+  - ruff check passes on monitor_client.py
+  - client starts with None values from config
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/monitor_client.py
+  - uv run basedpyright src/mko_telebot/monitor_client.py

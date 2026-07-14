@@ -1,0 +1,49 @@
+id: TASK_002_fix_import_cycle
+title: Fix import cycle in core package
+priority: high
+
+depends_on: []
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 2
+source_file: src/mko_telebot/core/task.py
+
+description: >
+  Replace package-level import with direct module import to break import cycle.
+  The current `from mko_telebot.core import utils` creates a cycle during
+  package initialization since core/__init__.py imports Task.
+
+goals:
+  - Break import cycle in core package
+  - Use direct module import instead of package import
+  - Pass type checking for core package
+
+files:
+  - path: src/mko_telebot/core/task.py
+    targets:
+      - type: import_statement
+      value: from mko_telebot.core import utils
+    semantic_anchors:
+      insert_after:
+        type: import
+        value: Path
+
+changes:
+  - action: modify_import
+    description: >
+      Replace `from mko_telebot.core import utils` with
+      `from mko_telebot.core.utils import ensure_path_exists`
+
+  - action: modify_code
+    description: >
+      Update the function call in resolve_state_file method from
+      `utils.ensure_path_exists(self.state_file)` to `ensure_path_exists(self.state_file)`
+
+acceptance_criteria:
+  - basedpyright passes on core/__init__.py and core/task.py
+  - ruff check passes on core/task.py
+  - no import cycle errors during runtime
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/task.py
+  - uv run basedpyright src/mko_telebot/core/__init__.py src/mko_telebot/core/task.py

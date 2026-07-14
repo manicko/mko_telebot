@@ -39,8 +39,8 @@ Summarize into `{MAIN_CONTEXT}`
 
 ## 3. Prepare Execution Loop
 
-- Read execution order: `.ai/tasks/todo/order.yaml` to understand the dependencies 
-- List task-files in `.ai/tasks/todo/*`
+- Read execution order: `/.ai/tasks/todo/order.yaml` to understand the dependencies 
+- List task-files in `/.ai/tasks/todo/*`
 - Select up to `{MAX_TASKS}` files as `{TASKS_FILES_TO_IMPLEMENT}`, preserving execution order.
 
 

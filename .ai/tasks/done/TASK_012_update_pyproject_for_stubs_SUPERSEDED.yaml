@@ -1,0 +1,38 @@
+id: TASK_012_update_pyproject_for_stubs
+title: Update pyproject.toml for stub path
+priority: low
+
+depends_on:
+  - task_011
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 9
+
+description: >
+  Add stubPath configuration to pyproject.toml to point to local typings directory
+  for Telethon stubs. This should execute after stub files are created.
+
+goals:
+  - Configure basedpyright to use local stubs
+  - Pass type checking
+
+files:
+  - path: pyproject.toml
+
+changes:
+  - action: add_config
+    description: >
+      Add [tool.basedpyright] section with stubPath configuration:
+      [tool.basedpyright]
+      stubPath = "src/mko_telebot/typings"
+
+acceptance_criteria:
+  - basedpyright configuration updated
+  - stubs are recognized by type checker
+
+status: superseded
+superseded_by: TASK_010_research_telethon_stubs
+
+superseded_reason: |
+  Superseded by TASK_010 which chose inline pyright ignore comments instead of
+  custom stubs. No stubPath configuration needed since no custom stubs were created.

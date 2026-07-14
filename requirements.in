@@ -1,5 +1,0 @@
-aiofiles==25.1.0
-platformdirs==4.5.0
-pydantic==2.12.3
-PyYAML==6.0.3
-telethon==1.36.0

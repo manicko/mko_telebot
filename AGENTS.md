@@ -32,7 +32,7 @@ CLI tool **Telegram classified monitor** designed to track messages with customi
 - English only in code, comments, logs.
 - **Production code is king** — if tests conflict with architecture or business logic, fix or remove the tests. Never distort production code for tests. Only fix the code when tests reveal an actual bug in the logic.
 - **Write audit reports incrementally** — append blocks of ≤100 lines per tool call. Never buffer the entire report and write it in one shot; this causes an upstream idle timeout.
-- Before editing documents read `docs\99-reference\ast-editor.md`  to use appropriate tool
+- Before editing documents read `\docs\99-reference\ast-editor.md`  to use appropriate tool
 
 ## Indentation
 

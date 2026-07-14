@@ -1,0 +1,51 @@
+id: TASK_011_create_telethon_stubs
+title: Create Telethon type stubs
+priority: low
+
+depends_on:
+  - task_010
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 9
+
+description: >
+  Create minimal type stubs for Telethon to fix false positive on client.start()
+  and client.disconnect() type inference. This should only execute if research
+  recommends "go".
+
+goals:
+  - Create typings directory structure
+  - Create telethon/__init__.pyi with TelegramClient.start() returning Coroutine
+  - Update pyproject.toml with stubPath configuration
+
+files:
+  - path: src/mko_telebot/typings/telethon/__init__.pyi
+    targets:
+      - type: function
+        name: TelegramClient.start
+  - path: pyproject.toml
+    targets:
+      - type: config_section
+        name: basedpyright
+
+changes:
+  - action: create_file
+    description: >
+      Create directory src/mko_telebot/typings/telethon/ and __init__.pyi
+      with TelegramClient.start() returning Coroutine[Any, Any, "TelegramClient"]
+
+acceptance_criteria:
+  - basedpyright passes on monitor_client.py
+  - stubPath configuration added to pyproject.toml
+
+tests_to_run:
+  - uv run basedpyright src/mko_telebot/monitor_client.py
+
+status: superseded
+superseded_by: TASK_010_research_telethon_stubs
+
+superseded_reason: |
+  Research task TASK_010 determined that telethon-stubs package does NOT exist on PyPI.
+  The inline `# pyright: ignore[reportGeneralTypeIssues]` comments approach was chosen
+  instead of custom type stubs. This fix was already applied in TASK_010 to
+  monitor_client.py lines 77, 81 (start calls) and line 54 (proxy arg).

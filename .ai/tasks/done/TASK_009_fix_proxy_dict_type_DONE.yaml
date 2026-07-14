@@ -1,0 +1,40 @@
+id: TASK_009_fix_proxy_dict_type
+title: Fix proxy dict return type annotation
+priority: low
+
+depends_on:
+  - task_007
+
+source_reference: .ai\plans\IMPLEMENTATION_PLANS.md
+source_section: Error 8
+
+description: >
+  Update ProxyConfig.to_dict return type from dict[str, object] to dict[str, str | int].
+  The dict values are either strings or ints based on the existing code logic,
+  which is compatible with Telethon's proxy parameter expectation.
+
+goals:
+  - Fix return type annotation for to_dict method
+  - Pass type checking
+
+files:
+  - path: src/mko_telebot/core/telethon.py
+    targets:
+      - type: method
+        name: ProxyConfig
+      - type: method
+        name: to_dict
+
+changes:
+  - action: modify_signature
+    description: >
+      Update ProxyConfig.to_dict return type to:
+      def to_dict(self) -> dict[str, str | int]:
+
+acceptance_criteria:
+  - basedpyright passes on telethon.py
+  - ruff check passes on telethon.py
+
+tests_to_run:
+  - uv run ruff check src/mko_telebot/core/telethon.py
+  - uv run basedpyright src/mko_telebot/core/telethon.py

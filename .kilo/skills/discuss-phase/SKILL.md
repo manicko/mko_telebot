@@ -150,9 +150,9 @@ Analyze the phase to identify gray areas worth discussing.
 
 **Read the project description from 
 - [AGENTS.md](AGENTS.md)
-- [project rules](.ai\context\**)
-- [specification](docs\SPEC.md)
-- [README.md](README.md)
+- [project rules](\.ai\context\**)
+- [specification](\docs\SPEC.md)
+- [README.md](\README.md)
 
 
 (if exist) and determine:**
