@@ -4,6 +4,17 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from typing import ClassVar
+from enum import StrEnum
+
+class ProxyType(StrEnum):
+    """Proxy protocol types supported by Telethon.
+
+    Provides type safety for proxy_type field in ProxyConfig.
+    """
+
+    SOCKS5 = "socks5"
+    SOCKS4 = "socks4"
+    HTTP = "http"
 
 
 class ProxyConfig(BaseModel):
@@ -23,7 +34,7 @@ class ProxyConfig(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    proxy_type: str = Field(..., description="Proxy type")
+    proxy_type: ProxyType = Field(..., description="Proxy type")
     addr: str = Field(..., description="Proxy server address")
     port: int = Field(..., ge=1, le=65535, description="Proxy server port")
     rdns: bool | None = Field(default=None, description="Remote DNS resolution")
@@ -36,17 +47,6 @@ class ProxyConfig(BaseModel):
         """Validate addr is non-empty."""
         if not v:
             raise ValueError("proxy must contain non-empty 'addr' field")
-        return v
-
-    @field_validator("proxy_type")
-    @classmethod
-    def validate_proxy_type(cls, v: str) -> str:
-        """Validate proxy_type is one of the allowed values."""
-        valid_types = {"socks5", "socks4", "http"}
-        if v not in valid_types:
-            raise ValueError(
-                f"proxy_type must be one of {valid_types}, got '{v}'"
-            )
         return v
 
     @field_validator("username", "password")
@@ -69,7 +69,7 @@ class ProxyConfig(BaseModel):
             Dict with plain string values for username and password.
         """
         result: dict[str, str | int | bool] = {
-            "proxy_type": self.proxy_type,
+            "proxy_type": self.proxy_type.value,
             "addr": self.addr,
             "port": self.port,
         }
@@ -198,4 +198,4 @@ class TelethonConfig(BaseModel):
         return v
 
 
-__all__ = ["ProxyConfig", "ClientConfig", "TelethonConfig"]
+__all__ = ["ProxyType", "ProxyConfig", "ClientConfig", "TelethonConfig"]

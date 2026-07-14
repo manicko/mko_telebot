@@ -10,6 +10,7 @@ from .errors import ConfigError, MkoTelebotError
 from .matcher import search_match
 from .models import TelepostSettings
 from .paths import APP_PATHS
+from .telethon import ProxyType, ProxyConfig
 from .task import Task
 
 __all__ = [
@@ -19,6 +20,8 @@ __all__ = [
     "ChannelsConfig",
     "ConfigError",
     "MkoTelebotError",
+    "ProxyType",
+    "ProxyConfig",
     "resolve_path",
     "search_match",
     "Task",
