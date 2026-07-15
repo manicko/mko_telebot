@@ -425,7 +425,7 @@ class TestForwardToUsers:
         msg = _make_msg_with_link(3, "test_channel")
         # Cycle: error then success, repeated enough for all targets × retries
         mock_client.send_message.side_effect = itertools.cycle([
-            FloodWaitError(request=None),
+            FloodWaitError(request=None, capture=30),
             None,
         ])
 
@@ -473,7 +473,7 @@ class TestForwardToUsers:
 
         msg = _make_msg_with_link(5, "test_channel")
         mock_settings.telethon.max_retries = 2
-        mock_client.send_message.side_effect = FloodWaitError(request=None)
+        mock_client.send_message.side_effect = FloodWaitError(request=None, capture=30)
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         assert mock_client.send_message.await_count >= 2 * len(mock_task.forward_to_entities)

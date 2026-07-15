@@ -110,7 +110,7 @@ class TestProcessTask:
         ):
 
             async def gen() -> Any:
-                raise FloodWaitError(request=None)
+                raise FloodWaitError(request=None, capture=30)
                 yield  # pyright: ignore[reportUnreachable]
 
             mock_client.iter_messages.return_value = gen()
