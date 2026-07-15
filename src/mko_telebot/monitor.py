@@ -54,18 +54,23 @@ async def process_and_reschedule(
         settings (TelepostSettings): Application settings.
 
     """
-    async with lock:
-        await process_task(task, client, settings)
+    try:
+        async with lock:
+            await process_task(task, client, settings)
 
-        try:
-            await task.save_state()
-        except StateError as e:
-            logger.error(
-                "Failed to save task state for %s: %s", task.channel_name, e
-            )
-            # Continue with in-memory state for next iteration
-
-    asyncio.create_task(reschedule_task(task, queue))
+            try:
+                await task.save_state()
+            except StateError as e:
+                logger.error(
+                    "Failed to save task state for %s: %s", task.channel_name, e
+                )
+                # Continue with in-memory state for next iteration
+    except TelegramServiceError as e:
+        logger.error(
+            "Error processing channel %s: %s", task.channel_name, e
+        )
+    finally:
+        asyncio.create_task(reschedule_task(task, queue))
 
 
 async def main_loop(

@@ -845,6 +845,33 @@ class TestProcessAndReschedule:
             # Verify that state save error was logged
             assert "Failed to save task state" in mock_logger.error.call_args[0][0]
 
+    async def test_telegram_service_error_still_reschedules(
+        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """process_and_reschedule() should catch TelegramServiceError and still reschedule channel."""
+        queue: asyncio.Queue[MagicMock] = asyncio.Queue()
+        lock = asyncio.Lock()
+        mock_task.save_state = AsyncMock()
+
+        with (
+            patch(
+                "mko_telebot.monitor.process_task",
+                new_callable=AsyncMock,
+                side_effect=TelegramServiceError("RPC error")
+            ),
+            patch("mko_telebot.monitor.reschedule_task", new_callable=AsyncMock) as mock_reschedule,
+            patch("mko_telebot.monitor.logger") as mock_logger,
+        ):
+            # Should NOT raise - error is caught
+            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+
+            # Verify error was logged
+            mock_logger.error.assert_called()
+            assert "Error processing channel" in mock_logger.error.call_args[0][0]
+
+            # Verify reschedule was still called (in finally block)
+            mock_reschedule.assert_called_once_with(mock_task, queue)
+
     async def test_still_raises_for_other_exceptions(
         self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
     ) -> None:
