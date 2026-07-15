@@ -753,6 +753,26 @@ class TestProcessMessages:
         assert mock_client.send_message.await_count == 4
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/47")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_forwards_captionless_media_without_keywords(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should forward media without caption when keywords is empty."""
+        mock_task.keywords = []  # Empty keywords = forward all
+        # Media without caption (text="")
+        msg = _make_msg_stub(47, text="", has_media=True, media_caption=None)
+        msg.chat.username = "test_channel"
+        await process_messages([msg], mock_task, mock_client, mock_settings)
+        assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
     @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/80")
     @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
     async def test_forwards_media_with_matching_caption(
@@ -784,6 +804,26 @@ class TestProcessMessages:
     ) -> None:
         """process_messages() should not forward media when caption has no keyword match."""
         msg = _make_msg_stub(81, "", has_media=True, media_caption="random caption")
+        msg.chat.username = "test_channel"
+        await process_messages([msg], mock_task, mock_client, mock_settings)
+        mock_client.send_message.assert_not_called()
+        mock_client.send_file.assert_not_called()
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/90")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_does_not_forward_captionless_media_with_keywords(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should not forward captionless media when keywords exist and no match."""
+        # mock_task.keywords already has '"test"' from fixture
+        msg = _make_msg_stub(90, text="", has_media=True, media_caption=None)
         msg.chat.username = "test_channel"
         await process_messages([msg], mock_task, mock_client, mock_settings)
         mock_client.send_message.assert_not_called()
