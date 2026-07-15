@@ -16,7 +16,6 @@ from mko_telebot.monitor_forward import process_task
 # Fixtures
 # ---------------------------------------------------------------------------
 
-
 @pytest.fixture
 def mock_client() -> MagicMock:
     """Create a mock Telethon client with async method stubs."""
@@ -54,7 +53,6 @@ def mock_task() -> MagicMock:
 # Helper functions
 # ---------------------------------------------------------------------------
 
-
 async def _async_iter(items: list[Any]) -> Any:
     """Create an async iterator from a list."""
     for item in items:
@@ -64,7 +62,6 @@ async def _async_iter(items: list[Any]) -> Any:
 # ---------------------------------------------------------------------------
 # TestProcessTask
 # ---------------------------------------------------------------------------
-
 
 class TestProcessTask:
     """Tests for process_task()."""
@@ -111,9 +108,10 @@ class TestProcessTask:
             patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
-            async def gen():
+
+            async def gen() -> Any:
                 raise FloodWaitError(request=None)
-                yield  # type: ignore[misc]
+                yield  # pyright: ignore[reportUnreachable]
 
             mock_client.iter_messages.return_value = gen()
 
@@ -128,9 +126,10 @@ class TestProcessTask:
             patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
-            async def gen():
+
+            async def gen() -> Any:
                 raise WorkerBusyTooLongRetryError(request=None)
-                yield  # type: ignore[misc]
+                yield  # pyright: ignore[reportUnreachable]
 
             mock_client.iter_messages.return_value = gen()
 
@@ -148,9 +147,9 @@ class TestProcessTask:
         ):
             initial_last_msg = mock_task.last_msg_id
 
-            async def gen():
+            async def gen() -> Any:
                 raise TelegramServiceError("Service error")
-                yield  # type: ignore[misc]
+                yield  # pyright: ignore[reportUnreachable]
 
             mock_client.iter_messages.return_value = gen()
 
