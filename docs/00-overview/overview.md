@@ -78,6 +78,8 @@ Configuration is loaded from:
 
 ### Forwarding Behavior
 
+Keyword matching is evaluated against **both the message body and the media caption**. For messages carrying photo or video attachments, the caption text is scanned alongside the body, so a post whose caption contains a matching keyword is forwarded even when the body text is empty.
+
 When a message matches keywords:
 
 1. **Source link** — A t.me URL to the original message is constructed
@@ -105,6 +107,14 @@ The application implements robust error handling:
 - **Retry logic** — Uses `max_retries` from config with exponential backoff and random jitter
 - **State errors** — File I/O failures are logged gracefully without crashing the monitor loop
 
+### Startup Resilience
+
+Two safeguards protect the monitor before the scan loop starts, and a third handles resolution-time rate limits:
+
+- **No-channel validation** — If the configuration defines zero channels, the application logs a clear error and raises `ConfigError` instead of entering an empty processing queue that would block indefinitely. This fails fast with actionable feedback rather than hanging silently.
+- **Per-channel init isolation** — During startup, each channel's entity and target resolution is wrapped in error handling. If one channel fails to resolve (e.g. wrong identifier, deleted channel, or Telegram rate limit), the failure is logged and that channel is skipped while the remaining channels continue to initialize and are monitored normally.
+- **Resolution rate-limit handling** — `FloodWaitError` raised while resolving channels or targets is handled by waiting the required duration plus jitter before failing, so transient rate-limit windows do not immediately abort channel setup.
+
 ---
 
 ## Key Features
@@ -112,6 +122,7 @@ The application implements robust error handling:
 | Feature | Description |
 |---------|-------------|
 | Keyword filtering | Pattern syntax with OR (`|`), exclusion (`-`), wildcards (`*`), grouping |
+| Media caption matching | Keyword patterns also match media captions, so photo/video posts with keyword-bearing captions are forwarded even when the body is empty |
 | Album support | Messages with same `grouped_id` are forwarded together |
 | Source attribution | Forwarded messages include t.me link to original |
 | Sender identification | Original sender's username or display name included |
@@ -123,6 +134,8 @@ The application implements robust error handling:
 | Credential protection | Proxy and Telegram credentials use SecretStr to prevent exposure |
 | Atomic entity resolution | Target entities resolved atomically to prevent partial state on error |
 | Graceful state save | State save failures logged without interrupting monitoring |
+| Startup channel validation | Fails fast with a clear `ConfigError` when no channels are configured, preventing an infinite hang |
+| Per-channel init isolation | A channel that fails to resolve at startup is skipped and logged so the remaining channels keep being monitored |
 | History day filtering | `history_days` limits scanning to recent messages only |
 
 ---

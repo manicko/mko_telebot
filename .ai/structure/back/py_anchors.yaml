@@ -282,11 +282,63 @@
   type: return_statement
   stable_hash: 60cd79e7
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
+- id: 1ab11ad9
+  symbol_path:
+  - _calculate_retry_delay
+  type: return_statement
+  stable_hash: 1ab11ad9
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 1ab11ad9
+  symbol_path:
+  - _calculate_retry_delay
+  type: return_statement
+  stable_hash: 1ab11ad9
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 5a5dbff2
+  symbol_path:
+  - _group_messages_by_album
+  type: function_call
+  value: getattr
+  stable_hash: 5a5dbff2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 5a5dbff2
+  symbol_path:
+  - _group_messages_by_album
+  type: function_call
+  value: getattr
+  stable_hash: 5a5dbff2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 5a5dbff2
+  symbol_path:
+  - _group_messages_by_album
+  type: function_call
+  value: getattr
+  stable_hash: 5a5dbff2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 5a5dbff2
+  symbol_path:
+  - _group_messages_by_album
+  type: function_call
+  value: getattr
+  stable_hash: 5a5dbff2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 6b2088b2
+  symbol_path:
+  - _group_messages_by_album
+  type: return_statement
+  stable_hash: 6b2088b2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 67d6be1a
   symbol_path: []
   type: function_call
   value: range
   stable_hash: 67d6be1a
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: de7d56a0
+  symbol_path: []
+  type: function_call
+  value: _send_message_to_target
+  stable_hash: de7d56a0
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
@@ -299,17 +351,29 @@
   type: return_statement
   stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: '56852796'
+- id: 3e141444
   symbol_path: []
   type: function_call
-  value: getattr
-  stable_hash: '56852796'
+  value: _calculate_retry_delay
+  stable_hash: 3e141444
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
   type: function_call
   value: getattr
   stable_hash: '56852796'
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 3e141444
+  symbol_path: []
+  type: function_call
+  value: _calculate_retry_delay
+  stable_hash: 3e141444
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 8c8267a5
+  symbol_path: []
+  type: function_call
+  value: type
+  stable_hash: 8c8267a5
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
@@ -334,6 +398,12 @@
   value: build_sender_tag
   stable_hash: 34ea3e41
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: c254eb9a
+  symbol_path: []
+  type: function_call
+  value: _build_caption
+  stable_hash: c254eb9a
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: c6d09245
   symbol_path: []
   type: function_call
@@ -346,28 +416,22 @@
   value: getattr
   stable_hash: '56852796'
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 375d2000
+  symbol_path:
+  - _build_caption
+  type: return_statement
+  stable_hash: 375d2000
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 62f10057
   symbol_path: []
   type: return_statement
   stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: '56852796'
+- id: db71039e
   symbol_path: []
   type: function_call
-  value: getattr
-  stable_hash: '56852796'
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: '56852796'
-  symbol_path: []
-  type: function_call
-  value: getattr
-  stable_hash: '56852796'
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: '56852796'
-  symbol_path: []
-  type: function_call
-  value: getattr
-  stable_hash: '56852796'
+  value: _group_messages_by_album
+  stable_hash: db71039e
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 8a4c7eb3
   symbol_path: []
@@ -387,16 +451,21 @@
   value: forward_to_users
   stable_hash: d13c32f9
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: 62f10057
-  symbol_path: []
-  type: return_statement
-  stable_hash: 62f10057
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 3dbd97ea
   symbol_path: []
   type: function_call
   value: max
   stable_hash: 3dbd97ea
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 8c8267a5
   symbol_path: []
@@ -414,6 +483,22 @@
   symbol_path: []
   type: return_statement
   stable_hash: 62f10057
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 1481fdf3
+  symbol_path: []
+  type: function_call
+  value: _fetch_messages
+  stable_hash: 1481fdf3
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 35657fe9
   symbol_path: []

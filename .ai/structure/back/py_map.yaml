@@ -72,17 +72,21 @@
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.monitor_forward
   layer: unknown
   imports:
+  - collections.abc
   - typing
   - telethon
   - telethon.errors
+  - telethon.hints
   - telethon.tl.custom.message
   - mko_telebot.core
   - mko_telebot.core.errors
   - mko_telebot.core.models
   - monitor_client
-  - telethon.hints
   classes: []
-  functions: []
+  functions:
+  - _calculate_retry_delay
+  - _group_messages_by_album
+  - _build_caption
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\__init__.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.__init__
   layer: unknown

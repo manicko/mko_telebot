@@ -1,98 +1,116 @@
----
-name: 05-integrations
-description: Audit findings for external integrations phase
-agent: auditor
-alwaysApply: false
----
+# Phase 05 — External Service Integrations — Findings
 
-# Phase 05 Audit Findings — External Integrations
-
-**Executor:** auditor
-**Template:** .ai/audit/templates/audit-findings.md
-**Status:** complete
-**Validated:** no
+**Auditor:** auditor agent
+**Date:** 2026-07-15
+**Source:** `.kilo/commands/audit/phases/05-audit-integrations.md`
+**Mode:** problems_only
 
 ---
 
-## Findings
-
-### INT-001: Missing RPCError handling during message fetching in process_task
+### INT-001: `start_client()` catches the wrong exception types; real Telethon failures crash the process
 
 | Field | Value |
 |-------|-------|
 | **ID** | INT-001 |
-| **Severity** | MEDIUM |
+| **Severity** | HIGH |
 | **Type** | RUNTIME-ERROR |
-| **Affected Modules** | src/mko_telebot/monitor_forward.py |
-| **Classification** | advisory |
+| **Affected Modules** | `src/mko_telebot/monitor_client.py` |
+| **Classification** | mandatory |
 
-**Description:** The `process_task()` function in `monitor_forward.py` (lines 232-244) catches `FloodWaitError`, `WorkerBusyTooLongRetryError`, and `TelegramServiceError` during message fetching, but does NOT catch generic `RPCError`. Since `RPCError` is the base class for all Telegram RPC errors (including `TimedOutError` and `ServerError`), transient network errors during `iter_messages()` are not handled with retry logic. This creates an inconsistency: while send operations retry on `RPCError`, fetch operations do not.
+**Description:** `start_client()` wraps the `client.start()` call in `except TelegramAuthError / TelegramServiceError`. However, Telethon's `client.start()` never raises these custom project exceptions — it raises its own hierarchy (`RPCError` subclasses, `ValueError` for 2FA, `OSError`, `ConnectionError`, etc.). As a result, the `except` blocks are dead code: real failures such as bad credentials, an unreachable Telegram API, or a required 2FA password raise uncaught exceptions that crash the entire process instead of returning `False` for a graceful failure. Worse, the surrounding unit tests (e.g. `tests/test_monitor.py:273-287`) inject the custom exception types, so they "pass" while masking the bug and giving a false sense of robustness.
 
-**Evidence:** 
-- `src/mko_telebot/monitor_forward.py:232-244` - Exception handlers for message fetching
-- `src/mko_telebot/monitor_forward.py:78-84` - Exception handler for send operations DOES catch `RPCError`
+**Evidence:**
+- `monitor_client.py:75-92` — `try: await client.start(...)` followed by `except (TelegramAuthError, TelegramServiceError)`.
+- Telethon `client.start()` raises `telethon.errors.*` / `ValueError` / `OSError`, never the project's custom exceptions.
 
-**Recommendation:** Add `RPCError` handling to `process_task()` during message fetching to ensure transient errors like `TimedOutError` and `ServerError` are handled gracefully with appropriate delays, consistent with the send retry logic.
+**Recommendation:** Map real Telethon exceptions to the project's `TelegramAuthError`/`TelegramServiceError` (or catch the Telethon hierarchy explicitly) so auth/service failures reliably return `False`. Update `test_monitor.py` to assert against real Telethon exception behavior. Effort: small. Priority: must fix.
 
 ---
 
-### INT-002: FloodWaitError seconds value defaults to 0 in test setup but production code assumes it has a value
+### INT-002: `build_sender_tag()` fallback never triggers for real `get_sender()` errors
 
 | Field | Value |
 |-------|-------|
 | **ID** | INT-002 |
-| **Severity** | LOW |
-| **Type** | SPEC-DEVIATION |
-| **Affected Modules** | tests/test_monitor_forward.py, tests/test_monitor.py |
+| **Severity** | MEDIUM |
+| **Type** | BEST-PRACTICE |
+| **Affected Modules** | `src/mko_telebot/monitor_forward.py` |
 | **Classification** | advisory |
 
-**Description:** Tests instantiate `FloodWaitError(request=None)` without the `capture` parameter, resulting in `e.seconds == 0`. While the tests pass and verify the retry loop works, they do not validate that actual wait times from Telegram (e.g., 30s, 60s, etc.) are properly handled. The production code at line 63 uses `e.seconds` in the wait calculation, expecting a positive integer.
+**Description:** `build_sender_tag()` wraps `get_sender()` in `except TelegramServiceError` to fall back to an empty/unknown sender tag. Because Telethon raises only Telethon exception types, this `except` branch is unreachable — the empty-sender fallback is dead code. Any genuine `get_sender()` failure leaks a raw Telethon traceback instead of the intended graceful fallback.
 
-**Evidence:**
-- `tests/test_monitor_forward.py:115` - `raise FloodWaitError(request=None)` creates error with seconds=0
-- `tests/test_monitor_forward.py:241` - Same pattern
-- `tests/test_monitor.py:428` - Same pattern in `mock_client.send_message.side_effect`
-
-**Recommendation:** Update tests to use `FloodWaitError(request=None, capture=30)` or similar to verify actual wait time handling, though this is a test quality improvement rather than a critical bug.
+**Recommendation:** Catch the real Telethon exception types (or the project's mapped exception) so the fallback path actually executes. Effort: trivial. Priority: recommended.
 
 ---
 
-### INT-003: Client lifecycle uses synchronous disconnect() but should handle potential async cleanup
+### INT-003: `_send_with_retry()` retries permanent `RPCError` subclasses
 
 | Field | Value |
 |-------|-------|
 | **ID** | INT-003 |
-| **Severity** | LOW |
+| **Severity** | MEDIUM |
 | **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/monitor.py |
+| **Affected Modules** | `src/mko_telebot/monitor_forward.py` |
 | **Classification** | advisory |
 
-**Description:** The `run_monitor()` function calls `client.disconnect()` synchronously in the finally block (line 137). While Telethon's `disconnect()` is a synchronous method, there could be pending async operations that need cleanup. Additionally, if `disconnect()` raises an exception, it would propagate after the main work is done, potentially masking the original error.
+**Description:** `_send_with_retry()` applies the same backoff/retry loop to *all* `RPCError` subclasses, including permanent ones (e.g. banned, peer-invalid, dead/invalid session). Retrying these wastes backoff budget, delays failure surfacing, and never recovers — a dead session condition is silently retried indefinitely rather than reported.
 
-**Evidence:**
-- `src/mko_telebot/monitor.py:137` - `client.disconnect()` without error handling
-
-**Recommendation:** Consider wrapping `client.disconnect()` in a try-except block to prevent cleanup errors from masking the original exception, and verify no pending async tasks need cancellation.
+**Recommendation:** Classify `RPCError` subclasses; only retry transient errors (e.g. `FloodWaitError`, `ServerError`, `TimedOut`). Surface permanent errors immediately. Effort: small. Priority: recommended.
 
 ---
 
-### INT-004: Unresolved FloodWaitError during entity resolution causes unhandled exception
+### INT-004: Per-channel work launched via un-awaited `asyncio.create_task`; Telethon exceptions escape silently
 
 | Field | Value |
 |-------|-------|
 | **ID** | INT-004 |
 | **Severity** | MEDIUM |
-| **Type** | RUNTIME-ERROR |
-| **Affected Modules** | src/mko_telebot/core/task.py |
+| **Type** | BEST-PRACTICE |
+| **Affected Modules** | `src/mko_telebot/monitor.py` |
 | **Classification** | advisory |
 
-**Description:** The `resolve_channel_entity()` and `resolve_targets_entities()` methods in `task.py` catch all exceptions and re-raise as `TelegramServiceError` (lines 81-87, 100-106). However, when `FloodWaitError` occurs during entity resolution, it is immediately re-raised as `TelegramServiceError` without any wait logic, causing the application to stop rather than waiting and retrying. This could prevent the monitor from starting when Telegram is rate-limiting entity lookups.
+**Description:** `monitor.py` launches per-channel processing via `asyncio.create_task(...)` without retaining the handle or attaching a done-callback. When a Telethon exception escapes inside that task, it is never retrieved, logged only as a "Task exception was never retrieved" warning, and the affected channel is effectively dropped from monitoring with no operator visibility.
+
+**Recommendation:** Track spawned tasks and attach exception handling/diagnostics (see also SRV-002 / CLI-004). Effort: small. Priority: recommended.
+
+---
+
+### INT-005: Dead/redundant `except TelegramServiceError` in `_fetch_messages()`
+
+| Field | Value |
+|-------|-------|
+| **ID** | INT-005 |
+| **Severity** | LOW |
+| **Type** | BEST-PRACTICE |
+| **Affected Modules** | `src/mko_telebot/monitor_forward.py` |
+| **Classification** | advisory |
+
+**Description:** In `_fetch_messages`, the `except RPCError` branch (monitor_forward.py:230-237) catches the error and immediately `raise TelegramServiceError(...)`. The subsequent `except TelegramServiceError` (monitor_forward.py:239-241) can therefore only be reached if `TelegramServiceError` were raised *directly* inside the `try` (the `client.iter_messages`/`async for` block) — but those only raise Telethon exceptions, not the custom type. The branch is unreachable dead code that gives a false impression of layered handling and confuses maintainers.
 
 **Evidence:**
-- `src/mko_telebot/core/task.py:81-87` - Generic exception handling without FloodWait special case
-- `tests/test_task.py:300-308` - Tests expect `TelegramServiceError` to be raised on FloodWaitError
+- `monitor_forward.py:230-241` — `except RPCError ... raise TelegramServiceError(...)` immediately followed by `except TelegramServiceError`.
 
-**Recommendation:** Consider adding special handling for `FloodWaitError` during entity resolution to wait for the specified duration before re-raising, allowing the monitor to potentially recover from temporary rate limiting during startup.
+**Recommendation:** Remove the unreachable `except TelegramServiceError` branch; if a local catch is desired, raise the `TelegramServiceError` once and let `monitor.py:117` handle it uniformly. Effort: trivial. Priority: recommended.
+
+---
+
+### INT-006: `start_client()` has no 2FA/password or non-interactive code path for user accounts
+
+| Field | Value |
+|-------|-------|
+| **ID** | INT-006 |
+| **Severity** | MEDIUM |
+| **Type** | BEST-PRACTICE |
+| **Affected Modules** | `src/mko_telebot/monitor_client.py` |
+| **Classification** | advisory |
+
+**Description:** `is_user=True` auth calls `client.start(phone=...)` with no `code_callback` and no `password`. On first login with 2FA enabled, Telethon raises `ValueError("Two-step verification is enabled...")` (telethon/client/auth.py:220) — uncaught here (see INT-001), so the process crashes. With no session yet authorized and no `code_callback` supplied, Telethon falls back to a blocking `input()` prompt (auth.py:100-103), which hangs forever in a headless/background deployment. There is also no way to supply the login code or 2FA password from config for unattended operation. The `is_user` flag *does* correctly switch phone vs bot-token auth, so this is an operational gap rather than a switching bug.
+
+**Evidence:**
+- `monitor_client.py:76-83` — `client.start(phone=...)` / `client.start(bot_token=...)` with no `code_callback`/`password`.
+- `telethon/client/auth.py:100-103` (default `input()`-based `code_callback`) and `:220` (2FA `ValueError`).
+
+**Recommendation:** For user mode, support loading the 2FA `password` from settings (passed through `api_hash`-like `SecretStr`) and provide a `code_callback`/interactive flow that is documented; detect 2FA `ValueError`/`SessionPasswordNeededError` and surface a clear actionable message. Worst case, document that first-run interactive login is required and that 2FA accounts need additional setup. Effort: small–medium. Priority: recommended.
 
 ---
 
@@ -101,25 +119,22 @@ alwaysApply: false
 | Severity | Count |
 |----------|-------|
 | CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 2 |
-| LOW | 2 |
+| HIGH | 1 |
+| MEDIUM | 4 |
+| LOW | 1 |
 
 ## Mandatory Fixes
 
-None - no critical or mandatory-classified issues found.
+- **INT-001** — `start_client()` error handling is ineffective (catches wrong exception types); invalid credentials / unreachable API crash the process instead of a graceful failure. Must fix.
 
 ## Advisory Recommendations
 
-1. INT-001: Add RPCError handling during message fetching in process_task()
-2. INT-002: Update FloodWaitError test setup to use realistic wait times
-3. INT-003: Add error handling around client.disconnect() in run_monitor()
-4. INT-004: Handle FloodWaitError with wait during entity resolution
+- **INT-002** — `build_sender_tag()` fallback never triggers for real Telethon errors.
+- **INT-003** — Stop retrying permanent `RPCError` subclasses in `_send_with_retry()`.
+- **INT-004** — Stop swallowing per-channel task exceptions via un-awaited `asyncio.create_task`.
+- **INT-005** — Remove unreachable `except TelegramServiceError` in `_fetch_messages()`.
+- **INT-006** — Add 2FA/password and non-interactive login support for user accounts.
 
 ## Doc Updates Needed
 
-None
-
----
-
-**Note:** All 63 tests pass. The identified issues are recommendations for improved robustness, not critical bugs.
+- Update `docs/SPEC.md` / integration docs to state that `start_client()` failures (bad credentials, API unreachable, 2FA) are handled gracefully and logged; current docs imply a `False` return that the implementation cannot produce for real Telethon errors (ties to INT-001, INT-006).

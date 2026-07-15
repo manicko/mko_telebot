@@ -1,37 +1,3 @@
-# Phase 04 Audit Findings — Security & Secret Management
-
-**Executor:** auditor
-**Template:** .ai/audit/templates/audit-findings.md
-**Status:** complete
-**Validated:** no
-
----
-
-## Findings
-
-No problems found in this phase.
-
-**Discovery Evidence:**
-
-### Runtime Verification Results
-
-**R1 — Credential Leak Search:** No hardcoded secrets found. Grep for API key patterns found only placeholder values in templates (`PLACEHOLDER_REPLACE_ME`, `12345`) which are rejected by validators.
-
-**R2 — Logger Audit:** No secrets logged. All 36 logger calls reviewed across source files — none log `api_hash`, `api_id`, `phone_or_token`, or `bot_token` values.
-
-**R3 — File Permission Check:** Session and config files properly ignored. `.gitignore` includes:
-- `/sessions/*` (line 178)
-- `/logs/*` (line 179)
-- `*.session*` (line 184)
-- `*token.json` (line 183)
-
-**R4 — Import Verification:** No import-time side effects. Secrets are only loaded on explicit `reader.load()` calls.
-
-**R5 — Linter/Type Checker:** Ruff passed. Basedpyright warnings are all type annotation-related (missing stubs, Any types) — no security issues.
-
-**R6 — Test Suite:** All 302 tests pass.
-
----
 
 ## Summary
 
@@ -39,17 +5,18 @@ No problems found in this phase.
 |----------|-------|
 | CRITICAL | 0 |
 | HIGH | 0 |
-| MEDIUM | 0 |
-| LOW | 0 |
+| MEDIUM | 1 |
+| LOW | 2 |
 
 ## Mandatory Fixes
 
-None
+- **SEC-001** — `init --force` overwrites the user's real `telethon_config.yaml` with the placeholder template, causing irreversible loss of Telegram credentials and invalidating the session. Should be fixed (separate the secrets file from the template-copy flow) and the CLI reference updated.
 
 ## Advisory Recommendations
 
-None
+- **SEC-002** — Remove the stray real `test.session` (28 KB auth DB) from the repo root and add a guard ensuring sessions are never created outside `USER_DIR`.
+- **SEC-003** — Enforce `0600` on `telethon_config.yaml` (and `0700` on its directory) so credentials are not world/group-readable on multi-user POSIX systems.
 
 ## Doc Updates Needed
 
-None
+- **SEC-001** — `docs/99-reference/cli-reference.md` (lines 67-74, 89-93) should state that `telethon_config.yaml` (the credential store) is never overwritten by `init`, even with `--force`, and that credentials are created from a non-destructive example.

@@ -1,105 +1,84 @@
-# Phase 06 Audit Findings — End-to-End Data Flow
-
-**Executor:** auditor
-**Template:** .ai/audit/templates/audit-findings.md
-**Status:** complete
-**Validated:** no
-
----
-
-## Findings
-
-### DF-001: Empty channels configuration causes infinite hang in main_loop
+### DF-004: Fire-and-forget background tasks have no supervision (root enabler of DF-001)
 
 | Field | Value |
 |-------|-------|
-| **ID** | DF-001 |
-| **Severity** | HIGH |
-| **Type** | [BEST-PRACTICE] |
+| **ID** | DF-004 |
+| **Severity** | MEDIUM |
+| **Type** | BEST-PRACTICE |
 | **Affected Modules** | src/mko_telebot/monitor.py |
 | **Classification** | advisory |
 
-**Description:** When `channels.channels` is an empty dictionary (the template default in config.yaml), `main_loop()` adds zero tasks to the queue, then enters `while True: queue.get()` which blocks indefinitely. The application will hang forever waiting for tasks that will never arrive, with no warning or error message.
+**Description:** All long-running units are launched with `asyncio.create_task` and never
+awaited: `process_and_reschedule` (`monitor.py:126`), the nested `reschedule_task`
+(`monitor.py:68`), and the client-disconnect path. No `Task` reference is retained and no
+`add_done_callback`/`gather` wrapper catches failures. Consequences: (a) an exception inside
+any background task produces only a "Task exception was never retrieved" warning and is
+otherwise invisible; (b) on Ctrl+C / shutdown, in-flight tasks are cancelled without a
+graceful drain, and any task not yet re-queued is silently lost. This is the structural
+cause of DF-001 (an unhandled channel error disappears instead of being logged + recovered).
 
-**Evidence:**
-- `monitor.py` line 95-110: The for-loop iterates over `channels.keys()`. If empty, no tasks are added to the queue.
-- `monitor.py` line 114-117: The while loop calls `queue.get()` with no timeout and no check for empty channels.
-- `settings/config.yaml` line 11: Template has `channels: {}` as the default.
+**Evidence:** `monitor.py:68`, `monitor.py:126`, `monitor.py:145` — all `create_task(...)`
+call sites without result storage or done-callback.
 
-```python
-# Line 95-110 in monitor.py
-for channel_name in channels_list:
-    channel_settings = channels[channel_name]
-    task = Task(config=channel_settings)
-    await task.resolve_channel_entity(client)
-    # ... populate queue ...
-    await queue.put(task)
-
-# Line 114-117 - hangs forever if queue is empty
-while True:
-    task = await queue.get()
-```
-
-**Recommendation:** Add validation in `main_loop()` or during config loading to ensure at least one channel is configured. If `channels` is empty, log an error and exit gracefully rather than hanging indefinitely.
-
-**effort:** trivial
+**Recommendation:** Keep a strong reference to each created task (e.g. a `Set[Task]` pruned
+in a done-callback) and install a callback that logs exceptions and re-schedules the channel.
+On shutdown, `await` cancellation of tracked tasks (or cancel + `asyncio.gather(...,
+return_exceptions=True)`) so the loop drains before `client.disconnect()`.
+**Priority:** recommended.
 
 ---
 
-### DF-002: Single channel resolution failure aborts all channel monitoring at startup
+### DF-005: Ambiguous forward targets are silently dropped during entity resolution
 
 | Field | Value |
 |-------|-------|
-| **ID** | DF-002 |
-| **Severity** | HIGH |
-| **Type** | [BEST-PRACTICE] |
-| **Affected Modules** | src/mko_telebot/monitor.py |
-| **Classification** | advisory |
-
-**Description:** If `resolve_channel_entity()` or `resolve_targets_entities()` fails for any channel during the initial setup loop in `main_loop()`, the exception propagates up and crashes the entire application. Other valid channels are never monitored because they are processed sequentially without try/except protection.
-
-**Evidence:**
-- `monitor.py` line 100-106: No exception handling around entity resolution calls.
-- If one channel name is invalid or target is unreachable, the exception propagates.
-- Tests only cover single-channel scenarios; no test verifies "other channels continue on one failure."
-
-```python
-# monitor.py lines 95-110 - no error handling
-for channel_name in channels_list:
-    channel_settings = channels[channel_name]
-    task = Task(config=channel_settings)
-    await task.resolve_channel_entity(client)  # Can raise TelegramServiceError
-    task.resolve_state_file()
-    await task.load_state()
-    await task.resolve_targets_entities(client)  # Can raise TelegramServiceError
-    await queue.put(task)
-```
-
-**Recommendation:** Wrap the channel initialization in a try/except block. Log errors for failed channels but continue to initialize remaining channels. Optionally skip monitoring the failed channel rather than aborting entirely.
-
-**effort:** small
-
----
-
-### DF-003: history_days=0 accepted but treated as "no limit"
-
-| Field | Value |
-|-------|-------|
-| **ID** | DF-003 |
+| **ID** | DF-005 |
 | **Severity** | LOW |
-| **Type** | [BEST-PRACTICE] |
-| **Affected Modules** | src/mko_telebot/core/channels.py, src/mko_telebot/core/task.py |
+| **Type** | RUNTIME-ERROR |
+| **Affected Modules** | src/mko_telebot/core/task.py |
 | **Classification** | advisory |
 
-**Description:** The `history_days` field in `ChannelConfig` lacks a `ge=1` constraint, allowing `history_days=0`. However, `set_offset_date()` treats `history_days=0` as falsy (line 127: `if not self.history_days`), resulting in `offset_date=None`. This silently converts the user's "fetch 0 days of history" into "fetch all history, no date limit."
+**Description:** In `resolve_targets_entities`, if `client.get_entity(ent)` returns a list
+(multiple matches for an ambiguous identifier), the code does `if isinstance(result, list):
+continue` (`task.py:77-78`). The target is dropped with no warning, so forwards to that
+target are silently skipped for every matching message. Combined with DF-002 (cursor still
+advances), the message is marked processed even though one configured destination never
+received it.
 
-**Evidence:**
-- `channels.py` line 48-50: No validation constraint on `history_days`.
-- `task.py` line 127: `if not self.history_days: return` treats 0 the same as None.
+**Evidence:** `task.py:77-78` — `if isinstance(result, list): continue` with no log.
 
-**Recommendation:** Add `ge=1` constraint to `history_days` field in `ChannelConfig` to ensure semantic correctness, or update the logic to explicitly handle 0 as an invalid value.
+**Recommendation:** Log a WARNING naming the ambiguous target and either pick the first
+entity (documented choice) or fail the channel setup explicitly, rather than silently
+dropping it.
+**Priority:** recommended.
 
-**effort:** trivial
+---
+
+### DF-006: Global lock serializes all channels, making one slow channel delay every other
+
+| Field | Value |
+|-------|-------|
+| **ID** | DF-006 |
+| **Severity** | LOW |
+| **Type** | BEST-PRACTICE |
+| **Affected Modules** | src/mko_telebot/monitor.py, src/mko_telebot/monitor_forward.py |
+| **Classification** | advisory |
+
+**Description:** `process_and_reschedule` holds a single `asyncio.Lock` around the entire
+`process_task` (`monitor.py:57-58`), so only one channel is fetched/forwarded at a time.
+Forwarding adds `random.uniform(5, 10)` s of sleep per target (`monitor_forward.py:146`)
+plus retry backoff sleeps. With several channels, a single slow channel (many matches,
+multiple targets, retries) blocks the global lock and inflates the effective scan interval
+for all other channels, increasing the chance of missing time-sensitive posts.
+
+**Evidence:** `monitor.py:57` (`async with lock:`), `monitor_forward.py:146` (+ per-target
+sleep), `monitor_forward.py:110,118` (retry sleeps).
+
+**Recommendation:** Verify Telethon client concurrency guarantees; if sequential sends are
+safe (they are for distinct `send_*` calls), scope the lock to shared-state writes only (the
+`last_msg_id`/state update) or run per-channel processing concurrently and serialize just the
+state-persist step. This keeps per-channel cadence independent.
+**Priority:** recommended.
 
 ---
 
@@ -109,13 +88,24 @@ for channel_name in channels_list:
 |----------|-------|
 | CRITICAL | 0 |
 | HIGH | 2 |
-| MEDIUM | 0 |
+| MEDIUM | 3 |
 | LOW | 1 |
+
+## Mandatory Fixes
+
+- **DF-001** (HIGH) — Fetch-time RPCError permanently removes a channel from monitoring.
+- **DF-002** (HIGH) — Forward failures still advance `last_msg_id`, permanently losing posts.
+- **DF-003** (MEDIUM) — Caption-less media posts never forwarded, contradicts docs.
 
 ## Advisory Recommendations
 
-1. **DF-001**: Empty channels configuration causes infinite hang in main_loop
-2. **DF-002**: Single channel resolution failure aborts all channel monitoring at startup
-3. **DF-003**: history_days=0 accepted but treated as "no limit"
+- **DF-004** (MEDIUM) — Supervise fire-and-forget background tasks (root cause of DF-001).
+- **DF-005** (LOW) — Log/surface ambiguous forward targets instead of dropping silently.
+- **DF-006** (LOW) — Avoid global serialization of per-channel processing.
 
----
+## Doc Updates Needed
+
+- **DF-001** — overview.md "RPCError … retries with exponential backoff" implies fetch errors
+  are retried; they are fatal to the channel instead.
+- **DF-003** — overview.md:81/88 imply media is forwarded "intact"; caption-less media is
+  dropped.

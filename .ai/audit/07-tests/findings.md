@@ -1,122 +1,125 @@
 # Phase 07 Audit Findings — Test Quality
 
-**Executor:** auditor
-**Template:** .ai/audit/templates/audit-findings.md
+**Executor:** audit-executor
+**Template:** .kilo/commands/audit/phases/07-audit-tests.md
 **Status:** complete
 **Validated:** no
+
+> Runtime verification: `uv run pytest -v` → **353 passed in 8.87s** (0 failures, 0 errors). No import/config errors. Suite is deterministic (re-runs stable) and fast. No coverage tool is wired into `addopts` (pytest-cov present but inactive).
 
 ---
 
 ## Findings
 
-### TST-001: No direct tests for core/utils.py ensure_path_exists function
+### TST-001: `ChannelConfig.name` path-traversal validator has no regression test
 
 | Field | Value |
 |-------|-------|
 | **ID** | TST-001 |
 | **Severity** | MEDIUM |
 | **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/core/utils.py |
+| **Affected Modules** | `src/mko_telebot/core/channels.py`, `tests/test_config_reader.py` |
 | **Classification** | advisory |
 
-**Description:** The `ensure_path_exists()` function in `core/utils.py` is only tested indirectly through mocking in `test_task.py` (line 151 mocks it to force an error). There are no direct unit tests verifying the function's behavior with real file system operations - no tests for successful directory creation, file parent directory creation, or error handling with actual permissions.
+**Description:** `ChannelConfig.name` carries a `field_validator` that rejects path-traversal characters (`/`, `\`, `..`) to prevent a malicious/erroneous channel name from escaping the intended config/session/state directory:
 
-**Evidence:** 
-- `src/mko_telebot/core/utils.py` contains `ensure_path_exists()` (25 lines, handles path creation with error handling)
-- Only reference in tests is mocking it: `tests/test_task.py:151` patches it with `side_effect=ValueError("Cannot create")`
-- No test file directly imports or tests `ensure_path_exists` with real file operations
+```python
+# src/mko_telebot/core/channels.py:43-51
+@field_validator("name")
+@classmethod
+def validate_channel_name(cls, v: str) -> str:
+    if "/" in v or "\\" in v or ".." in v:
+        raise ValueError("Invalid channel name: contains forbidden path character")
+    return v
+```
 
-**Recommendation:** Add a dedicated test file (e.g., `tests/test_utils.py`) with tests for:
-- Directory creation when path has no suffix (is directory)
-- Parent directory creation when path has a suffix (is file)
-- Successful return when path already exists
-- Error handling for permission denied scenarios
+The parallel, equivalent guard on `ClientConfig.session` (`telethon.py`) IS tested (`tests/test_config_reader.py:477-502`, `match="path traversal"`). The `ChannelConfig.name` guard is **not** referenced by any test. `ChannelConfig(name=...)` appears only with the safe literal `"@test"` (`test_config_reader.py:524,536,549,563`), so the rejection branch is never exercised.
 
-### TST-002: No direct tests for core/matcher.py internal functions
+**Evidence:** `grep -r "Invalid channel name|contains forbidden|ChannelConfig\(name=.*[/\\]" tests/` returns nothing. Channel names feed filesystem path construction (session files, state files via `task.py`/`paths.py`), so a regression here would silently re-enable path traversal in user-supplied config.
+
+**Recommendation:** Add parametrized cases to `tests/test_config_reader.py` (or a dedicated `tests/test_channels.py`) asserting `ChannelConfig(name="a/b")`, `name="a\\b"`, and `name="a..b"` raise `ValueError` with the path-traversal message, and that a benign name such as `"@chan"` is accepted. *Effort: trivial. Priority: recommended.*
+
+---
+
+### TST-002: `extra="forbid"` schema-strictness guardrail is untested across all Pydantic models
 
 | Field | Value |
 |-------|-------|
 | **ID** | TST-002 |
 | **Severity** | MEDIUM |
 | **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/core/matcher.py |
+| **Affected Modules** | `core/models.py`, `core/channels.py`, `core/telethon.py`, `tests/test_config_reader.py` |
 | **Classification** | advisory |
 
-**Description:** The matcher module has 4 internal functions (`ast_to_regex`, `patterns_for_node`, `evaluate_query`, `_check_patterns_match`) that implement the core pattern matching logic. No tests directly target these functions - testing is only done through `search_match()` integration tests. This means bugs in regex generation or pattern evaluation could go undetected if they happen to produce a passing boolean result.
+**Description:** Every config model sets `extra="forbid"` (`TelepostSettings` `models.py:22`, `ChannelConfig`/`ChannelDefaults`/`ChannelsConfig` `channels.py:22,60,91`, `ClientConfig`/`ProxyConfig`/`TelethonConfig` `telethon.py`). This is the primary defence against silently accepting typo'd or injected YAML keys. No test asserts that an unknown key is rejected. A `grep` for `extra|forbid|unknown|did not expect` across `tests/` yields only unrelated matches — there is no `pytest.raises` exercising `extra="forbid"` rejection for any model.
 
-**Evidence:**
-- `src/mko_telebot/core/matcher.py` lines 15-108 define `ast_to_regex`, `patterns_for_node`, `evaluate_query`, `_check_patterns_match`
-- `tests/test_parser.py` tests `search_match` through `conftest.py` fixture but has no tests for:
-  - Regex patterns generated from exact match / wildcard / or-operation nodes
-  - Word boundary handling in regex patterns
-  - Pattern combination for sequences
-  - Exclusion pattern evaluation
-- Grep finds no test references to `ast_to_regex`, `patterns_for_node`, `evaluate_query`, or `_check_patterns_match`
+**Evidence:** Loading config always uses keys that exactly match the schema. If `extra` were accidentally relaxed to `allow` (or a key is misspelled in a shipped template), the misconfiguration would pass silently with zero test coverage to catch it.
 
-**Recommendation:** Add tests in `tests/test_matcher.py` to verify:
-- `ast_to_regex` produces correct regex patterns for each AST node type
-- Word boundary handling for patterns (leading/trailing `*` affects boundaries)
-- `patterns_for_node` correctly flattens sequence nodes
-- `evaluate_query` processes exclusions before inclusions correctly
+**Recommendation:** Add a focused test asserting that constructing each model with an unexpected top-level/field key raises `ValidationError` (e.g. `TelepostSettings(**{"TELETHON_API": ..., "CHANNELS": ..., "BOGUS": 1})`). *Effort: small. Priority: recommended.*
 
-### TST-003: No tests for PathResolver class in core/paths.py
+---
+
+### TST-003: Property-based matcher tests assert only "no crash", not correctness
 
 | Field | Value |
 |-------|-------|
 | **ID** | TST-003 |
-| **Severity** | LOW |
+| **Severity** | MEDIUM |
 | **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/core/paths.py |
+| **Affected Modules** | `tests/test_parser.py` |
 | **Classification** | advisory |
 
-**Description:** The `PathResolver` class provides utility methods (`resolve`, `ensure_dir`, `ensure_file_parent`) that are not covered by tests. While `AppPaths` model gets indirect coverage through other tests, the `PathResolver` class itself has no test coverage.
+**Description:** `test_property_no_crash_basic` and `test_property_no_crash_generated` (`tests/test_parser.py:565-582`) wrap `search_match` in a `try/except` and assert only `isinstance(result, bool)`. Because the property is "returns a bool and does not raise", the tests **cannot fail on incorrect matching logic** — a `search_match` that always returns `True` or always returns `False` still passes. They give false confidence about matcher correctness. (The companion parametrized `test_search_match` block at `:558-559` is strong and should be the model to extend.)
 
-**Evidence:**
-- `src/mko_telebot/core/paths.py` lines 27-76 define `PathResolver` class with 3 methods
-- Grep for `PathResolver` in tests returns no matches
+```python
+# tests/test_parser.py:565-571
+def test_property_no_crash_basic(matcher, text, query):
+    try:
+        result = matcher(text, query)
+        assert isinstance(result, bool)
+    except Exception:
+        pytest.fail("Function crashed")
+```
 
-**Recommendation:** Add tests for `PathResolver.resolve()` with relative paths, absolute paths, and home directory expansion. Add tests for `ensure_dir()` creating nested directories and `ensure_file_parent()` handling parent creation.
+**Evidence:** The `except Exception: pytest.fail` form also masks unexpected exceptions as a plain failure rather than letting Hypothesis report the falsifying example, weakening the property test's diagnostic value.
 
-### TST-004: No tests for _merge_dicts internal function in core/config.py
+**Recommendation:** Strengthen with a meaningful invariant, e.g. for any `query` containing a non-wildcard literal term `t`, `search_match(t, f'"{t}"') is True`; and `search_match("", query) is False` for non-empty queries. Remove the broad `except` so Hypothesis surfaces the minimal counterexample. *Effort: small. Priority: recommended.*
+
+---
+
+### TST-004: Model/validator tests are colocated in `test_config_reader.py`, violating unit-per-module layout
 
 | Field | Value |
 |-------|-------|
 | **ID** | TST-004 |
 | **Severity** | LOW |
 | **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/core/config.py |
+| **Affected Modules** | `tests/test_config_reader.py`, `tests/test_monitor.py` |
 | **Classification** | advisory |
 
-**Description:** The `_merge_dicts()` function handles recursive dictionary merging for config overlay. It is tested indirectly through the `test_telethon_config_overlay_config_defaults` test in `test_config_reader.py`, but edge cases like deeply nested structures, empty overlays, or merging lists are not explicitly tested.
+**Description:** Validation logic for `channels.py`, `telethon.py`, and `models.py` (plus `TelepostConfigReader`) is tested inside `tests/test_config_reader.py` (class `TestValidators`, `:413`). Likewise, `monitor_client.py` functions (`build_message_link`, `build_sender_tag`, `create_client`, `start_client`) are tested inside `tests/test_monitor.py` rather than a `tests/test_monitor_client.py`. This contradicts the project's stated architecture rule "Small modules and functions … unit per module" (`AGENTS.md`, `.kilo/rules/project.md`) and the phase's own "map test organization (unit per module)" discovery expectation. Tests for a module are harder to locate, and a reader scanning `tests/` cannot tell that model validation is covered.
 
-**Evidence:**
-- `src/mko_telebot/core/config.py` lines 78-94 define `_merge_dicts`
-- Only test coverage is via merged config integration tests
-- No direct unit tests for the merge behavior
+**Evidence:** `tests/` contains no `test_models.py`, `test_channels.py`, `test_telethon.py`, or `test_monitor_client.py`; model/validator and client tests live inside unrelated files.
 
-**Recommendation:** Add unit tests for `_merge_dicts` covering:
-- Deeply nested dictionary merging
-- Overlay value taking precedence for non-dict values
-- Empty base/overlay edge cases
-- Non-dict values replacing dict values
+**Recommendation:** Extract `TestValidators` (and model-level `extra="forbid"` cases from TST-002) into `tests/test_models.py` / `tests/test_channels.py` / `tests/test_telethon.py`, and the `monitor_client` tests into `tests/test_monitor_client.py`. *Effort: small. Priority: recommended.*
 
-### TST-005: No tests for main.py entry point
+---
+
+### TST-005: Audit phase spec references non-existent components (stale critical-path table)
 
 | Field | Value |
 |-------|-------|
 | **ID** | TST-005 |
 | **Severity** | LOW |
-| **Type** | BEST-PRACTICE |
-| **Affected Modules** | src/mko_telebot/main.py |
+| **Type** | DOC-UPDATE |
+| **Affected Modules** | `.kilo/commands/audit/phases/07-audit-tests.md` |
 | **Classification** | advisory |
 
-**Description:** The `main()` function in `main.py` is a trivial wrapper calling `app()`, but there is no test verifying the entry point works. This is a minor oversight since CLI tests cover the Typer app extensively.
+**Description:** The phase's "Critical Path Coverage" table mandates tests for `PostProcessor`, `ImageCache`, `TelegramPoster`, `GSheetsReader`, and an `Init service`. None of these modules exist in the current codebase (`src/mko_telebot/` has `cli, main, monitor, monitor_client, monitor_forward, logging` + `core/{config,matcher,models,parser,channels,errors,task,telethon,utils,paths,ast_nodes}`). The phase spec was written against a different/earlier architecture and misrepresents the actual critical paths, which can mislead future audit passes.
 
-**Evidence:**
-- `src/mko_telebot/main.py` lines 6-8 define `main()` 
-- No test imports or calls `main()` directly
+**Evidence:** `Get-ChildItem -Recurse src` shows no `post_processor`, `image_cache`, `telegram_poster`, `gsheets_reader`, or `init` modules; the real forwarding/orchestration logic lives in `monitor_forward.py` / `monitor.py` / `monitor_client.py`, which ARE tested.
 
-**Recommendation:** Add a simple test in `tests/test_main.py` or extend `test_cli.py` to verify `main()` can be called without error.
+**Recommendation:** Update the phase's critical-path table to the actual modules (`monitor_forward.process_task`/`process_messages`/`forward_to_users`, `monitor_client`, `core/models`, `core/channels`, `core/telethon`, `cli` commands). *Effort: trivial. Priority: recommended.*
 
 ---
 
@@ -126,21 +129,21 @@
 |----------|-------|
 | CRITICAL | 0 |
 | HIGH | 0 |
-| MEDIUM | 2 |
-| LOW | 3 |
+| MEDIUM | 3 |
+| LOW | 2 |
 
 ## Mandatory Fixes
 
-None
+None (no production bug, data-loss, or security defect found; all 353 tests pass). Findings are test-gap / quality improvements.
 
 ## Advisory Recommendations
 
-- TST-001: Add tests for `ensure_path_exists()` in `tests/test_utils.py`
-- TST-002: Add tests for matcher internal functions in `tests/test_matcher.py`
-- TST-003: Add tests for `PathResolver` class in `tests/test_paths.py`
-- TST-004: Add tests for `_merge_dicts` edge cases
-- TST-005: Add test for `main()` entry point
+- **TST-001** — Add regression tests for `ChannelConfig.name` path-traversal validator.
+- **TST-002** — Add `extra="forbid"` rejection tests for all Pydantic config models.
+- **TST-003** — Strengthen property-based matcher tests beyond "no crash".
+- **TST-004** — Split model/client validation tests into per-module test files.
+- **TST-005** — Refresh the audit phase's critical-path table to match the real architecture.
 
 ## Doc Updates Needed
 
-None
+- **TST-005** — `.kilo/commands/audit/phases/07-audit-tests.md` critical-path table references components not present in the codebase.
