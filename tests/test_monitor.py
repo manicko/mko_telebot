@@ -888,17 +888,20 @@ class TestRunMonitor:
                 mock_client.disconnect.assert_called_once()
 
     async def test_does_not_run_loop_on_auth_failure(self) -> None:
-        """run_monitor() should not enter mainLoop if start_client fails."""
-        mock_client = MagicMock()
-        mock_client.disconnect = Mock()
+            """run_monitor() should not enter mainLoop if start_client fails."""
+            from mko_telebot.core.errors import TelegramAuthError
 
-        mock_settings = MagicMock()
+            mock_client = MagicMock()
+            mock_client.disconnect = Mock()
 
-        with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=False):
-            from mko_telebot.monitor import run_monitor
+            mock_settings = MagicMock()
 
-            await run_monitor(mock_settings, mock_client)
-            mock_client.disconnect.assert_not_called()
+            with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=False):
+                from mko_telebot.monitor import run_monitor
+
+                with pytest.raises(TelegramAuthError, match="Telegram authentication failed"):
+                    await run_monitor(mock_settings, mock_client)
+                mock_client.disconnect.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

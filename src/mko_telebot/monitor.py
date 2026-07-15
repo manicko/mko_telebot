@@ -11,7 +11,7 @@ from telethon import TelegramClient
 
 from mko_telebot.core import Task
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.errors import StateError, ConfigError, TelegramServiceError
+from mko_telebot.core.errors import StateError, ConfigError, TelegramServiceError, TelegramAuthError
 from .monitor_client import start_client
 from .monitor_forward import process_task
 
@@ -144,3 +144,5 @@ async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> Non
         finally:
             client.disconnect()
             logger.info("Telethon client disconnected.")
+    else:
+        raise TelegramAuthError("Telegram authentication failed")
