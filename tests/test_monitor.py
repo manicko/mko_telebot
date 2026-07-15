@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from mko_telebot.core.errors import StateError, TelegramAuthError, TelegramServiceError
+from mko_telebot.core.errors import StateError, TelegramServiceError
 from mko_telebot.monitor_client import (
     build_message_link,
     build_sender_tag,
@@ -270,19 +270,37 @@ class TestStartClient:
             bot_token=mock_settings.telethon.phone_or_token.get_secret_value()
         )
 
-    async def test_auth_failure_telegram_auth_error(
+    async def test_auth_failure_telethon_auth_error(
         self, mock_client: MagicMock, mock_settings: MagicMock
     ) -> None:
-        """start_client() should return False on TelegramAuthError."""
-        mock_client.start.side_effect = TelegramAuthError("Auth failed")
+        """start_client() should return False on Telethon auth errors."""
+        from telethon.errors import AuthKeyUnregisteredError
+        mock_client.start.side_effect = AuthKeyUnregisteredError("Auth failed")
         result = await start_client(mock_client, mock_settings)
         assert result is False
 
-    async def test_auth_failure_telegram_service_error(
+    async def test_auth_failure_2fa_error(
         self, mock_client: MagicMock, mock_settings: MagicMock
     ) -> None:
-        """start_client() should return False on TelegramServiceError."""
-        mock_client.start.side_effect = TelegramServiceError("Service error")
+        """start_client() should return False on 2FA errors (ValueError)."""
+        mock_client.start.side_effect = ValueError("Two-step verification is enabled")
+        result = await start_client(mock_client, mock_settings)
+        assert result is False
+
+    async def test_auth_failure_rpc_error(
+            self, mock_client: MagicMock, mock_settings: MagicMock
+        ) -> None:
+            """start_client() should return False on RPC errors."""
+            from telethon.errors import RPCError
+            mock_client.start.side_effect = RPCError(request="TestRequest", message="RPC error")
+            result = await start_client(mock_client, mock_settings)
+            assert result is False
+
+    async def test_auth_failure_connection_error(
+        self, mock_client: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """start_client() should return False on connection errors."""
+        mock_client.start.side_effect = ConnectionError("Connection failed")
         result = await start_client(mock_client, mock_settings)
         assert result is False
 

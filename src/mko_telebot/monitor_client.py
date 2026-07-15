@@ -6,9 +6,9 @@ from pathlib import Path
 from telethon import TelegramClient
 
 from mko_telebot.core import APP_PATHS
-from mko_telebot.core.errors import TelegramAuthError, TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 from telethon.tl.custom.message import Message
+from mko_telebot.core.errors import TelegramServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,7 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
         True if client started successfully, False otherwise.
 
     """
+    from telethon.errors import RPCError, AuthKeyUnregisteredError, SessionPasswordNeededError
 
     try:
         if settings.telethon.is_user:
@@ -86,9 +87,12 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
 
         return True
 
-    except (TelegramAuthError, TelegramServiceError) as e:
-        logger.error(f"Failed to start Telethon client: {e}")
+    except (AuthKeyUnregisteredError, SessionPasswordNeededError, ValueError) as e:
+        logger.error(f"Telegram authentication failed: {e}")
+        return False
 
+    except (RPCError, OSError, ConnectionError, TimeoutError) as e:
+        logger.error(f"Telegram service error: {e}")
         return False
 
 
