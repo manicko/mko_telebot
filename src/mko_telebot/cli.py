@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import shutil
-from importlib.metadata import version as pkg_version
+from importlib.metadata import PackageNotFoundError, version as pkg_version
 from pathlib import Path
 
 import typer
@@ -49,26 +49,30 @@ def init(
         console.print("[red]ERROR:[/red] Template settings directory not found.")
         raise typer.Exit(code=1)
 
-    dst.mkdir(parents=True, exist_ok=True)
+    try:
+        dst.mkdir(parents=True, exist_ok=True)
 
-    copied: int = 0
-    skipped: int = 0
+        copied: int = 0
+        skipped: int = 0
 
-    for item in src.iterdir():
-        if not item.is_file():
-            continue
-        target: Path = dst / item.name
-        if target.exists() and not force:
-            skipped += 1
-            continue
-        _ = shutil.copy2(item, target)
-        copied += 1
+        for item in src.iterdir():
+            if not item.is_file():
+                continue
+            target: Path = dst / item.name
+            if target.exists() and not force:
+                skipped += 1
+                continue
+            _ = shutil.copy2(item, target)
+            copied += 1
 
-    console.print(f"[green]Copied {copied} file(s) to {dst}.[/green]")
-    if skipped:
-        console.print(
-            f"[yellow]Skipped {skipped} existing file(s). Use --force to overwrite.[/yellow]"
-        )
+        console.print(f"[green]Copied {copied} file(s) to {dst}.[/green]")
+        if skipped:
+            console.print(
+                f"[yellow]Skipped {skipped} existing file(s). Use --force to overwrite.[/yellow]"
+            )
+    except OSError as e:
+        console.print(f"[red]ERROR:[/red] Failed to initialize config directory: {e}")
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -131,8 +135,12 @@ def config() -> None:
 @app.command()
 def version() -> None:
     """Show the installed version of mko-telebot."""
-    ver: str = pkg_version("mko-telebot")
-    console.print(f"mko-telebot version [bold]{ver}[/bold]")
+    try:
+        ver: str = pkg_version("mko-telebot")
+        console.print(f"mko-telebot version [bold]{ver}[/bold]")
+    except PackageNotFoundError:
+        console.print("[red]ERROR:[/red] Package not found: mko-telebot")
+        raise typer.Exit(code=1) from None
 
 
 if __name__ == "__main__":
