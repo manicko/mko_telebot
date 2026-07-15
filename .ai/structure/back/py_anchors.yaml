@@ -145,6 +145,12 @@
   value: list
   stable_hash: 5e507825
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
+- id: c6635718
+  symbol_path: []
+  type: function_call
+  value: ConfigError
+  stable_hash: c6635718
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor.py
 - id: 85c515e8
   symbol_path: []
   type: function_call
@@ -176,13 +182,6 @@
   value: Path
   stable_hash: 9506d786
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
-- id: b803296c
-  symbol_path:
-  - create_client
-  type: function_call
-  value: str
-  stable_hash: b803296c
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
 - id: bd97b9e3
   symbol_path:
   - create_client
@@ -195,6 +194,13 @@
   type: function_call
   value: TelegramClient
   stable_hash: a99eec1f
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
+- id: b803296c
+  symbol_path:
+  - create_client
+  type: function_call
+  value: str
+  stable_hash: b803296c
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
 - id: 60cd79e7
   symbol_path: []
@@ -276,18 +282,6 @@
   type: return_statement
   stable_hash: 60cd79e7
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_client.py
-- id: 6f634f3a
-  symbol_path: []
-  type: function_call
-  value: build_message_link
-  stable_hash: 6f634f3a
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
-- id: 34ea3e41
-  symbol_path: []
-  type: function_call
-  value: build_sender_tag
-  stable_hash: 34ea3e41
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 67d6be1a
   symbol_path: []
   type: function_call
@@ -299,6 +293,11 @@
   type: function_call
   value: getattr
   stable_hash: '56852796'
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
@@ -323,11 +322,34 @@
   type: return_statement
   stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 6f634f3a
+  symbol_path: []
+  type: function_call
+  value: build_message_link
+  stable_hash: 6f634f3a
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 34ea3e41
+  symbol_path: []
+  type: function_call
+  value: build_sender_tag
+  stable_hash: 34ea3e41
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: c6d09245
+  symbol_path: []
+  type: function_call
+  value: _send_with_retry
+  stable_hash: c6d09245
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
   type: function_call
   value: getattr
   stable_hash: '56852796'
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: '56852796'
   symbol_path: []
@@ -365,11 +387,28 @@
   value: forward_to_users
   stable_hash: d13c32f9
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 62f10057
+  symbol_path: []
+  type: return_statement
+  stable_hash: 62f10057
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 3dbd97ea
   symbol_path: []
   type: function_call
   value: max
   stable_hash: 3dbd97ea
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 8c8267a5
+  symbol_path: []
+  type: function_call
+  value: type
+  stable_hash: 8c8267a5
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
+- id: 16d93601
+  symbol_path: []
+  type: function_call
+  value: TelegramServiceError
+  stable_hash: 16d93601
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\monitor_forward.py
 - id: 62f10057
   symbol_path: []
@@ -1460,6 +1499,13 @@
   value: AppPaths
   stable_hash: 887c867d
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\paths.py
+- id: 3cb0f26f
+  symbol_path:
+  - Task
+  type: function_call
+  value: isinstance
+  stable_hash: 3cb0f26f
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
 - id: d170243b
   symbol_path:
   - Task
@@ -1473,6 +1519,42 @@
   type: function_call
   value: TelegramServiceError
   stable_hash: d170243b
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: 3cb0f26f
+  symbol_path:
+  - Task
+  type: function_call
+  value: isinstance
+  stable_hash: 3cb0f26f
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: d170243b
+  symbol_path:
+  - Task
+  type: function_call
+  value: TelegramServiceError
+  stable_hash: d170243b
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: d170243b
+  symbol_path:
+  - Task
+  type: function_call
+  value: TelegramServiceError
+  stable_hash: d170243b
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: d170243b
+  symbol_path:
+  - Task
+  type: function_call
+  value: TelegramServiceError
+  stable_hash: d170243b
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: d65505d4
+  symbol_path:
+  - Task
+  - resolve_state_file
+  type: function_call
+  value: ensure_path_exists
+  stable_hash: d65505d4
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
 - id: 083a99f2
   symbol_path:
@@ -1540,6 +1622,108 @@
   value: StateError
   stable_hash: 17b29f84
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\task.py
+- id: efb7bbff
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: ConfigDict
+  stable_hash: efb7bbff
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: a3b6d14c
+  symbol_path:
+  - ProxyConfig
+  type: function_call
+  value: Field
+  stable_hash: a3b6d14c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: dae95623
+  symbol_path:
+  - ProxyConfig
+  - validate_addr
+  type: function_call
+  value: ValueError
+  stable_hash: dae95623
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: 5e1bdeb4
+  symbol_path:
+  - ProxyConfig
+  - validate_addr
+  type: return_statement
+  stable_hash: 5e1bdeb4
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: 62930d1f
+  symbol_path:
+  - ProxyConfig
+  - validate_addr
+  type: function_call
+  value: field_validator
+  stable_hash: 62930d1f
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: 99661bf6
+  symbol_path:
+  - ProxyConfig
+  - validate_not_placeholder
+  type: function_call
+  value: ValueError
+  stable_hash: 99661bf6
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: c1144a3c
+  symbol_path:
+  - ProxyConfig
+  - validate_not_placeholder
+  type: return_statement
+  stable_hash: c1144a3c
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: 5ba08994
+  symbol_path:
+  - ProxyConfig
+  - validate_not_placeholder
+  type: function_call
+  value: field_validator
+  stable_hash: 5ba08994
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: af15b4f7
+  symbol_path:
+  - ProxyConfig
+  - to_dict
+  type: return_statement
+  stable_hash: af15b4f7
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
 - id: 81aa5412
   symbol_path:
   - ClientConfig
@@ -1633,6 +1817,44 @@
   value: field_validator
   stable_hash: 95a3dcf8
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: c3239f53
+  symbol_path:
+  - ClientConfig
+  - validate_session
+  type: return_statement
+  stable_hash: c3239f53
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: dd2d04c2
+  symbol_path:
+  - ClientConfig
+  - validate_session
+  type: function_call
+  value: ValueError
+  stable_hash: dd2d04c2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: dd2d04c2
+  symbol_path:
+  - ClientConfig
+  - validate_session
+  type: function_call
+  value: ValueError
+  stable_hash: dd2d04c2
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: c3239f53
+  symbol_path:
+  - ClientConfig
+  - validate_session
+  type: return_statement
+  stable_hash: c3239f53
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
+- id: d5546d96
+  symbol_path:
+  - ClientConfig
+  - validate_session
+  type: function_call
+  value: field_validator
+  stable_hash: d5546d96
+  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
 - id: a5a326e1
   symbol_path:
   - ClientConfig
@@ -1678,68 +1900,6 @@
   type: function_call
   value: field_validator
   stable_hash: 1c13b4c4
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: 98066ba9
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: return_statement
-  stable_hash: 98066ba9
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: f46c8e7c
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: ValueError
-  stable_hash: f46c8e7c
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: 0fc09946
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: isinstance
-  stable_hash: 0fc09946
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: f46c8e7c
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: ValueError
-  stable_hash: f46c8e7c
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: 0fc09946
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: isinstance
-  stable_hash: 0fc09946
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: f46c8e7c
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: ValueError
-  stable_hash: f46c8e7c
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: 98066ba9
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: return_statement
-  stable_hash: 98066ba9
-  file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
-- id: 85de8025
-  symbol_path:
-  - ClientConfig
-  - validate_proxy
-  type: function_call
-  value: field_validator
-  stable_hash: 85de8025
   file: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\telethon.py
 - id: 3ac89fef
   symbol_path:

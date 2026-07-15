@@ -48,6 +48,7 @@
   - telethon
   - mko_telebot.core
   - mko_telebot.core.models
+  - mko_telebot.core.errors
   - monitor_client
   - monitor_forward
   classes: []
@@ -56,6 +57,7 @@
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.monitor_client
   layer: unknown
   imports:
+  - __future__
   - pathlib
   - telethon
   - mko_telebot.core
@@ -78,6 +80,7 @@
   - mko_telebot.core.errors
   - mko_telebot.core.models
   - monitor_client
+  - telethon.hints
   classes: []
   functions: []
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\__init__.py
@@ -105,6 +108,7 @@
   imports:
   - __future__
   - pydantic
+  - typing
   classes:
   - ChannelConfig
   - ChannelDefaults
@@ -220,11 +224,13 @@
   imports:
   - datetime
   - pathlib
-  - typing
-  - mko_telebot.core
+  - mko_telebot.core.utils
   - mko_telebot.core.paths
   - mko_telebot.core.errors
   - mko_telebot.core.channels
+  - telethon
+  - telethon.hints
+  - telethon.errors
   classes:
   - Task
   functions:
@@ -237,14 +243,21 @@
   imports:
   - __future__
   - pydantic
+  - typing
+  - enum
   classes:
+  - ProxyType
+  - ProxyConfig
   - ClientConfig
   - TelethonConfig
   functions:
+  - validate_addr
+  - validate_not_placeholder
+  - to_dict
   - validate_api_hash
+  - validate_session
   - validate_not_placeholder
   - validate_api_id
-  - validate_proxy
   - validate_phone_or_token
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\utils.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.utils
@@ -264,6 +277,7 @@
   - matcher
   - models
   - paths
+  - telethon
   - task
   classes: []
   functions: []

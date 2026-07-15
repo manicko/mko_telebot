@@ -1,0 +1,68 @@
+# Fix unreachable code in tests - QLT-003 (DONE)
+
+id: TASK_018_qlt_003_fix_unreachable_code
+title: Remove unreachable yield statements after raise in async generator test helpers
+priority: high
+
+depends_on:
+  - TASK_016_qlt_001_sequence_type
+
+source_reference: .ai/audit/99-validation/08-quality-validated.md
+source_section: QLT-003
+source_blocks:
+  - "QLT-003: Unreachable code in tests"
+
+description: >
+  Several test async generator helper functions contain unreachable code after
+  raise statements. The raise ... yield pattern creates async generators that
+  raise on first iteration (never yielding). Remove the unreachable yield
+  statements to clean up test logic.
+
+goals:
+  - Remove dead code from async generator test helpers
+  - Clarify test intent by removing unreachable statements
+  - Pass all quality checks
+
+files:
+  - path: tests/test_monitor_forward.py
+    targets:
+      - type: inline async generator
+        name: gen() in test_handles_flood_wait_error
+      - type: inline async generator
+        name: gen() in test_handles_worker_busy_error
+      - type: inline async generator
+        name: gen() in test_handles_telegram_service_error
+
+changes:
+  - action: suppressed
+    description: >
+      The yield statements after raise are unreachable but required for Python to
+      recognize the function as an async generator. Added `# pyright: ignore[reportUnreachable]`
+      comment to suppress the warning while maintaining functionality.
+    rationale: >
+      Removing the yield entirely would break the async generator pattern, causing
+      `async for` to fail with TypeError. The yield is necessary dead code.
+    details:
+      - Line 114: Added `# pyright: ignore[reportUnreachable]` to yield in gen()
+      - Line 132: Added `# pyright: ignore[reportUnreachable]` to yield in gen()
+      - Line 152: Added `# pyright: ignore[reportUnreachable]` to yield in gen()
+
+acceptance_criteria:
+  - All unreachable yield statements have warning suppressed via pyright ignore
+  - Basedpyright unreachable code warnings resolved
+  - Tests continue to pass
+  - Test intent is clearer (warning explicitly acknowledged)
+
+risk: low
+risk_justification: >
+  Suppressing unreachable warning maintains the async generator pattern required
+  for tests to function correctly while acknowledging the dead code.
+
+outcome: completed
+completed: 2026-07-15
+summary: >
+  Added `# pyright: ignore[reportUnreachable]` comments to the yield statements
+  in the three inline async generator functions. The yield is unreachable dead code
+  but required for Python to recognize the function as an async generator (needed
+  for the `async for` iteration in _fetch_messages). All tests pass, no more
+  reportUnreachable warnings.
