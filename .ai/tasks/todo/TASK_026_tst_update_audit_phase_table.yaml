@@ -1,0 +1,45 @@
+id: task_026_tst_update_audit_phase_table
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-005
+
+title: Update audit phase critical-path table to actual modules
+
+priority: low
+
+description: >
+  TST-005: Phase spec references non-existent components (PostProcessor, ImageCache,
+  TelegramPoster, GSheetsReader). Should reference actual modules: monitor_forward,
+  monitor_client, core/models, core/channels, core/telethon, cli.
+
+goals:
+  - Update critical-path table to reference actual modules
+  - Remove stale component names
+  - Document Init service as tested
+
+files:
+  - path: .kilo/commands/audit/phases/07-audit-tests.md
+    targets:
+      - type: document
+    semantic_anchors:
+      - action: update_table
+        lines: 99-103
+
+changes:
+  - action: update_documentation
+    description: >
+      Replace stale component names with actual modules:
+      - monitor_forward.process_task/process_messages/forward_to_users
+      - monitor_client
+      - core/models
+      - core/channels
+      - core/telethon
+      - cli commands (init, validate, run, config, version)
+
+acceptance_criteria:
+  - Table reflects actual codebase
+  - No stale references remain
+  - Init service documented as tested
+
+tests_to_run:
+  - Verify documentation matches actual modules

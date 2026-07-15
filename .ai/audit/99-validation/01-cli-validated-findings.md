@@ -73,7 +73,7 @@
 
 **Project Rule Violation:** Inconsistent with `validate` command which catches `ConfigError`, and violates "no raw tracebacks leak" rule.
 
-**Recommendation stands:** Add defensive error handling to both commands.
+**Recommendation refined:** In `src/mko_telebot/cli.py`, wrap `dst.mkdir()` and `shutil.copy2()` in the `init` command (lines 52-64) with `try/except OSError as e` that prints `[red]ERROR:[/red] Failed to initialize config directory: {e}` and exits with code 1. For the `version` command (lines 130-131), wrap `pkg_version("mko-telebot")` with `try/except PackageNotFoundError as e` that prints `[red]ERROR:[/red] Package not found: mko-telebot` and exits with code 1. Import `PackageNotFoundError` from `importlib.metadata` for the version command.
 
 ---
 
@@ -93,7 +93,7 @@
 
 **Architectural Impact:** HIGH — Silent channel monitoring failures compromise operational reliability. Process supervisors cannot detect partial failures.
 
-**Recommendation stands:** Tasks should have exception handling or tracking to surface failures.
+**Recommendation refined:** In `src/mko_telebot/monitor.py`, restructure `process_and_reschedule` (lines 57-68) to wrap `await process_task(task, client, settings)` in `try/except Exception as e` that logs the error, then move `asyncio.create_task(reschedule_task(task, queue))` to a `finally` block to ensure the channel is always rescheduled regardless of processing outcome. Do not re-raise; allow the fire-and-forget task to continue monitoring.
 
 ---
 
@@ -111,7 +111,7 @@
 
 **Analysis:** While exit code 0 is conventional for successful runs, Unix convention uses 128+signal (130 for SIGINT) to distinguish intentional interruption. This aids process supervisors in detecting incomplete runs.
 
-**Recommendation stands:** Minimal change with clear operational value.
+**Recommendation refined:** In `src/mko_telebot/cli.py` line 102, change `raise typer.Exit(code=0)` to `raise typer.Exit(code=130)` to follow the Unix convention (128+SIGINT=130) for distinguishing intentional interruption in process supervisors.
 
 ---
 
@@ -137,6 +137,8 @@
 - `reportAny` / `reportUnknownVariableType` — dynamic `getattr` on telethon objects
 
 **Architectural Impact:** MEDIUM — Type safety erosion undermines maintainability guarantees.
+
+**Recommendation refined:** Add a `[tool.basedpyright]` section in `pyproject.toml` with `reportMissingTypeStubs = "none"` to suppress type stub warnings for the `telethon` package, acknowledging that these are external dependencies without available type stubs. Keep `reportExplicitAny` and other warnings enabled for code we control. Track fire-and-forget findings under SRV-002.
 
 ---
 
@@ -175,3 +177,12 @@ No cross-phase conflicts detected. The four mandatory fixes (CLI-001 through CLI
 - **CLI-002** (MEDIUM): Broaden exception handling in `run`/`start_client`
 - **CLI-003** (MEDIUM): Add error handling to `init` and `version` commands
 - **CLI-004** (MEDIUM): Add exception handling/tracking for fire-and-forget tasks
+
+## Refinement Notes
+
+The following recommendations were clarified from vague/ambiguous to specific, actionable implementation steps:
+
+- **CLI-003:** Wrap `dst.mkdir()` and `shutil.copy2()` in `init` with `try/except OSError`, and wrap `pkg_version("mko-telebot")` in `version` with `try/except PackageNotFoundError`. Both exit with code 1 on failure.
+- **CLI-004:** Restructure `process_and_reschedule` in monitor.py to catch exceptions around `process_task` and move `reschedule_task` to a `finally` block.
+- **CLI-005:** Change `raise typer.Exit(code=0)` to `raise typer.Exit(code=130)` on KeyboardInterrupt.
+- **CLI-006:** Add `[tool.basedpyright]` section in pyproject.toml with `reportMissingTypeStubs = "none"` for telethon.

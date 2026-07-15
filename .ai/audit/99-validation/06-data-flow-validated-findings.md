@@ -86,4 +86,10 @@ None. SRV-001 and SRV-003 from Phase 03 cover the mandatory fixes referenced in 
 ## Advisory Recommendations
 
 - DF-005 - Optional: Log DEBUG when skipping ambiguous targets for operator visibility.
-- DF-006 - Optional: Consider after performance profiling shows actual channel contention.
+- DF-006 - No code change recommended. Keep the global lock in monitor.py as-is. Revisit only if a future profiling session (e.g. cProfile/py-spy on monitor.py) demonstrates measurable channel contention or throughput regressions under many channels; if so, file a new evidence-backed finding rather than acting speculatively.
+
+
+## Refinement Notes
+
+- DF-006 - Clarified non-actionable advisory into explicit deferred action with measurable trigger: no code change now; revisit on profiled evidence of channel contention.
+

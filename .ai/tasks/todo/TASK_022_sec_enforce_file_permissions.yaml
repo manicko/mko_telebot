@@ -1,0 +1,44 @@
+id: task_022_sec_enforce_file_permissions
+
+source_reference: .ai\audit\99-validation\04-security-validated-findings.md
+source_section: SEC-003
+
+title: Add optional file permission restriction for credentials
+
+priority: low
+
+description: >
+  SEC-003: No file permission enforcement on credentials. On POSIX multi-user systems,
+  telethon_config.yaml (containing SecretStr-protected fields) is susceptible to
+  credential exposure. Should add optional permission restriction.
+
+goals:
+  - Add chmod 0600 for credential files
+  - Add chmod 0700 for config directories
+  - Optional: Graceful degradation on non-POSIX systems
+
+files:
+  - path: src/mko_telebot/core/paths.py
+    targets:
+      - type: function
+        name: user_settings_dir
+    semantic_anchors:
+      - action: add_permission_check
+        target: user_settings_dir
+
+changes:
+  - action: add_permissions
+    description: >
+      Add permission restriction when creating user_settings_dir: use os.chmod with
+      mode 0o700 for directories and 0o600 for files containing credentials.
+      Wrap in try/except for graceful degradation on non-POSIX systems.
+
+acceptance_criteria:
+  - Directory permissions set to 0700 on POSIX
+  - File permissions set to 0600 on POSIX
+  - Graceful no-op on non-POSIX systems
+  - All tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_config_reader.py -v
+  - uv run pytest tests/test_monitor_client.py -v

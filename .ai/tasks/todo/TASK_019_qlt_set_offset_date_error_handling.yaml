@@ -1,0 +1,42 @@
+id: task_019_qlt_set_offset_date_error_handling
+
+source_reference: .ai\audit\99-validation\08-quality-validated-findings.md
+source_section: QLT-006
+
+title: Raise ConfigError on invalid history_days in Task.set_offset_date
+
+priority: low
+
+description: >
+  QLT-006: `Task.set_offset_date` silently ignores invalid `history_days` by logging
+  and returning with `offset_date = None`. This violates "never silently swallow
+  errors" - should raise ConfigError instead.
+
+goals:
+  - Raise ConfigError when history_days conversion fails
+  - Surface misconfiguration to operator
+  - Maintain error contract consistency
+
+files:
+  - path: src/mko_telebot/core/task.py
+    targets:
+      - type: method
+        name: set_offset_date
+    semantic_anchors:
+      - action: replace_silent_return
+        target: set_offset_date
+        lines: 146-153
+
+changes:
+  - action: raise_error
+    description: >
+      Replace the silent log-and-return pattern with `raise ConfigError(...)` when
+      history_days validation fails. This ensures misconfiguration is surfaced.
+
+acceptance_criteria:
+  - Invalid history_days raises ConfigError
+  - Operator receives clear error message
+  - No silent degradation
+
+tests_to_run:
+  - uv run pytest tests/ -v -k "offset or history"

@@ -1,0 +1,41 @@
+id: task_017_qlt_remove_pathresolver_class
+
+source_reference: .ai\audit\99-validation\08-quality-validated-findings.md
+source_section: QLT-008
+
+title: Remove unused PathResolver class from core/paths.py
+
+priority: low
+
+description: >
+  QLT-008: `PathResolver` class (lines 27-76) is unused dead code that duplicates
+  the `resolve_path` function. It violates the project's no-dead-code rule.
+
+goals:
+  - Remove the entire PathResolver class
+  - Eliminate code duplication
+
+files:
+  - path: src/mko_telebot/core/paths.py
+    targets:
+      - type: class
+        name: PathResolver
+    semantic_anchors:
+      - action: remove_class
+        target: PathResolver
+
+changes:
+  - action: remove_dead_code
+    description: >
+      Delete PathResolver class (lines 27-76) including its `resolve`, `ensure_dir`,
+      and `ensure_file_parent` methods. The `resolve_path` function already provides
+      this functionality.
+
+acceptance_criteria:
+  - PathResolver class removed
+  - No imports/reference conflicts
+  - All tests pass
+
+tests_to_run:
+  - uv run pytest tests/ -v
+  - uv run ruff check src/mko_telebot/core/paths.py

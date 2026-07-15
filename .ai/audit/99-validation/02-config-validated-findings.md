@@ -70,7 +70,7 @@
 > - **Documentation mismatch:** Lines 349-356 and 549-564 in `docs/11-guides/configuration.md` document `__main__` and `telebot` loggers as "Default Loggers", but these don't match the `mko_telebot.*` hierarchy from `__name__` usage.
 > - **Code is correct:** All modules use `logger = logging.getLogger(__name__)` (verified in 9 files). The logging system works via `root` propagation, not the specific logger blocks.
 
-**Recommendation:** Update documentation to reflect actual logger hierarchy (`mko_telebot.*`) or note that logging relies on the `root` configuration. The `__main__` entry is still useful for direct script execution, but `telebot` should be documented as unused or renamed to `mko_telebot`.
+**Recommendation:** Update docs/11-guides/configuration.md lines 349-356 and 548-564 to: (1) document the actual logger hierarchy as `mko_telebot.*` produced by `getLogger(__name__)` in all modules, (2) note that logging works via the `root` logger config block in log_config.yaml (handlers: console, rotating_file) with propagation, and (3) mark the `telebot` logger entry as obsolete/unused since no module references it — `__main__` remains only for direct script execution.
 
 ---
 
@@ -120,3 +120,9 @@ CFG-001 should be fixed before any production deployment:
 - Current: Breaks core feature (message forwarding)
 - Fix approach: Distinguish "field not specified" from "explicitly set to empty list"
 - Recommended: Check if channel's list field differs from model's `FieldInfo.default` rather than just checking `default_factory`
+
+## Refinement Notes
+
+| Finding ID | Summary |
+|------------|---------|
+| CFG-003 | Refactored ambiguous recommendation into single actionable: update docs/11-guides/configuration.md to document `mko_telebot.*` logger hierarchy, root logger fallback mechanism, and mark `telebot` logger as obsolete. |

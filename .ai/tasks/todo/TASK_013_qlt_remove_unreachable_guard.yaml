@@ -1,0 +1,42 @@
+id: task_013_qlt_remove_unreachable_guard
+
+source_reference: .ai\audit\99-validation\08-quality-validated-findings.md
+source_section: QLT-003
+
+title: Remove unreachable None guard in parse_query
+
+priority: low
+
+description: >
+  QLT-003: `parse_query` has an unreachable `if query is None` guard at lines 198-202.
+  The function signature already specifies `query: str`, making the guard unreachable.
+  The type annotation and guard disagree on the contract.
+
+goals:
+  - Remove the dead code guard
+  - Resolve contract ambiguity between type hint and guard
+
+files:
+  - path: src/mko_telebot/core/parser.py
+    targets:
+      - type: function
+        name: parse_query
+    semantic_anchors:
+      - action: remove_dead_code
+        target: parse_query
+        lines: 198-202
+
+changes:
+  - action: remove_guard
+    description: >
+      Remove the `if query is None: raise ValueError(...)` block since the type
+      annotation `query: str` already enforces non-None.
+
+acceptance_criteria:
+  - Dead code removed
+  - No basedpyright warnings for the guard
+  - All tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_parser.py -v
+  - uv run ruff check src/mko_telebot/core/parser.py

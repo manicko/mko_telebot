@@ -1,0 +1,47 @@
+id: task_003_int_fix_build_sender_tag
+
+source_reference: .ai\audit\99-validation\05-integrations-validated-findings.md
+source_section: INT-002
+
+title: Fix build_sender_tag exception handling to catch Telethon errors
+
+priority: medium
+
+depends_on:
+  - task_002_int_fix_start_client_exceptions
+
+description: >
+  INT-002: `build_sender_tag()` fallback never triggers for real `get_sender()` errors.
+  The code catches `TelegramServiceError` but `msg.get_sender()` raises Telethon's
+  native exception types. This causes the same exception-type mismatch as INT-001.
+
+goals:
+  - Catch Telethon's actual exception types in build_sender_tag
+  - Allow graceful fallback to empty string on sender resolution failure
+  - Log the error appropriately
+
+files:
+  - path: src/mko_telebot/monitor_client.py
+    targets:
+      - type: function
+        name: build_sender_tag
+    semantic_anchors:
+      - action: replace_exception_type
+        target: build_sender_tag
+        old: except TelegramServiceError
+        new: except telethon.errors.RPCError
+
+changes:
+  - action: modify_exception_handling
+    description: >
+      Change exception handling to catch actual Telethon exceptions raised by 
+      `msg.get_sender()`. Keep the fallback behavior returning empty string.
+
+acceptance_criteria:
+  - Sender resolution failures are caught gracefully
+  - Log message is emitted on failure
+  - Tests for build_sender_tag pass
+  - No raw tracebacks leak on sender resolution failures
+
+tests_to_run:
+  - uv run pytest tests/test_monitor_client.py -v -k "sender_tag"

@@ -1,0 +1,44 @@
+id: task_008_cfg_fix_list_merge_defaults
+
+source_reference: .ai\audit\99-validation\02-config-validated-findings.md
+source_section: CFG-001
+
+title: Fix list-field merge to preserve explicit per-channel values
+
+priority: high
+
+description: >
+  CFG-001: Per-channel `keywords`/`forward_to` are unconditionally overwritten by
+  `defaults` in `ChannelsConfig.apply_defaults_to_channels`. With the shipped template's
+  empty-list defaults, every channel silently loses its forwarding targets, disabling
+  the core feature.
+
+goals:
+  - Distinguish "field not specified" from "explicitly set to empty list"
+  - Preserve non-empty per-channel `keywords` and `forward_to` values
+  - Add test coverage for list field override behavior
+
+files:
+  - path: src/mko_telebot/core/channels.py
+    targets:
+      - type: function
+        name: apply_defaults_to_channels
+    semantic_anchors:
+      - action: modify_merge_logic
+        target: apply_defaults_to_channels
+        check: model field default vs channel value
+
+changes:
+  - action: fix_merge_logic
+    description: >
+      Check if channel's list field differs from model's `FieldInfo.default` rather than
+      just checking `default_factory`. Only apply defaults when field was not specified.
+
+acceptance_criteria:
+  - Per-channel keywords/forward_to are preserved when explicitly set
+  - Empty defaults still apply when channel omits field
+  - Core forwarding feature works correctly
+  - All existing tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_config_reader.py -v

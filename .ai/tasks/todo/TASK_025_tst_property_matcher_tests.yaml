@@ -1,0 +1,45 @@
+id: task_025_tst_property_matcher_tests
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-003
+
+title: Strengthen property-based matcher tests with meaningful invariants
+
+priority: medium
+
+description: >
+  TST-003: Property-based `test_property_no_crash_basic` and `test_property_no_crash_generated`
+  only assert `isinstance(result, bool)`. Should verify actual correctness and remove
+  broad `except Exception` to let Hypothesis surface counterexamples.
+
+goals:
+  - Add meaningful invariants for keyword matching
+  - Remove try/except Exception wrapper
+  - Let Hypothesis surface minimal counterexamples
+
+files:
+  - path: tests/test_parser.py
+    targets:
+      - type: test_functions
+        names: [test_property_no_crash_basic, test_property_no_crash_generated]
+    semantic_anchors:
+      - action: add_invariants
+        target: test_property_no_crash_basic
+      - action: add_invariants
+        target: test_property_no_crash_generated
+
+changes:
+  - action: strengthen_tests
+    description: >
+      Replace "no crash" assertions with meaningful invariants:
+      - For query containing literal 't', `search_match('t', f't')` is True
+      - `search_match("", query)` is False for non-empty queries that aren't wildcards
+      - Remove broad except Exception to enable Hypothesis diagnostics
+
+acceptance_criteria:
+  - Tests assert correctness, not just no-crash
+  - Hypothesis can surface counterexamples
+  - All tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_parser.py -v

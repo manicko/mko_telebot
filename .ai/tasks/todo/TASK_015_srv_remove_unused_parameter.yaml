@@ -1,0 +1,43 @@
+id: task_015_srv_remove_unused_parameter
+
+source_reference: .ai\audit\99-validation\03-services-validated-findings.md
+source_section: SRV-006
+
+title: Remove unused last_msg_id constructor parameter
+
+priority: low
+
+description: >
+  SRV-006: `Task.__init__` has `last_msg_id: int = 0` parameter that is always
+  overwritten by `load_state()` and never passed by callers. This dead code should
+  be removed.
+
+goals:
+  - Remove unused constructor parameter
+  - Eliminate dead code per project standards
+
+files:
+  - path: src/mko_telebot/core/task.py
+    targets:
+      - type: class
+        name: Task
+      - type: method
+        name: __init__
+    semantic_anchors:
+      - action: remove_parameter
+        target: Task.__init__
+        parameter: last_msg_id
+
+changes:
+  - action: remove_dead_code
+    description: >
+      Remove `last_msg_id: int = 0` from `__init__` signature and the corresponding
+      `self.last_msg_id = last_msg_id or 0` initialization.
+
+acceptance_criteria:
+  - Parameter removed
+  - No functional change (load_state still sets last_msg_id)
+  - All tests pass
+
+tests_to_run:
+  - uv run pytest tests/ -v

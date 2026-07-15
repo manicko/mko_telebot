@@ -1,0 +1,43 @@
+id: task_023_tst_add_path_traversal_tests
+
+source_reference: .ai\audit\99-validation\07-tests-validated-findings.md
+source_section: TST-001
+
+title: Add regression tests for ChannelConfig.name path-traversal validator
+
+priority: medium
+
+description: >
+  TST-001: `ChannelConfig.name` has a path-traversal validator but tests only use
+  safe literal "@test". Need regression tests for the security boundary.
+
+goals:
+  - Add tests for path-traversal rejection in ChannelConfig.name
+  - Cover /, \, and .. patterns
+  - Verify "@chan" format is accepted
+
+files:
+  - path: tests/test_config_reader.py
+    targets:
+      - type: test_module
+    semantic_anchors:
+      - action: add_parametrized_tests
+        target: test_config_reader.py
+        after: existing validator tests or near ChannelConfig usage
+
+changes:
+  - action: add_tests
+    description: >
+      Add parametrized test cases asserting:
+      - ChannelConfig(name="a/b") raises ValueError
+      - ChannelConfig(name="a\\b") raises ValueError  
+      - ChannelConfig(name="a..b") raises ValueError
+      - ChannelConfig(name="@chan") is accepted
+
+acceptance_criteria:
+  - Path traversal patterns are tested
+  - Error messages are validated
+  - All existing tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_config_reader.py -v

@@ -49,7 +49,7 @@ validated: yes
 
 **Architectural Impact:** High — misconfigured keywords silently fail to filter, undermining trust in the filtering system.
 
-**Recommendation:** Validate keywords at config-load time. Remove the broad `except Exception` or re-raise as `ConfigError`.
+**Recommendation:** Add a `field_validator` for the `keywords` field in `ChannelConfig` (channels.py) that validates each keyword's syntax at config-load time by calling `parse_query` and raises `ConfigError` on invalid syntax, ensuring misconfigured keywords fail fast at startup. Remove the broad `except Exception` in `search_match` (matcher.py:172-183) since config-time validation eliminates the need for runtime exception swallowing.
 
 ---
 
@@ -101,7 +101,7 @@ validated: yes
 
 **Architectural Impact:** Low — latent contract ambiguity, not currently causing runtime issues.
 
-**Recommendation:** Either remove the `None` guard (signature already enforces `str`) or widen the signature to `str | None`.
+**Recommendation:** Remove the unreachable `if query is None: raise ValueError(...)` guard in `parse_query` (parser.py:198-202) because the `str` annotation already enforces non-None; this eliminates dead code flagged by basedpyright and resolves the contract ambiguity between type hint and guard.
 
 ---
 
@@ -176,7 +176,7 @@ validated: yes
 
 **Architectural Impact:** Low — misconfiguration changes behavior without operator awareness.
 
-**Recommendation:** Raise `ConfigError` for invalid `history_days` or document that the date filter is disabled.
+**Recommendation:** Raise `ConfigError` in `Task.set_offset_date` (task.py:146-153) when `history_days` conversion fails, instead of silently logging and returning with `offset_date=None` — consistent with the project's "never silently swallow errors" philosophy and ensuring misconfiguration is surfaced to the operator.
 
 ---
 
@@ -221,7 +221,7 @@ validated: yes
 
 **Architectural Impact:** Low — code duplication, invites future inconsistency.
 
-**Recommendation:** Remove `PathResolver` (dead code) or wire it in and remove `config.resolve_path`.
+**Recommendation:** Remove the unused `PathResolver` class from core/paths.py (lines 27-76) — it is dead code that duplicates functionality already provided by `config.resolve_path`, violating the project's no-dead-code standard.
 
 ---
 
@@ -245,7 +245,7 @@ None detected beyond the individual findings. The issues are isolated to specifi
 
 | Action | Count | Details |
 |--------|-------|---------|
-| Validated (unchanged) | 4 | QLT-002, QLT-004, QLT-005, QLT-008 |
+| Validated (unchanged) | 3 | QLT-002, QLT-004, QLT-005 |
 | Reclassified | 3 | QLT-001 (BEST-PRACTICE → SPEC-DEVIATION), QLT-003 (BEST-PRACTICE → SPEC-DEVIATION), QLT-006 (BEST-PRACTICE → SPEC-DEVIATION) |
 | Merged | 1 | QLT-007 → SRV-002 (Phase 03) |
 | Rejected | 0 | — |
@@ -272,9 +272,9 @@ None.
 
 ## Required Fixes
 
-- **QLT-001** — Remove broad `except Exception` in `search_match`; validate keywords at config load time and raise `ConfigError` on invalid syntax.
-- **QLT-003** — Fix contract mismatch: either remove `None` guard or change signature to `str | None`.
-- **QLT-006** — Raise `ConfigError` or use `logger.warning` with clear documentation for invalid `history_days`.
+- **QLT-001** — Add a `field_validator` for `keywords` in `ChannelConfig` that validates syntax at config-load time and raises `ConfigError` on invalid syntax; remove the broad `except Exception` in `search_match`.
+- **QLT-003** — Remove the unreachable `if query is None` guard in `parse_query` (lines 198-202) since the `str` type annotation already enforces non-None.
+- **QLT-006** — Raise `ConfigError` in `Task.set_offset_date` when `history_days` conversion fails, instead of silently logging and returning.
 
 ---
 
@@ -283,6 +283,15 @@ None.
 - **QLT-002** — Replace raw string token types with `TokenType(StrEnum)`.
 - **QLT-004** — Introduce typed boundary around Telethon API usage.
 - **QLT-005** — Wrap multi-line f-strings in parentheses to satisfy type checker.
-- **QLT-008** — Remove unused `PathResolver` class or integrate it into the codebase.
+- **QLT-008** — Remove the unused `PathResolver` class from core/paths.py (lines 27-76).
 
 ---
+
+## Refinement Notes
+
+The following findings had ambiguous recommendations resolved to single, actionable implementations:
+
+- **QLT-001** — Chose: Add `field_validator` for `keywords` in `ChannelConfig` + remove `except Exception` in `search_match` (fail-fast config validation vs. runtime swallowing)
+- **QLT-003** — Chose: Remove the unreachable `None` guard (type hint already enforces contract)
+- **QLT-006** — Chose: Raise `ConfigError` in `set_offset_date` (consistent with "never silently swallow errors" rule)
+- **QLT-008** — Chose: Remove unused `PathResolver` class (dead code elimination)
