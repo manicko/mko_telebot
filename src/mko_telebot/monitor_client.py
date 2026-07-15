@@ -8,7 +8,6 @@ from telethon import TelegramClient
 from mko_telebot.core import APP_PATHS
 from mko_telebot.core.models import TelepostSettings
 from telethon.tl.custom.message import Message
-from mko_telebot.core.errors import TelegramServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +123,7 @@ async def build_sender_tag(msg: Message) -> str:
         '@username' if available, otherwise 'First Last' or empty string.
 
     """
+    from telethon.errors import RPCError
 
     try:
         sender = await msg.get_sender()
@@ -146,7 +146,12 @@ async def build_sender_tag(msg: Message) -> str:
 
         return name.strip()
 
-    except TelegramServiceError as e:
+    except RPCError as e:
+        logger.exception(f"Error while building sender tag: {e}")
+
+        return ""
+
+    except (OSError, ConnectionError, TimeoutError) as e:
         logger.exception(f"Error while building sender tag: {e}")
 
         return ""

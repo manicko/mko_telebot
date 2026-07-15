@@ -387,10 +387,12 @@ class TestBuildSenderTag:
         result = await build_sender_tag(msg)
         assert result == ""
 
-    async def test_returns_empty_on_service_error(self) -> None:
-        """build_sender_tag() should return '' when TelegramServiceError occurs."""
+    async def test_returns_empty_on_rpc_error(self) -> None:
+        """build_sender_tag() should return '' when RPCError occurs."""
+        from telethon.errors import RPCError
+
         msg = MagicMock()
-        msg.get_sender = AsyncMock(side_effect=TelegramServiceError("Error"))
+        msg.get_sender = AsyncMock(side_effect=RPCError(MagicMock(), "Error"))
         result = await build_sender_tag(msg)
         assert result == ""
 
