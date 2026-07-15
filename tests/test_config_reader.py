@@ -557,6 +557,58 @@ class TestValidators:
         assert config.channels["test_channel"].scan_interval == 300
         assert config.channels["test_channel"].history_limit == 25
 
+    def test_explicit_list_overrides_preserved(self) -> None:
+        """Explicit forward_to/keywords lists should not be overwritten by defaults."""
+        channel = ChannelConfig(
+            name="@test",
+            forward_to=["@target1", "@target2"],
+            keywords=["foo", "bar"],
+        )
+        config = ChannelsConfig(
+            defaults=ChannelDefaults(
+                forward_to=["@default_target"],
+                keywords=["default_key"],
+            ),
+            channels={
+                "test_channel": channel,
+            },
+        )
+        # Explicit list values should be preserved
+        assert config.channels["test_channel"].forward_to == ["@target1", "@target2"]
+        assert config.channels["test_channel"].keywords == ["foo", "bar"]
+
+    def test_explicit_empty_list_preserved(self) -> None:
+        """Explicit empty forward_to/keywords lists should be preserved, not replaced."""
+        channel = ChannelConfig(name="@test", forward_to=[], keywords=[])
+        config = ChannelsConfig(
+            defaults=ChannelDefaults(
+                forward_to=["@default_target"],
+                keywords=["default_key"],
+            ),
+            channels={
+                "test_channel": channel,
+            },
+        )
+        # Explicit empty lists should be preserved (user's intent: no forwarding)
+        assert config.channels["test_channel"].forward_to == []
+        assert config.channels["test_channel"].keywords == []
+
+    def test_omitted_list_fields_get_defaults(self) -> None:
+        """Omitted forward_to/keywords lists should receive defaults."""
+        channel = ChannelConfig(name="@test")  # No forward_to/keywords specified
+        config = ChannelsConfig(
+            defaults=ChannelDefaults(
+                forward_to=["@default_target"],
+                keywords=["default_key"],
+            ),
+            channels={
+                "test_channel": channel,
+            },
+        )
+        # Omitted fields should get defaults
+        assert config.channels["test_channel"].forward_to == ["@default_target"]
+        assert config.channels["test_channel"].keywords == ["default_key"]
+
     def test_rejects_history_days_zero(self) -> None:
         """ChannelConfig should reject history_days=0 as invalid."""
         with pytest.raises(ValueError, match="greater than 0"):

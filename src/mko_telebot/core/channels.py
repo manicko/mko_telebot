@@ -117,16 +117,16 @@ class ChannelsConfig(BaseModel):
             # Build update data from field defaults
             update_data: dict[str, Any] = {}  # pyright: ignore[reportExplicitAny]
             for field_name, default_value in defaults_data.items():  # pyright: ignore[reportAny]
-                current_val: Any = getattr(channel, field_name)  # pyright: ignore[reportExplicitAny,reportAny]
+                # Skip if field was explicitly set on channel (including empty lists)
+                if field_name in channel.model_fields_set:
+                    continue
                 # Get the model's default for this field
                 field_info = ChannelConfig.model_fields[field_name]
-                # Check if field uses default_factory or has a static default
+                # Only apply defaults if field uses default_factory and current value is its default
                 if field_info.default_factory is not None:
-                    # For default_factory fields, current_val equals the default
-                    # if it's an empty list (the default_factory returns [])
-                    # We still want to apply defaults in this case for list fields
+                    # For default_factory fields, apply default only if not explicitly set
                     update_data[field_name] = default_value
-                elif current_val is None or current_val == field_info.default:  # pyright: ignore[reportAny]
+                elif getattr(channel, field_name) == field_info.default:  # pyright: ignore[reportAny]
                     update_data[field_name] = default_value
             if update_data:
                 # Merge channel's current values with defaults
