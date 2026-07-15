@@ -176,6 +176,10 @@ async def process_messages(
 
         if getattr(msg, "media", None):
             msg_content[group_id]["media"].append(msg.media)
+            # Extract media caption for keyword matching
+            media_caption = getattr(msg.media, "caption", None)
+            if media_caption:
+                msg_content[group_id]["text"].append(media_caption)
 
     for album_id, content in msg_content.items():
         msg_text = "\n".join(content.get("text", []))

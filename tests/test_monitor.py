@@ -26,7 +26,7 @@ from mko_telebot.monitor import process_and_reschedule
 # ---------------------------------------------------------------------------
 
 def _make_msg_stub(
-    msg_id: int, text: str = "", grouped_id: int | None = None, has_media: bool = False
+    msg_id: int, text: str = "", grouped_id: int | None = None, has_media: bool = False, media_caption: str | None = None
 ) -> MagicMock:
     """Create a mock Telethon message with given attributes and async get_sender."""
     msg = MagicMock()
@@ -36,7 +36,7 @@ def _make_msg_stub(
     msg.get_sender = AsyncMock(return_value=None)
     if has_media:
         media = MagicMock()
-        media.caption = None
+        media.caption = media_caption
         msg.media = media
     else:
         msg.media = None
@@ -732,6 +732,64 @@ class TestProcessMessages:
         # Both messages should be forwarded (2 messages × 2 targets = 4 calls)
         assert mock_client.send_message.await_count == 4
 
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/80")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_forwards_media_with_matching_caption(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should forward media when caption matches keywords."""
+        msg = _make_msg_stub(80, "", has_media=True, media_caption="test photo caption")
+        msg.chat.username = "test_channel"
+        await process_messages([msg], mock_task, mock_client, mock_settings)
+        assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/81")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_does_not_forward_media_with_non_matching_caption(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should not forward media when caption has no keyword match."""
+        msg = _make_msg_stub(81, "", has_media=True, media_caption="random caption")
+        msg.chat.username = "test_channel"
+        await process_messages([msg], mock_task, mock_client, mock_settings)
+        mock_client.send_message.assert_not_called()
+        mock_client.send_file.assert_not_called()
+
+    @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
+    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/82")
+    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    async def test_includes_caption_in_forwarded_text(
+        self,
+        mock_sender_tag: AsyncMock,
+        mock_message_link: MagicMock,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
+    ) -> None:
+        """process_messages() should include media caption in forwarded message text."""
+        msg = _make_msg_stub(82, "test", has_media=True, media_caption="photo test caption")
+        msg.chat.username = "test_channel"
+        await process_messages([msg], mock_task, mock_client, mock_settings)
+        args, kwargs = mock_client.send_file.call_args
+        caption = kwargs.get("caption", "")
+        assert "test" in caption
+        assert "photo" in caption
+
 
 # ---------------------------------------------------------------------------
 # process_and_reschedule
@@ -812,7 +870,7 @@ class TestRunMonitor:
                 mock_client.disconnect.assert_called_once()
 
     async def test_does_not_run_loop_on_auth_failure(self) -> None:
-        """run_monitor() should not enter main_loop if start_client fails."""
+        """run_monitor() should not enter mainLoop if start_client fails."""
         mock_client = MagicMock()
         mock_client.disconnect = Mock()
 
@@ -861,7 +919,7 @@ class TestMainLoop:
         ):
             mock_task_instance = MagicMock()
             mock_task_instance.resolve_channel_entity = AsyncMock()
-            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.resolve_state_file = Mock()
             mock_task_instance.load_state = AsyncMock()
             mock_task_instance.resolve_targets_entities = AsyncMock()
             mock_task_class.return_value = mock_task_instance
@@ -911,7 +969,7 @@ class TestMainLoop:
         ):
             mock_task_instance = MagicMock()
             mock_task_instance.resolve_channel_entity = AsyncMock()
-            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.resolve_state_file = Mock()
             mock_task_instance.load_state = AsyncMock()
             mock_task_instance.resolve_targets_entities = AsyncMock()
             mock_task_class.return_value = mock_task_instance
@@ -960,7 +1018,7 @@ class TestMainLoop:
         ):
             mock_task_instance = MagicMock()
             mock_task_instance.resolve_channel_entity = AsyncMock()
-            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.resolve_state_file = Mock()
             mock_task_instance.load_state = AsyncMock()
             mock_task_instance.resolve_targets_entities = AsyncMock()
             mock_task_class.return_value = mock_task_instance
@@ -1009,7 +1067,7 @@ class TestMainLoop:
         ):
             mock_task_instance = MagicMock()
             mock_task_instance.resolve_channel_entity = AsyncMock()
-            mock_task_instance.resolve_state_file = MagicMock()
+            mock_task_instance.resolve_state_file = Mock()
             mock_task_instance.load_state = AsyncMock()
             mock_task_instance.resolve_targets_entities = AsyncMock()
             mock_task_class.return_value = mock_task_instance
