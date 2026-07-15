@@ -6,19 +6,54 @@ Provides functions to process messages and forward matched content to targets.
 import asyncio
 import logging
 import random
+from collections.abc import Sequence
 from typing import Any
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError, WorkerBusyTooLongRetryError
+from telethon.hints import Entity
 from telethon.tl.custom.message import Message
 
 from mko_telebot.core import Task, search_match
 from mko_telebot.core.errors import TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 from .monitor_client import build_message_link, build_sender_tag
-from telethon.hints import Entity
 
 logger = logging.getLogger(__name__)
+
+
+def _group_messages_by_album(
+    messages: Sequence[Message],
+) -> dict[int | None, dict[str, Any]]:
+    """Group messages by their album_id for combined processing.
+
+    Groups messages that share the same grouped_id (album) and extracts
+    their text content and media for keyword matching and forwarding.
+
+    Args:
+        messages: Sequence of Telethon Message objects to group.
+
+    Returns:
+        Dictionary mapping group_id to content dict with 'msg', 'text', and 'media' lists.
+    """
+    msg_content: dict[int | None, dict[str, Any]] = {}
+    for msg in messages:
+        group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
+
+        if group_id not in msg_content:
+            msg_content[group_id] = {"msg": msg, "text": [], "media": []}
+
+        if getattr(msg, "message", None):
+            msg_content[group_id]["text"].append(msg.message)
+
+        if getattr(msg, "media", None):
+            msg_content[group_id]["media"].append(msg.media)
+            # Extract media caption for keyword matching
+            media_caption = getattr(msg.media, "caption", None)
+            if media_caption:
+                msg_content[group_id]["text"].append(media_caption)
+
+    return msg_content
 
 
 async def _send_with_retry(
@@ -108,7 +143,6 @@ async def forward_to_users(
         settings: Application settings (used for max_retries).
 
     """
-
     link = build_message_link(msg)
 
     sender_tag = await build_sender_tag(msg)
@@ -163,23 +197,7 @@ async def process_messages(
     if not messages:
         return
 
-    msg_content = {}
-
-    for msg in messages:
-        group_id = msg.grouped_id if getattr(msg, "grouped_id", None) else msg.id
-
-        if group_id not in msg_content:
-            msg_content[group_id] = {"msg": msg, "text": [], "media": []}
-
-        if getattr(msg, "message", None):
-            msg_content[group_id]["text"].append(msg.message)
-
-        if getattr(msg, "media", None):
-            msg_content[group_id]["media"].append(msg.media)
-            # Extract media caption for keyword matching
-            media_caption = getattr(msg.media, "caption", None)
-            if media_caption:
-                msg_content[group_id]["text"].append(media_caption)
+    msg_content = _group_messages_by_album(messages)
 
     for album_id, content in msg_content.items():
         msg_text = "\n".join(content.get("text", []))
@@ -206,7 +224,6 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         settings (TelepostSettings): Application settings.
 
     """
-
     logger.debug(f"{task.channel_name} is processed")
 
     # Ensure channel_entity is resolved before fetching messages
