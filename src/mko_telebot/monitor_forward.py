@@ -159,7 +159,7 @@ def _build_caption(msg_text: str | None, sender_tag: str | None, link: str | Non
 
 
 async def process_messages(
-    messages: list[Message],
+    messages: Sequence[Message],
     task: Task,
     client: TelegramClient,
     settings: TelepostSettings,
@@ -167,7 +167,7 @@ async def process_messages(
     """Process messages, group albums, check keywords, and forward matches.
 
     Args:
-        messages (list[telethon.tl.custom.message.Message]): List of Telethon messages.
+        messages (Sequence[telethon.tl.custom.message.Message]): Sequence of Telethon messages.
         task (Task): Task object with configuration for a specific channel.
         client (TelegramClient): The Telethon client instance.
         settings (TelepostSettings): Application settings.
