@@ -10,7 +10,13 @@ from collections.abc import Sequence
 from typing import Any
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError, RPCError, WorkerBusyTooLongRetryError
+from telethon.errors import (
+    FloodWaitError,
+    RPCError,
+    ServerError,
+    TimedOutError,
+    WorkerBusyTooLongRetryError,
+)
 from telethon.hints import Entity
 from telethon.tl.custom.message import Message
 
@@ -84,8 +90,6 @@ async def _send_message_to_target(
         await client.send_message(target, caption or "", link_preview=False)
 
 
-
-
 async def _send_with_retry(
     client: TelegramClient,
     target: Entity,
@@ -109,13 +113,22 @@ async def _send_with_retry(
             )
             await asyncio.sleep(wait_time)
 
-        except (WorkerBusyTooLongRetryError, RPCError) as e:
+        except (ServerError, TimedOutError, WorkerBusyTooLongRetryError) as e:
+            # Transient errors - retry with backoff
             wait_time = _calculate_retry_delay(attempt, is_flood_wait=False)
             logger.warning(
                 (f"{type(e).__name__} {e}, retry {attempt + 1}/{max_tries} "  # noqa: UP034
                  f"for {getattr(target, 'id', target)}")  # noqa: UP034
             )
             await asyncio.sleep(wait_time)
+
+        except RPCError as e:
+            # Permanent RPCError subclasses (UnauthorizedError family) - fail fast
+            logger.error(
+                (f"Permanent RPC error {type(e).__name__} {e} "  # noqa: UP034
+                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
+            )
+            raise
 
     return False
 

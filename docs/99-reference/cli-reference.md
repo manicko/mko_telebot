@@ -63,6 +63,7 @@ mko-telebot init [OPTIONS]
 - Copies them to `~/.config/mko_telebot/settings/` (platform-dependent, see [Config File Locations](#config-file-locations)).
 - If a file already exists at the destination and `--force` is not set, it is skipped.
 - Creates the destination directory if it does not exist.
+- **Credential safety:** when `--force` is used, an existing `telethon_config.yaml` is **preserved** and not overwritten by the template. This prevents accidental loss of Telegram credentials (`api_id`, `api_hash`, `phone_or_token`). Only files that do not already exist are copied; a log message notes that the existing credential file was kept.
 
 **Template files copied:**
 
@@ -79,6 +80,7 @@ mko-telebot init [OPTIONS]
 |------|-----------|
 | `0` | Success — files copied (or skipped where applicable). |
 | `1` | Template settings directory not found (`app_settings_dir` missing). |
+| `1` | Filesystem error while creating the directory or copying templates (e.g. permission denied). |
 
 **Examples:**
 

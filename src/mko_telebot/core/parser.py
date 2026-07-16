@@ -208,10 +208,8 @@ def parse_query(query: str) -> tuple[list[ASTNode], list[ASTNode]]:
           - exclusions: list of ASTNode patterns that must NOT be present
 
     Raises:
-        ValueError: If query is None or empty after cleaning.
+        ValueError: If query is empty after cleaning.
     """
-    if query is None:
-        raise ValueError("Query cannot be None")
     clean = query.strip().strip("\"'")
     if clean == "":
         raise ValueError("Query cannot be empty")

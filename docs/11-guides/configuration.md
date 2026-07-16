@@ -28,8 +28,9 @@ This document describes all configuration files used by mko-telebot: their locat
 5. [Proxy Configuration](#proxy-configuration)
 6. [`log_config.yaml` — Logging Configuration](#log_configyaml--logging-configuration)
 7. [SecretStr Handling](#secretstr-handling)
-8. [Validation Rules](#validation-rules)
-9. [Example Files](#example-files)
+8. [Credential File Permissions](#credential-file-permissions)
+9. [Validation Rules](#validation-rules)
+10. [Example Files](#example-files)
 
 ---
 
@@ -394,6 +395,17 @@ If any field fails validation, a `ConfigError` with a descriptive message is rai
 
 ---
 
+## Credential File Permissions
+
+On POSIX systems, the application tightens filesystem permissions when it creates the user settings directory and credential files, reducing exposure on shared or multi-user hosts:
+
+- **Settings directory** — created with mode `0700` (owner read/write/execute only).
+- **Credential files** — `telethon_config.yaml` (and any other file holding `SecretStr` fields) is written with mode `0600` (owner read/write only).
+
+These restrictions are best-effort: on non-POSIX platforms (e.g. Windows) the permission change is skipped gracefully and does not affect normal operation. Combined with [SecretStr Handling](#secretstr-handling), this provides defense-in-depth for Telegram credentials at rest — values are both masked in logs and restricted on disk.
+
+---
+
 ## Validation Rules
 
 The configuration is validated against Pydantic v2 models when `TelepostConfigReader.load()` is called. The validation pipeline:
@@ -406,9 +418,12 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
    - `ClientConfig` (from `TELETHON_API.client` key)
    - `ChannelsConfig` (from `CHANNELS` key)
 5. **Model validators** run custom checks:
-   - Extra fields at any level are rejected (extra="forbid" on all models)
-   - Channel names are validated to prevent path traversal attacks
-   - Placeholder values are rejected (see [SecretStr Handling](#secretstr-handling))
+- Extra fields at any level are rejected (extra="forbid" on all models)
+- Channel names are validated to prevent path traversal attacks
+- Keyword patterns are syntax-checked; a malformed keyword raises `ConfigError` at load time (see [Keyword Pattern Syntax](#keyword-pattern-syntax))
+    - `history_days`, when provided, must be a positive integer; an invalid value raises `ConfigError`
+    - Placeholder values are rejected (see [SecretStr Handling](#secretstr-handling))
+    - On POSIX, the user settings directory is created with `0700` permissions and credential files are written with `0600` permissions (see [Credential File Permissions](#credential-file-permissions))
 
 ### Common Validation Errors
 
@@ -424,6 +439,8 @@ The configuration is validated against Pydantic v2 models when `TelepostConfigRe
 | `Invalid channel name: contains forbidden path character` | Channel name contains `/`, `\`, or `..` |
 | `proxy_type must be one of {...}` | Invalid proxy type value |
 | `rdns must be a boolean if provided` | `rdns` field has non-boolean value |
+| `Invalid keyword pattern: ...` | A keyword in `keywords` fails syntax parsing (e.g. unbalanced parentheses) |
+| `history_days must be a positive integer` | `history_days` is zero, negative, or non-numeric |
 
 ---
 

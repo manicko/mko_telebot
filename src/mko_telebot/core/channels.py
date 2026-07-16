@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Any, ClassVar
 
 
@@ -50,6 +50,24 @@ class ChannelConfig(BaseModel):
             )
         return v
 
+    @field_validator("keywords", mode="before")
+    @classmethod
+    def validate_keywords(cls, v: list[str]) -> list[str]:
+        """Validate keywords can be parsed and are non-empty strings."""
+        if not v:
+            return v
+        from mko_telebot.core.parser import parse_query
+        for keyword in v:
+            if not isinstance(keyword, str):
+                raise ValueError(f"Keyword must be a string, got {type(keyword).__name__}")
+            if not keyword.strip():
+                raise ValueError("Keyword cannot be empty or whitespace only")
+            try:
+                parse_query(keyword)
+            except ValueError as e:
+                raise ValueError(f"Invalid keyword '{keyword}': {e}") from e
+        return v
+
 
 class ChannelDefaults(BaseModel):
     """Default values applied to all channels.
@@ -76,6 +94,24 @@ class ChannelDefaults(BaseModel):
     overlap: int = Field(
         default=5, ge=1, description="Number of overlapping messages between scans"
     )
+
+    @field_validator("keywords", mode="before")
+    @classmethod
+    def validate_keywords(cls, v: list[str]) -> list[str]:
+        """Validate keywords can be parsed and are non-empty strings."""
+        if not v:
+            return v
+        from mko_telebot.core.parser import parse_query
+        for keyword in v:
+            if not isinstance(keyword, str):
+                raise ValueError(f"Keyword must be a string, got {type(keyword).__name__}")
+            if not keyword.strip():
+                raise ValueError("Keyword cannot be empty or whitespace only")
+            try:
+                parse_query(keyword)
+            except ValueError as e:
+                raise ValueError(f"Invalid keyword '{keyword}': {e}") from e
+        return v
 
 
 class ChannelsConfig(BaseModel):

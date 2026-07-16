@@ -115,6 +115,10 @@ Two safeguards protect the monitor before the scan loop starts, and a third hand
 - **Per-channel init isolation** — During startup, each channel's entity and target resolution is wrapped in error handling. If one channel fails to resolve (e.g. wrong identifier, deleted channel, or Telegram rate limit), the failure is logged and that channel is skipped while the remaining channels continue to initialize and are monitored normally.
 - **Resolution rate-limit handling** — `FloodWaitError` raised while resolving channels or targets is handled by waiting the required duration plus jitter before failing, so transient rate-limit windows do not immediately abort channel setup.
 
+### Runtime Channel Resilience
+
+Beyond startup safeguards, the monitor guarantees that channels survive errors raised *during* a scan. Each channel's processing is wrapped so that `reschedule_task` always runs in a `finally` block, regardless of whether the scan raises. A transient failure (Telegram RPC error, network blip, malformed message) is logged and the channel is re-enqueued for its next interval — it is never permanently dropped from the monitoring queue. This keeps the long-running monitor self-healing instead of silently losing channels after the first error.
+
 ---
 
 ## Key Features
@@ -136,6 +140,10 @@ Two safeguards protect the monitor before the scan loop starts, and a third hand
 | Graceful state save | State save failures logged without interrupting monitoring |
 | Startup channel validation | Fails fast with a clear `ConfigError` when no channels are configured, preventing an infinite hang |
 | Per-channel init isolation | A channel that fails to resolve at startup is skipped and logged so the remaining channels keep being monitored |
+| Runtime channel resilience | A channel that errors during a scan is logged and rescheduled; it is never permanently dropped from monitoring |
+| Config-load validation | Keyword syntax and `history_days` are validated at load time; invalid values raise `ConfigError` before the monitor starts |
+| Credential file protection | `init --force` preserves an existing `telethon_config.yaml` so credentials are never overwritten by templates |
+| Credential file permissions | On POSIX, credential files are set to `0600` and the config directory to `0700` to limit exposure on multi-user systems |
 | History day filtering | `history_days` limits scanning to recent messages only |
 
 ---
