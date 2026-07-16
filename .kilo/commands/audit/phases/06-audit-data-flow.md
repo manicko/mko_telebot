@@ -8,6 +8,14 @@ problems-only: true
 
 # Phase 06 Audit — End-to-End Data Flow
 
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing how data moves through
+ANY system from entry point to final output. It is not tied to a specific pipeline,
+domain, or set of stages. Apply the discovery steps and audit dimensions to whatever
+the system's end-to-end flow actually is, adapting concrete names to the
+implementation at hand.
+
 ## Output Mode
 
 `problems-only: true` — **only problems, bugs, and deviations are documented.**
@@ -23,9 +31,9 @@ problems-only: true
 
 Before performing audit checks, trace the complete data flow:
 
-1. **Full Pipeline Mapping** — Trace the entire path: `CLI command` → `config loading` → `Telegram client auth` → `per-channel message fetching` → `keyword matching` → `message forwarding`.
-2. **Config Propagation Trace** — For each config section, trace exactly how it flows from YAML → Pydantic model → function parameter. Identify every hop.
-3. **Message Lifecycle** — Pick a single message and trace it from the Telegram channel to the forwarded message. Document every transformation.
+1. **Full Pipeline Mapping** — Trace the entire path: entry command → config loading → external auth/connection → per-source data fetching → matching/filtering → dispatch/output.
+2. **Config Propagation Trace** — For each config section, trace exactly how it flows from source → typed model → function parameter. Identify every hop.
+3. **Item Lifecycle** — Pick a single data item and trace it from source to final output. Document every transformation.
 4. **Error Path Mapping** — For each stage in the pipeline, identify what happens on failure. Does the error propagate correctly? Is cleanup guaranteed?
 
 ---
@@ -36,7 +44,7 @@ Before performing audit checks, trace the complete data flow:
 
 ### Step R1 — Import Full Pipeline
 
-Import the CLI entry point, config reader, and all service modules. Verify the full chain is importable.
+Import the entry point, config reader, and all service modules. Verify the full chain is importable.
 
 ### Step R2 — Linter and Type Checker
 
@@ -54,7 +62,7 @@ Run the complete test suite.
 
 ## Audit Scope
 
-End-to-end data flow from CLI invocation through config loading, Telegram client auth, message fetching, processing, and forwarding. Cross-layer interaction verification.
+End-to-end data flow from entry invocation through config loading, external auth, data fetching, processing, and dispatch. Cross-layer interaction verification.
 
 ---
 
@@ -62,51 +70,51 @@ End-to-end data flow from CLI invocation through config loading, Telegram client
 
 ### 1. Config-to-Service Propagation
 
-**Trace each config section from YAML to its final consumer. Document every hop.**
+**Trace each config section from source to its final consumer. Document every hop.**
 
 | Config Section | Expected Consumer | Verification |
 |----------------|-------------------|--------------|
-| `telethon.*` | `TelegramClient()` | Verify api_id, api_hash, session all reach the client. |
-| `scan_interval` | `monitor.py` main loop | Verify interval controls monitoring frequency. |
-| `channels` | `Task` creation in monitor.py | Verify channel_name, forward_to, keywords all reach the Task. |
+| connection/auth settings | client creation | Verify all credentials/connection params reach the client. |
+| scheduling/interval settings | main loop | Verify the interval controls the processing frequency. |
+| source/target settings | per-item task creation | Verify source names, targets, and filter criteria all reach the task. |
 
-**For each field, document:** YAML key → Pydantic model field → function parameter. If any hop is missing or broken, that is a finding.
+**For each field, document:** source key → model field → function parameter. If any hop is missing or broken, that is a finding.
 
-### 2. Message Lifecycle Trace
+### 2. Item Lifecycle Trace
 
-**Trace a single message from Telegram channel to forwarded message. Document every transformation.**
+**Trace a single data item from source to final output. Document every transformation.**
 
 | Stage | Input | Output | Verification |
 |-------|-------|--------|--------------|
-| Telegram message fetch | channel_name | `Message` objects | Verify messages are fetched correctly. |
-| Keyword matching | message text, keywords | match/no-match | Verify filter logic is correct. |
-| Album grouping | messages with media_group_id | grouped message list | Verify album logic works. |
-| Task state update | processed messages | `last_msg_id` update | Verify state is persisted. |
-| Forwarding | matched messages, targets | Telegram API call | Verify messages are forwarded correctly. |
+| Source fetch | source identifier | raw items | Verify items are fetched correctly. |
+| Matching/filtering | item content, criteria | match/no-match | Verify filter logic is correct. |
+| Grouping | related items | grouped list | Verify grouping logic works. |
+| State update | processed items | last-processed marker update | Verify state is persisted. |
+| Dispatch | matched items, targets | external API call | Verify items are dispatched correctly. |
 
 **If any transformation is incorrect, missing, or loses data, that is a finding.**
 
-### 3. Multi-Channel Flow Correctness
+### 3. Multi-Source Flow Correctness
 
 | Check | Description |
 |-------|-------------|
-| Each channel gets its own messages | Messages from channel A are not fetched for channel B. |
-| Channel-specific delays | `scan_interval` is applied per-channel. |
-| All channels are processed | Every channel in the config list is processed, not just the first one. |
-| Empty channels are handled | A channel with no new messages is skipped gracefully (no crash). |
+| Each source gets its own data | Data from source A is not fetched for source B. |
+| Source-specific delays | The interval is applied per source. |
+| All sources are processed | Every source in the config list is processed, not just the first one. |
+| Empty sources are handled | A source with no new data is skipped gracefully (no crash). |
 
-**Evidence required:** Read the multi-channel loop in `monitor.py`. Verify messages are correctly scoped to each channel.
+**Evidence required:** Read the multi-source loop. Verify data is correctly scoped to each source.
 
 ### 4. Error Propagation & Cleanup
 
 | Check | Description |
 |-------|-------------|
-| Config error stops before fetching | If config is invalid, the CLI reports the error and exits without attempting to fetch. |
-| Telegram failure doesn't crash the app | If sending to one channel fails, other channels are still processed. |
+| Config error stops before fetching | If config is invalid, the entry layer reports the error and exits without attempting to fetch. |
+| External failure doesn't crash the app | If dispatch to one target fails, other targets are still processed. |
 | State save failures handled | If state save fails, the error is logged but processing continues. |
-| Cleanup runs on success | After all messages are forwarded, resources are cleaned up. |
-| Cleanup runs on failure | If forwarding fails mid-way, cleanup still runs. |
-| KeyboardInterrupt is handled | Pressing Ctrl+C during monitoring stops gracefully. |
+| Cleanup runs on success | After all items are dispatched, resources are cleaned up. |
+| Cleanup runs on failure | If dispatch fails mid-way, cleanup still runs. |
+| Interrupt is handled | An interrupt during processing stops gracefully. |
 
 **Evidence required:** Read error handling at each stage. Verify `try/finally` or context managers are used where needed.
 
@@ -114,9 +122,9 @@ End-to-end data flow from CLI invocation through config loading, Telegram client
 
 | Check | Description |
 |-------|-------------|
-| No message loss between stages | Every message that matches keywords is forwarded. No messages are silently dropped. |
-| Text content is preserved | Message text is not truncated or modified incorrectly. |
-| Duplicate prevention works | Messages with same id are not re-forwarded. |
+| No item loss between stages | Every item that matches criteria is dispatched. No items are silently dropped. |
+| Content is preserved | Item content is not truncated or modified incorrectly. |
+| Duplicate prevention works | Items with the same identifier are not re-dispatched. |
 
 **Evidence required:** Trace data through each transformation. Check for off-by-one errors or incorrect state management.
 
@@ -136,4 +144,4 @@ Use prefix `DF-` for finding IDs.
 - If after completing all Runtime Verification steps and all Audit Dimensions, no problems were found, write a single line: `No problems found in this phase.`
 - Every finding MUST include:
   1. **Runtime evidence** — traced data flow showing where the break occurs, test failures, missing error handlers.
-  2. **Not just:** "violates invariant X" — show the exact stage, the exact data, and the exact consequence (lost post, wrong chat, orphaned file).
+  2. **Not just:** "violates invariant X" — show the exact stage, the exact data, and the exact consequence (lost item, wrong target, orphaned file).

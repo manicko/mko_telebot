@@ -8,6 +8,13 @@ problems-only: true
 
 # Phase 07 Audit — Test Quality
 
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing the test suite of ANY
+project. It is not tied to a specific test runner, mocking library, or set of
+modules. Apply the discovery steps and audit dimensions to whatever the system's
+testing setup actually is, adapting concrete names to the implementation at hand.
+
 ## Output Mode
 
 `problems-only: true` — **only problems, bugs, and deviations are documented.**
@@ -23,8 +30,8 @@ problems-only: true
 
 Before performing audit checks, discover the testing architecture:
 
-1. **Test Framework Discovery** — Identify test runner (pytest), map test organization (unit per module), discover fixture patterns in `conftest.py`, find mocking strategy (pytest-mock).
-2. **Coverage Discovery** — Map which architectural blocks have tests: CLI, config/models, services (PostProcessor, ImageCache, TelegramPoster, GSheetsReader), integrations, data flow.
+1. **Test Framework Discovery** — Identify the test runner, map test organization (unit per module), discover fixture/sharing patterns, find the mocking strategy.
+2. **Coverage Discovery** — Map which architectural blocks have tests: entry layer, config/models, services, integrations, data flow.
 3. **Test Patterns Discovery** — Identify common anti-patterns, map mocking strategies, discover assertion patterns, find async/sync test handling.
 4. **Quality Discovery** — Identify tautological tests, map coverage gaps in critical paths, discover test brittleness indicators.
 
@@ -77,7 +84,7 @@ Identify critical paths with low or zero coverage:
 
 - For each critical architectural block, check if tests exist.
 - For each critical path without tests, create a finding.
-- If no coverage tool is configured, note it (but it is not a finding for a CLI tool — coverage is advisory).
+- If no coverage tool is configured, note it (but it is not a finding — coverage is advisory).
 
 ---
 
@@ -93,13 +100,11 @@ All test files, test fixtures, mocking strategies, test coverage, test isolation
 
 | Component | Must Have Tests For |
 |-----------|-------------------|
-| CLI commands | Each command (init, run, config, version). Error paths tested. |
+| CLI commands (init, validate, run, config, version) | Each command/operation. Error paths tested. |
 | Config loading | Valid config, invalid config, missing config, path resolution. |
-| Pydantic models | Model validation, field constraints, custom validators, extra field rejection. |
-| PostProcessor | Filter logic, photo extraction, max_photos limit, empty data. |
-| ImageCache | Resize, cache hit, cache miss, error handling, cleanup_unused. |
-| TelegramPoster | Message sending, file sending, retry logic, flood control. |
-| GSheetsReader | OAuth2 flow, API error handling, data format, path resolution. |
+| core/models, core/channels, core/telethon (Typed models) | Model validation, field constraints, custom validators, unknown-key rejection. |
+| monitor_forward (process_task, process_messages, forward_to_users) | Message fetching, keyword matching, forwarding logic, error handling. |
+| monitor_client | Client creation, auth/connection flow, message link building, sender tag. |
 | Init service | Template copying, force flag, path creation. |
 | Error handling | Custom exceptions raised correctly. |
 
@@ -111,7 +116,7 @@ All test files, test fixtures, mocking strategies, test coverage, test isolation
 |-------|-------------|
 | No tautological tests | Every test can actually fail. |
 | Assertions verify outcomes | Tests check return values and side effects, not just mock call counts. |
-| Mocks at boundaries only | External APIs (Google Sheets, Telegram) are mocked. Internal logic is tested directly. |
+| Mocks at boundaries only | External systems are mocked. Internal logic is tested directly. |
 | No shared mutable state | Tests are independent and can run in any order. |
 | Tests don't depend on execution order | Any test can run in isolation. |
 | No over-mocking | Tests do not mock the function they are testing. |
@@ -122,18 +127,18 @@ All test files, test fixtures, mocking strategies, test coverage, test isolation
 
 | Check | Description |
 |-------|-------------|
-| Mocks match real API | Mock return values match the real API response format (e.g., Google Sheets returns `list[list]`). |
-| Error paths are mocked | Tests cover API error scenarios (not just happy paths) by mocking error responses. |
-| Async mocks are correct | If the service uses async, mocks use `AsyncMock` or `CoroutineMock`. |
+| Mocks match real API | Mock return values match the real response format of the system under test. |
+| Error paths are mocked | Tests cover error scenarios (not just happy paths) by mocking error responses. |
+| Async mocks are correct | If the service uses async, mocks use the async-mock equivalent for the framework in use. |
 
-**Evidence required:** Read mock setups in test files. Compare mock return values against real API response formats.
+**Evidence required:** Read mock setups in test files. Compare mock return values against real response formats.
 
 ### 4. Test Quality Indicators
 
 | Check | Description |
 |-------|-------------|
 | Tests are readable | Test names describe the scenario. Setup is minimal. Assertions are clear. |
-| Tests are fast | Unit tests complete in milliseconds. No real network calls in unit tests. |
+| Tests are fast | Unit tests complete quickly. No real network calls in unit tests. |
 | Tests are deterministic | Same input always produces the same result. No time-dependent tests without freezing. |
 
 **Evidence required:** Read test files. Run the test suite and check execution time.

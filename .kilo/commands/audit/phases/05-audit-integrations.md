@@ -8,6 +8,18 @@ problems-only: true
 
 # Phase 05 Audit — External Integrations
 
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing how an application
+integrates with external systems (APIs, services, subprocesses, browsers, devices).
+It is not tied to a specific integration, SDK, or protocol. Apply the discovery
+steps and audit dimensions to whatever external integrations the system actually
+has, adapting concrete names to the implementation at hand.
+
+[Adapt these checks to the integrations the system actually has — e.g., a messaging
+platform, a tabular data service, a database, a browser automation tool, a CLI
+subprocess. Keep the *properties* being verified; rename only the concrete names.]
+
 ## Output Mode
 
 `problems-only: true` — **only problems, bugs, and deviations are documented.**
@@ -23,33 +35,34 @@ problems-only: true
 
 Before performing audit checks, discover the integration architecture:
 
-1. **Telegram Integration Discovery** — Locate the Telethon client setup. Map the auth flow: api_id/api_hash → session → client → send operations. Identify how messages are fetched and forwarded.
-2. **Error Handling Discovery** — Identify error handling patterns for the Telegram integration: what happens when the API is unreachable? When credentials are invalid? When rate limits are hit?
-3. **Config Injection Discovery** — Trace how API credentials and settings flow from Pydantic models into the integration clients.
+1. **External Integration Discovery** — Locate each external client setup. Map the auth/connection flow: credentials → session/connection → client → send/fetch operations. Identify how data is fetched and dispatched.
+2. **Error Handling Discovery** — Identify error-handling patterns for each integration: what happens when the service is unreachable? When credentials are invalid? When rate limits are hit?
+3. **Config Injection Discovery** — Trace how credentials and settings flow from typed models into the integration clients.
+4. **Lifecycle Discovery** — Identify how clients/connections are created, started, stopped, and cleaned up (connection pooling, resource disposal).
 
 ---
 
 ## Audit Scope
 
-Telegram API integration (TelegramClient), Telethon error handling, credential management.
+External integration clients, their error handling, credential management, lifecycle, and config injection.
 
 ---
 
 ## Audit Dimensions
 
-### 1. Telegram Integration
+### 1. External Integration Correctness
 
 | Check | Description |
 |-------|-------------|
-| Client creation is correct | `TelegramClient` is created with the correct session name, api_id, and api_hash from config. |
-| Auth supports both user and bot | The `is_user` flag correctly switches between phone auth and bot token auth. |
-| Messages sent with correct parameters | `send_message` and `send_file` are called with the correct chat_id and content. |
-| Flood control is handled | `FloodWaitError` triggers a wait-and-retry with the specified duration plus jitter. |
-| Other transient errors are retried | `WorkerBusyTooLongRetryError` and `RPCError` trigger retries with exponential backoff. |
-| Permanent errors are not retried indefinitely | After max retries, the error is logged and the post is skipped (not retried forever). |
-| Client lifecycle is managed | The Telegram client is properly started and stopped. |
+| Client creation is correct | The client is created with the correct connection/session name and credentials from config (not hardcoded). |
+| Auth supports the required modes | The system correctly switches between supported auth modes when applicable. |
+| Operations called with correct parameters | Send/fetch operations are called with the correct target identifiers and content. |
+| Rate-limit control is handled | Rate-limit errors trigger a wait-and-retry with the specified duration plus jitter. |
+| Other transient errors are retried | Transient/network errors trigger retries with exponential backoff. |
+| Permanent errors are not retried indefinitely | After max retries, the error is logged and the item is skipped (not retried forever). |
+| Client lifecycle is managed | The client/connection is properly started and stopped; resources are disposed. |
 
-**Evidence required:** Read `monitor_client.py` and `monitor_forward.py`. Verify retry logic and client lifecycle.
+**Evidence required:** Read the client wrapper and dispatch logic. Verify retry logic and client lifecycle.
 
 ---
 

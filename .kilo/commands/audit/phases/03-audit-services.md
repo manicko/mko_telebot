@@ -8,6 +8,14 @@ problems-only: true
 
 # Phase 03 Audit — Service Layer & Business Logic
 
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing the service/business
+logic layer of ANY application. It is not tied to a specific framework, library, or
+set of domain modules. Apply the discovery steps and audit dimensions to whatever
+the system's service layer actually contains (services, use cases, processors,
+clients), adapting concrete names to the implementation at hand.
+
 ## Output Mode
 
 `problems-only: true` — **only problems, bugs, and deviations are documented.**
@@ -26,7 +34,9 @@ Before performing audit checks, discover the service layer architecture:
 1. **Service Discovery** — Locate all service modules. Map their responsibilities: what does each module do? What are its dependencies?
 2. **Module Responsibility Mapping** — For each module: what is its purpose? Does it have a focused, single responsibility?
 3. **Dependency Graph** — Map how modules depend on each other. Identify the composition root (where components are instantiated and wired together).
-4. **Message Processing Chain** — Trace how Telegram messages are processed for forwarding: entity resolution, keyword matching, album grouping, and message sending. Identify each transformation step.
+4. **Processing Chain Discovery** — Trace how the system's core data is processed end-to-end: input acquisition, matching/filtering, transformation/grouping, and output dispatch. Identify each transformation step.
+
+[Adapt these steps to the domain the system actually implements — e.g., a message pipeline, a data ingestion pipeline, a request handler.]
 
 ---
 
@@ -60,7 +70,7 @@ Search for functions/methods defined but never called outside tests.
 
 ## Audit Scope
 
-Service classes (monitor_forward.py, monitor_client.py), Task model, business logic, Telegram message processing.
+Service classes/modules, domain models, business logic, and the core processing pipeline.
 
 ---
 
@@ -70,31 +80,31 @@ Service classes (monitor_forward.py, monitor_client.py), Task model, business lo
 
 | Check | Description |
 |-------|-------------|
-| Each module has focused responsibilities | `monitor_forward.py` handles message processing and forwarding. `monitor_client.py` handles Telethon client wrapper. |
-| Task combines config and resolution | Task is designed to hold channel configuration with integrated entity resolution methods. |
+| Each module has focused responsibilities | Modules are organized by a clear, single purpose (e.g., one handles processing/forwarding, another wraps the external client). |
+| Models combine related state | Domain models hold configuration together with the methods that operate on that configuration. |
 
-**Evidence required:** Read each module. Verify the design follows the documented purpose: "Per-channel state management."
+**Evidence required:** Read each module. Verify the design follows its documented purpose.
 
 ### 2. Dependency Direction
 
 | Check | Description |
 |-------|-------------|
-| Services depend on abstractions/models | Services receive Pydantic models, not raw dicts or YAML data. |
+| Services depend on abstractions/models | Services receive typed models, not raw parsed data. |
 | No circular dependencies | Import chains between modules are acyclic. |
-| Composition root is clear | `monitor.py` coordinates the monitoring loop with Task and client. |
+| Composition root is clear | A single coordinator wires components together and runs the main loop/flow. |
 
 **Evidence required:** Trace import chains between modules. Verify the dependency graph is acyclic.
 
-### 3. Message Processing Correctness
+### 3. Processing Correctness
 
 | Check | Description |
 |-------|-------------|
-| Keyword filtering is correct | Messages are filtered by configured keywords using the parser module. |
-| Album grouping works | Messages with grouped media are correctly grouped before forwarding. |
-| Duplicate prevention | `last_msg_id` prevents re-processing of already-seen messages. |
-| Forwarding handles errors | `forward_to_users` retries on FloodWaitError and RPCError. |
+| Filtering/matching is correct | Inputs are filtered/matched by configured criteria using the matcher/parser module. |
+| Grouping works | Related items (e.g., grouped media) are correctly grouped before dispatch. |
+| Duplicate prevention | State (e.g., last-processed marker) prevents re-processing already-seen items. |
+| Dispatch handles errors | The dispatch step retries on transient/rate-limit errors and handles other API errors. |
 
-**Evidence required:** Read `monitor_forward.py`. Trace the message processing pipeline. Check for keyword matching and album grouping logic.
+**Evidence required:** Read the processing module. Trace the pipeline. Check for matching/grouping and error-handling logic.
 
 ---
 

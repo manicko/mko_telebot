@@ -6,7 +6,16 @@ executor: auditor
 problems-only: true
 ---
 
-# Phase 02 Audit — Configuration & Pydantic Models
+# Phase 02 Audit — Configuration & Settings Models
+
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing how an application
+defines, loads, validates, and consumes its configuration and settings models. It
+is not tied to a specific schema library, file format, or framework. Apply the
+discovery steps and audit dimensions to whatever configuration mechanism the
+system actually uses (typed settings models, env files, structured config files,
+etc.), adapting concrete names to the implementation at hand.
 
 ## Output Mode
 
@@ -23,10 +32,10 @@ problems-only: true
 
 Before performing audit checks, discover the configuration architecture:
 
-1. **Config Model Discovery** — Locate all Pydantic model classes. Map the model hierarchy (root model → sub-models). Identify all fields, their types, defaults, and validators.
-2. **Config Loading Discovery** — Find where YAML is loaded, where Pydantic validation happens, where config files are read from (package templates vs user directory).
-3. **Path Resolution Discovery** — Map how `APP_PATHS`, `PathResolver`, and `platformdirs` work together. Identify where user config lives vs package templates.
-4. **Config Flow Discovery** — Trace how a config value travels from YAML → Pydantic model → service function. Identify every consumer of config values.
+1. **Config Model Discovery** — Locate all settings/model classes (typed config models). Map the model hierarchy (root model → sub-models). Identify all fields, their types, defaults, and validators.
+2. **Config Loading Discovery** — Find where config is read from its source (file, env, remote), where validation happens, and where the loaded config lives (package templates vs user/runtime directory).
+3. **Path Resolution Discovery** — Map how the system resolves paths (application base paths, user data directory, platform-specific directories). Identify where user config lives vs package templates.
+4. **Config Flow Discovery** — Trace how a config value travels from source → model → consumer function. Identify every consumer of config values.
 
 ---
 
@@ -36,7 +45,7 @@ Before performing audit checks, discover the configuration architecture:
 
 ### Step R1 — Import and Instantiate Models
 
-Attempt to import all Pydantic models. Instantiate the root model with valid and invalid data.
+Attempt to import all config models. Instantiate the root model with valid and invalid data.
 
 - Verify validators fire correctly on invalid data.
 - Verify defaults are applied correctly.
@@ -66,64 +75,64 @@ Run the project's test suite, focusing on config-related tests.
 
 ## Audit Scope
 
-Pydantic models, YAML config loading, path resolution, config validation, init service (template copying), config file templates.
+Settings models, config file loading, path resolution, config validation, init/scaffold service (template copying), config file templates.
 
 ---
 
 ## Audit Dimensions
 
-### 1. Pydantic Model Correctness
+### 1. Config Model Correctness
 
 | Check | Description |
 |-------|-------------|
-| All config sections modeled | Every configuration section (Google Sheets, Telethon, posts, chats) has a corresponding Pydantic model. |
-| No raw dicts in business logic | Services receive Pydantic models, not raw dicts from `yaml.safe_load()`. |
-| Field validation | Required fields have no defaults; optional fields have sensible defaults. Constraints (`ge`, `le`, `min_length`) are appropriate. |
-| Custom validators | Domain-specific validation (e.g., spreadsheet ID format) uses `@field_validator`. |
-| `StrEnum` for fixed values | Fixed-value fields (statuses, types, modes) use `StrEnum`, not plain strings or magic constants. |
-| `extra="forbid"` on root model | The root settings model rejects unknown keys to catch typos in config. |
+| Every config section modeled | Each logical configuration section has a corresponding typed model. |
+| No raw dicts in business logic | Services receive typed models, not raw parsed structures (e.g., raw dict from a YAML/JSON load). |
+| Field validation | Required fields have no defaults; optional fields have sensible defaults. Constraints are appropriate. |
+| Custom validators | Domain-specific validation (e.g., identifier formats) uses the model's validator mechanism. |
+| Enum for fixed values | Fixed-value fields (statuses, types, modes) use enums, not plain strings or magic constants. |
+| Unknown-key rejection on root model | The root settings model rejects unknown keys to catch typos in config. |
 
-**Evidence required:** Read each model class. Verify field types and validators. Search for raw dict usage in service code.
+**Evidence required:** Read each model class. Verify field types and validators. Search for raw parsed-structure usage in service code.
 
 ### 2. Config Loading & Path Resolution
 
 | Check | Description |
 |-------|-------------|
-| User config separated from package templates | Config is read from `USER_DIR` (via platformdirs), never from the package's `settings/` directory. |
-| Path resolution is consistent | All relative paths in config resolve against `USER_DIR` using `PathResolver`. |
-| Missing config produces clear error | When config file is missing, the error message tells the user to run `init`. |
-| Config reader validates on load | `TelepostConfigReader.load()` validates through Pydantic, not just YAML parsing. |
+| User config separated from package templates | Config is read from the user/runtime data directory, never from the package's own template directory. |
+| Path resolution is consistent | All relative paths in config resolve against the user/runtime directory using the project's path utilities. |
+| Missing config produces clear error | When the config file is missing, the error message tells the user how to create it. |
+| Config reader validates on load | The loader validates through the typed model, not just parsing the source format. |
 
-**Evidence required:** Read `config_reader.py` and `paths.py`. Trace the full path from YAML file to Pydantic model in a service.
+**Evidence required:** Read the config reader and path utilities. Trace the full path from source file to typed model in a service.
 
-### 3. Init Service Correctness
+### 3. Init / Scaffold Service Correctness
 
 | Check | Description |
 |-------|-------------|
-| Templates copied correctly | `init_project()` copies from package `settings/` to `USER_DIR/settings/`. |
-| `--force` flag works | With `--force`, existing files are overwritten. Without it, existing files are preserved. |
-| No cross-package imports | Init service does not import from unrelated packages. |
-| Return value is useful | The function returns the path to the created config directory. |
+| Templates copied correctly | The init/scaffold function copies from package templates to the user/runtime config directory. |
+| Overwrite flag works | With the force/overwrite flag, existing files are replaced. Without it, existing files are preserved. |
+| No cross-package imports | The init service does not import from unrelated packages. |
+| Return value is useful | The function returns the path to the created config directory or equivalent. |
 
-**Evidence required:** Read `init_service.py`. Verify the source and destination paths. Check for any hardcoded paths.
+**Evidence required:** Read the init service. Verify the source and destination paths. Check for any hardcoded paths.
 
 ### 4. Config Template Quality
 
 | Check | Description |
 |-------|-------------|
-| Example config matches model | The `config_example.yaml` template matches the Pydantic model structure exactly. |
+| Example config matches model | The config template matches the typed model structure exactly. |
 | All fields documented | Every field in the example config has a comment explaining its purpose. |
 | No real credentials in templates | Template files contain only placeholder values, no real API keys or tokens. |
 
-**Evidence required:** Compare `config_example.yaml` against the Pydantic models. Check for mismatched field names or missing sections.
+**Evidence required:** Compare the template against the typed models. Check for mismatched field names or missing sections.
 
 ### 5. Config-to-Service Flow
 
 | Check | Description |
 |-------|-------------|
-| Config reaches every consumer | Trace each config section (google_sheets, telethon, posts, chats) from YAML → model → service function. Every section is consumed somewhere. |
-| No unused config fields | Every field in the Pydantic model is actually used by some service. |
-| No missing config fields | Every service parameter that should come from config does come from config (not hardcoded). |
+| Config reaches every consumer | Trace each config section from source → model → consumer function. Every section is consumed somewhere. |
+| No unused config fields | Every field in the model is actually used by some service. |
+| No missing config fields | Every parameter that should come from config does come from config (not hardcoded). |
 
 **Evidence required:** For each model field, find at least one usage in service code. For each service parameter, verify it comes from config.
 

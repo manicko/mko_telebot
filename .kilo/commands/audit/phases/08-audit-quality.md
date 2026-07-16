@@ -8,6 +8,14 @@ problems-only: true
 
 # Phase 08 Audit — Code Quality, Security & Maintainability
 
+## Purpose
+
+This is a **reusable, system-agnostic handbook** for auditing code quality,
+security, and maintainability across the source of ANY project. It is not tied to a
+specific language feature set or project convention. Apply the discovery steps and
+audit dimensions to whatever the system's conventions and source actually are,
+adapting concrete names to the implementation at hand.
+
 ## Output Mode
 
 `problems-only: true` — **only problems, bugs, and deviations are documented.**
@@ -25,7 +33,7 @@ Before performing audit checks, discover the codebase quality landscape:
 
 1. **Codebase Structure** — Map all source files, their sizes, and responsibilities. Identify any files that are unusually large (potential god modules).
 2. **Import Graph** — Map all imports. Identify circular imports, unused imports, and cross-layer imports.
-3. **Quality Patterns** — Search for `print()` statements, bare `except:`, `TODO`/`FIXME` comments, and other code smells.
+3. **Quality Patterns** — Search for forbidden output calls, bare exception catches, leftover `TODO`/`FIXME` comments, and other code smells.
 4. **Security Surface** — Identify all places where external input is processed (config values, API responses, file paths).
 
 ---
@@ -62,9 +70,9 @@ Record each instance with file:line.
 Search the codebase for:
 
 - Hardcoded secrets (API keys, tokens, passwords).
-- `print()` statements (forbidden by project rules).
+- Forbidden output calls (e.g., raw `print()` where a logger is mandated).
 - Bare `except:` clauses.
-- `logger` calls that might log sensitive data (credentials, tokens).
+- Logging calls that might log sensitive data (credentials, tokens).
 
 ---
 
@@ -80,27 +88,27 @@ All source code files. Code quality, type safety, security, maintainability, pro
 
 | Check | Description |
 |-------|-------------|
-| No `print()` statements | All output uses `logger`. `print()` is forbidden in production code. |
+| No forbidden output calls | All output uses the project's logging mechanism. Raw console output is forbidden in production code. |
 | No bare `except:` | All exceptions are caught with specific types. |
 | Type hints everywhere | All public functions and methods have type hints on parameters and return values. |
-| No `any` types | Type annotations are specific, not `Any`. |
-| Small functions | Functions are focused and short. No function exceeds ~50 lines without clear justification. |
+| No `any`/untyped types | Type annotations are specific, not generic `Any`. |
+| Small functions | Functions are focused and short. No function exceeds a reasonable line budget without clear justification. |
 | Clear naming | Variable, function, and class names are descriptive and consistent. |
-| English only | All comments, docstrings, logs, and error messages are in English. |
+| Single language for text | All comments, docstrings, logs, and error messages use one consistent language. |
 
-**Evidence required:** Linter output. Manual code review. Search for `print(`, `except:`, and missing type hints.
+**Evidence required:** Linter output. Manual code review. Search for forbidden output, bare excepts, and missing type hints.
 
 ### 2. Security
 
 | Check | Description |
 |-------|-------------|
 | No hardcoded secrets | No API keys, tokens, passwords, or credentials in source code. |
-| Credentials not logged | Sensitive values (api_hash, bot token, phone number) are never logged. |
+| Credentials not logged | Sensitive values are never logged. |
 | Path traversal prevention | File paths from config/user input are validated before use. |
 | Error messages don't leak internals | Error messages to users don't include stack traces, file paths, or internal details. |
-| Config file permissions | Credentials files (credentials.json, token.json) are stored in the user's private config directory. |
+| Config file permissions | Credential files are stored in the user's private config directory. |
 
-**Evidence required:** Search for hardcoded secrets. Read error handling code. Check logger calls near sensitive data.
+**Evidence required:** Search for hardcoded secrets. Read error-handling code. Check logger calls near sensitive data.
 
 ### 3. Maintainability
 
@@ -118,13 +126,13 @@ All source code files. Code quality, type safety, security, maintainability, pro
 
 | Check | Description |
 |-------|-------------|
-| Pydantic for all data models | Configuration and data structures use Pydantic models, not raw dicts. |
-| `StrEnum` for fixed values | Fixed-value fields use `StrEnum`, not plain strings. |
-| `logger = logging.getLogger(__name__)` | Every module uses the standard logger pattern. |
-| Path resolution via `PathResolver`/`APP_PATHS` | No hardcoded paths. All paths use the project's path resolution utilities. |
-| Layer separation | CLI → Service → Reader. No cross-layer imports. |
+| Typed models for all data | Configuration and data structures use typed models, not raw dicts. |
+| Enum for fixed values | Fixed-value fields use enums, not plain strings. |
+| Standard logger pattern | Every module uses the standard logger pattern. |
+| Path resolution via utilities | No hardcoded paths. All paths use the project's path resolution utilities. |
+| Layer separation | Entry → Service → Core. No cross-layer imports. |
 
-**Evidence required:** Search for raw dict usage, plain string constants, `print()`, hardcoded paths, and cross-layer imports.
+**Evidence required:** Search for raw dict usage, plain string constants, forbidden output, hardcoded paths, and cross-layer imports.
 
 ### 5. Dependency Hygiene
 
@@ -132,10 +140,10 @@ All source code files. Code quality, type safety, security, maintainability, pro
 |-------|-------------|
 | No unused imports | Every import is used. |
 | No circular imports | The import graph is acyclic. |
-| Dependencies are justified | Every dependency in `pyproject.toml` is actually used in the code. |
+| Dependencies are justified | Every dependency in the manifest is actually used in the code. |
 | No cross-package leakage | The project does not import from unrelated packages. |
 
-**Evidence required:** Linter output for unused imports. Import graph analysis. Compare `pyproject.toml` dependencies against actual imports.
+**Evidence required:** Linter output for unused imports. Import graph analysis. Compare manifest dependencies against actual imports.
 
 ---
 
@@ -143,7 +151,7 @@ All source code files. Code quality, type safety, security, maintainability, pro
 
 Write findings to: `.ai/audit/08-quality/findings.md` using template `.ai/audit/templates/audit-findings.md`.
 
-use prefix `QLT-` for finding IDs.
+Use prefix `QLT-` for finding IDs.
 
 **`problems-only: true` rules:**
 - The report contains **only findings** — real problems discovered during investigation.
