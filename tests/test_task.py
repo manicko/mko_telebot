@@ -20,7 +20,6 @@ from typing import Any
 # Helpers
 # ---------------------------------------------------------------------------
 
-
 def _make_config(**overrides: Any) -> ChannelConfig:
     """Create a ChannelConfig with default test values."""
     defaults: dict[str, Any] = {
@@ -36,10 +35,10 @@ def _make_config(**overrides: Any) -> ChannelConfig:
     return ChannelConfig(**defaults)
 
 
-def _make_task(config: ChannelConfig | None = None, last_msg_id: int = 0) -> Task:
+def _make_task(config: ChannelConfig | None = None) -> Task:
     """Create a Task with default config."""
     cfg = config or _make_config()
-    return Task(cfg, last_msg_id=last_msg_id)
+    return Task(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -60,20 +59,20 @@ class TestTaskInit:
             history_limit=100,
             overlap=3,
         )
-        task = Task(config, last_msg_id=42)
+        task = Task(config)
         assert task.channel_name == "@test_channel"
         assert task.forward_to == ["@target1"]
         assert task.keywords == ["hello"]
         assert task.scan_interval == 300
         assert task.history_limit == 100
         assert task.overlap == 3
-        assert task.last_msg_id == 42
+        assert task.last_msg_id == 0
         assert task.channel_entity is None
         assert task.forward_to_entities == []
         assert task.state_file is None
 
-    def test_init_defaults_last_msg_id_to_zero(self) -> None:
-        """Constructor should default last_msg_id to 0."""
+    def test_init_loads_state_persists_last_msg_id(self) -> None:
+        """Constructor initializes last_msg_id to 0, load_state() restores from file."""
         config = _make_config()
         task = Task(config)
         assert task.last_msg_id == 0
@@ -115,13 +114,15 @@ class TestSetOffsetDate:
         assert task.offset_date is not None
         assert task.offset_date.tzname() == "UTC"
 
-    def test_sets_none_on_invalid_days(self) -> None:
-        """set_offset_date() should set offset_date to None when history_days is not int-convertible."""
-        config = _make_config(history_days=None)  # Use None since 0 is now invalid
+    def test_raises_config_error_on_invalid_days(self) -> None:
+        """set_offset_date() should raise ConfigError when history_days is not int-convertible."""
+        from mko_telebot.core.errors import ConfigError
+
+        config = _make_config(history_days=None)
         task = _make_task(config)
         task.history_days = "not_a_number"  # type: ignore[assignment]
-        task.set_offset_date()
-        assert task.offset_date is None
+        with pytest.raises(ConfigError, match="Invalid history_days"):
+            task.set_offset_date()
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +196,8 @@ class TestLoadState:
         state_file.parent.mkdir(parents=True, exist_ok=True)
         state_file.write_text(json.dumps({"last_id": 50}), encoding="utf-8")
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=100)
+        task = _make_task(config)
+        task.last_msg_id = 100
         task.state_file = state_file
         await task.load_state()
         assert task.last_msg_id == 100
@@ -234,7 +236,8 @@ class TestSaveState:
     async def test_creates_file_with_last_id(self, tmp_path: Path) -> None:
         """save_state() should create a JSON file with the current last_msg_id."""
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=42)
+        task = _make_task(config)
+        task.last_msg_id = 42
         state_file = tmp_path / "@test_channel.json"
         task.state_file = state_file
         await task.save_state()
@@ -248,7 +251,8 @@ class TestSaveState:
         state_file.parent.mkdir(parents=True, exist_ok=True)
         state_file.write_text(json.dumps({"last_id": 10}), encoding="utf-8")
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=99)
+        task = _make_task(config)
+        task.last_msg_id = 99
         task.state_file = state_file
         await task.save_state()
         content = json.loads(state_file.read_text(encoding="utf-8"))
@@ -257,7 +261,8 @@ class TestSaveState:
     async def test_raises_on_io_error(self, tmp_path: Path) -> None:
         """save_state() should raise StateError when write fails."""
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=42)
+        task = _make_task(config)
+        task.last_msg_id = 42
         mock_aiofiles = MagicMock()
         mock_cm = AsyncMock()
         mock_cm.__aenter__.side_effect = OSError("Permission denied")
@@ -466,10 +471,11 @@ class TestStatePersistence:
         state_file = tmp_path / "@test_channel.json"
         state_file.parent.mkdir(parents=True, exist_ok=True)
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=77)
+        task = _make_task(config)
+        task.last_msg_id = 77
         task.state_file = state_file
         await task.save_state()
-        task2 = _make_task(config, last_msg_id=0)
+        task2 = _make_task(config)
         task2.state_file = state_file
         await task2.load_state()
         assert task2.last_msg_id == 77
@@ -479,14 +485,17 @@ class TestStatePersistence:
         state_file = tmp_path / "@test_channel.json"
         state_file.parent.mkdir(parents=True, exist_ok=True)
         config = _make_config(name="@test_channel")
-        task = _make_task(config, last_msg_id=50)
+        task = _make_task(config)
+        task.last_msg_id = 50
         task.state_file = state_file
         await task.save_state()
-        task2 = _make_task(config, last_msg_id=30)
+        task2 = _make_task(config)
+        task2.last_msg_id = 30
         task2.state_file = state_file
         await task2.load_state()
         assert task2.last_msg_id == 50
-        task3 = _make_task(config, last_msg_id=100)
+        task3 = _make_task(config)
+        task3.last_msg_id = 100
         task3.state_file = state_file
         await task3.load_state()
         assert task3.last_msg_id == 100

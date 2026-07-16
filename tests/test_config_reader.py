@@ -7,6 +7,7 @@ logging config loading, and merging of config.yaml + telethon_config.yaml.
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 import yaml
 
 from mko_telebot.core.config import TelepostConfigReader
@@ -618,6 +619,91 @@ class TestValidators:
         """ChannelDefaults should reject history_days=0 as invalid."""
         with pytest.raises(ValueError, match="greater than 0"):
             ChannelDefaults(history_days=0)
+
+    def test_rejects_name_with_forward_slash(self) -> None:
+        """ChannelConfig should reject channel name containing forward slash."""
+        with pytest.raises(ValueError, match="forbidden path character"):
+            ChannelConfig(name="channel/name")
+
+    def test_rejects_name_with_backslash(self) -> None:
+        """ChannelConfig should reject channel name containing backslash."""
+        with pytest.raises(ValueError, match="forbidden path character"):
+            ChannelConfig(name="channel\\name")
+
+    def test_rejects_name_with_double_dot(self) -> None:
+        """ChannelConfig should reject channel name containing double dot."""
+        with pytest.raises(ValueError, match="forbidden path character"):
+            ChannelConfig(name="channel..name")
+
+    def test_accepts_valid_channel_name(self) -> None:
+        """ChannelConfig should accept standard channel names like @chan."""
+        config = ChannelConfig(name="@chan")
+        assert config.name == "@chan"
+
+
+# ---------------------------------------------------------------------------
+# Extra Forbidden Value Tests (schema strictness guardrail)
+# ---------------------------------------------------------------------------
+
+
+class TestExtraForbid:
+    """Tests for extra='forbid' guardrail on all Pydantic config models."""
+
+    def test_telepost_settings_rejects_unknown_fields(self) -> None:
+        """TelepostSettings should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            TelepostSettings(
+                telethon=TelethonConfig(
+                    is_user=True,
+                    phone_or_token="+79123456789",
+                    client=ClientConfig(api_id=123456, api_hash="a" * 32),
+                ),
+                channels=ChannelsConfig(channels={"test": ChannelConfig(name="@test")}),
+                unknown_key="typo_key",
+            )
+
+    def test_channel_config_rejects_unknown_fields(self) -> None:
+        """ChannelConfig should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ChannelConfig(name="@test", unknown_key="typo_key")
+
+    def test_channel_defaults_rejects_unknown_fields(self) -> None:
+        """ChannelDefaults should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ChannelDefaults(scan_interval=600, unknown_key="typo_key")
+
+    def test_channels_config_rejects_unknown_fields(self) -> None:
+        """ChannelsConfig should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ChannelsConfig(
+                channels={"test": ChannelConfig(name="@test")},
+                unknown_key="typo_key",
+            )
+
+    def test_proxy_config_rejects_unknown_fields(self) -> None:
+        """ProxyConfig should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ProxyConfig(
+                proxy_type="socks5",
+                addr="127.0.0.1",
+                port=1080,
+                unknown_key="typo_key",
+            )
+
+    def test_client_config_rejects_unknown_fields(self) -> None:
+        """ClientConfig should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ClientConfig(api_id=123456, api_hash="a" * 32, unknown_key="typo_key")
+
+    def test_telethon_config_rejects_unknown_fields(self) -> None:
+        """TelethonConfig should reject unknown YAML keys with ValidationError."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            TelethonConfig(
+                is_user=True,
+                phone_or_token="+79123456789",
+                client=ClientConfig(api_id=123456, api_hash="a" * 32),
+                unknown_key="typo_key",
+            )
 
 
 # ---------------------------------------------------------------------------

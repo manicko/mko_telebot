@@ -7,6 +7,7 @@ from telethon import TelegramClient
 
 from mko_telebot.core import APP_PATHS
 from mko_telebot.core.models import TelepostSettings
+from mko_telebot.core.utils import _secure_directory_permissions
 from telethon.tl.custom.message import Message
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,9 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
 
     session_path = APP_PATHS.session_dir / session_path.name
 
+    # Ensure session directory exists with secure permissions (0700)
     session_path.parent.mkdir(parents=True, exist_ok=True)
+    _secure_directory_permissions(session_path.parent)
 
     return TelegramClient(
         session=str(session_path),

@@ -4,7 +4,22 @@ This module contains the PatternParser class and parse_query function
 for parsing search query expressions.
 """
 
+from enum import StrEnum
+
 from .ast_nodes import ASTNode, ExactMatch, OrOperation, Sequence, Wildcard, Exclusion
+
+
+class TokenType(StrEnum):
+    """Token types for pattern query parsing.
+
+    Provides type safety for token type strings in the parser.
+    """
+
+    GROUP_START = "GROUP_START"
+    GROUP_END = "GROUP_END"
+    OR = "OR"
+    EXCLUDE = "EXCLUDE"
+    TERM = "TERM"
 
 
 class PatternParser:
@@ -34,10 +49,10 @@ class PatternParser:
             query: The raw query string (user-specified).
         """
         self.query = query
-        self.tokens = self._tokenize()
+        self.tokens: list[tuple[TokenType, str]] = self._tokenize()
         self.token_pos = 0
 
-    def _tokenize(self) -> list[tuple[str, str]]:
+    def _tokenize(self) -> list[tuple[TokenType, str]]:
         """Convert the input query string into a list of tokens.
 
         Token types:
@@ -55,16 +70,16 @@ class PatternParser:
         while i < len(q):
             ch = q[i]
             if ch == "(":
-                tokens.append(("GROUP_START", "("))
+                tokens.append((TokenType.GROUP_START, "("))
                 i += 1
             elif ch == ")":
-                tokens.append(("GROUP_END", ")"))
+                tokens.append((TokenType.GROUP_END, ")"))
                 i += 1
             elif ch == "|":
-                tokens.append(("OR", "|"))
+                tokens.append((TokenType.OR, "|"))
                 i += 1
             elif ch == "-":
-                tokens.append(("EXCLUDE", "-"))
+                tokens.append((TokenType.EXCLUDE, "-"))
                 i += 1
             elif ch.isspace():
                 # Space serves as a separator (AND), tokens for spaces are not needed.
@@ -74,16 +89,16 @@ class PatternParser:
                 start = i
                 while i < len(q) and q[i] not in "()|- ":
                     i += 1
-                tokens.append(("TERM", q[start:i]))
+                tokens.append((TokenType.TERM, q[start:i]))
         return tokens
 
-    def _peek(self) -> tuple[str, str] | None:
+    def _peek(self) -> tuple[TokenType, str] | None:
         """Return the current token without consuming it, or None if at end."""
         return (
             self.tokens[self.token_pos] if self.token_pos < len(self.tokens) else None
         )
 
-    def _consume(self, expected_type: str | None = None) -> tuple[str, str] | None:
+    def _consume(self, expected_type: TokenType | str | None = None) -> tuple[TokenType, str] | None:
         """Consume and return the current token if it matches expected_type.
 
         If expected_type is None, consume any token. Returns the consumed token or None.
@@ -109,9 +124,9 @@ class PatternParser:
 
         while self._peek():
             tok = self._peek()
-            if tok and tok[0] == "EXCLUDE":
+            if tok and tok[0] == TokenType.EXCLUDE:
                 # Parse an exclusion expression: '-' followed by an expression
-                self._consume("EXCLUDE")
+                self._consume(TokenType.EXCLUDE)
                 excl = self._parse_or_expr()
                 if excl:
                     exclusions.append(Exclusion(excl))
@@ -130,8 +145,8 @@ class PatternParser:
     def _parse_or_expr(self) -> ASTNode:
         """Parse OR expressions (left-associative)."""
         left = self._parse_and_expr()
-        while (tok := self._peek()) and tok[0] == "OR":
-            self._consume("OR")
+        while (tok := self._peek()) and tok[0] == TokenType.OR:
+            self._consume(TokenType.OR)
             right = self._parse_and_expr()
             left = OrOperation(left, right)
         return left
@@ -143,7 +158,7 @@ class PatternParser:
         while True:
             tok = self._peek()
             # Stop if next token ends the sequence context
-            if not tok or tok[0] in ("OR", "GROUP_END", "EXCLUDE"):
+            if not tok or tok[0] in (TokenType.OR, TokenType.GROUP_END, TokenType.EXCLUDE):
                 break
             nxt = self._parse_term()
             if nxt is None:
@@ -162,19 +177,19 @@ class PatternParser:
         tok = self._peek()
         if not tok:
             return None
-        if tok[0] == "TERM":
-            self._consume("TERM")
+        if tok[0] == TokenType.TERM:
+            self._consume(TokenType.TERM)
             val = tok[1]
             if "*" in val:
                 # Term contains wildcard(s)
                 return Wildcard(val)
             return ExactMatch(val)
-        if tok[0] == "GROUP_START":
+        if tok[0] == TokenType.GROUP_START:
             # Parse grouped subexpression
-            self._consume("GROUP_START")
+            self._consume(TokenType.GROUP_START)
             inner = self._parse_or_expr()
-            if (tok := self._peek()) and tok[0] == "GROUP_END":
-                self._consume("GROUP_END")
+            if (tok := self._peek()) and tok[0] == TokenType.GROUP_END:
+                self._consume(TokenType.GROUP_END)
             return inner
         # Unexpected token: consume and ignore it, returning None
         self._consume()
@@ -203,3 +218,6 @@ def parse_query(query: str) -> tuple[list[ASTNode], list[ASTNode]]:
 
     parser = PatternParser(clean)
     return parser.parse()
+
+
+__all__ = ["TokenType", "PatternParser", "parse_query"]

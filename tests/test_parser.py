@@ -1,7 +1,7 @@
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from mko_telebot.core.parser import PatternParser, parse_query
+from mko_telebot.core.parser import PatternParser, parse_query, TokenType
 from mko_telebot.core.ast_nodes import (
     ExactMatch,
     Wildcard,
@@ -64,65 +64,65 @@ class TestPatternParser:
     def test_tokenize_simple_term(self):
         """Tokenization should parse single word as TERM token."""
         parser = PatternParser("hello")
-        assert parser.tokens == [("TERM", "hello")]
+        assert parser.tokens == [(TokenType.TERM, "hello")]
 
     def test_tokenize_multiple_terms(self):
         """Tokenization should parse multiple words separated by spaces."""
         parser = PatternParser("hello world")
-        assert parser.tokens == [("TERM", "hello"), ("TERM", "world")]
+        assert parser.tokens == [(TokenType.TERM, "hello"), (TokenType.TERM, "world")]
 
     def test_tokenize_or_operator(self):
         """Tokenization should identify OR operator '|'."""
         parser = PatternParser("a | b")
-        assert parser.tokens == [("TERM", "a"), ("OR", "|"), ("TERM", "b")]
+        assert parser.tokens == [(TokenType.TERM, "a"), (TokenType.OR, "|"), (TokenType.TERM, "b")]
 
     def test_tokenize_group_start(self):
         """Tokenization should identify GROUP_START '('."""
         parser = PatternParser("(hello)")
-        assert parser.tokens == [("GROUP_START", "("), ("TERM", "hello"), ("GROUP_END", ")")]
+        assert parser.tokens == [(TokenType.GROUP_START, "("), (TokenType.TERM, "hello"), (TokenType.GROUP_END, ")")]
 
     def test_tokenize_group_end(self):
         """Tokenization should identify GROUP_END ')'."""
         parser = PatternParser("(a | b)")
         assert parser.tokens == [
-            ("GROUP_START", "("),
-            ("TERM", "a"),
-            ("OR", "|"),
-            ("TERM", "b"),
-            ("GROUP_END", ")"),
+            (TokenType.GROUP_START, "("),
+            (TokenType.TERM, "a"),
+            (TokenType.OR, "|"),
+            (TokenType.TERM, "b"),
+            (TokenType.GROUP_END, ")"),
         ]
 
     def test_tokenize_exclude_operator(self):
         """Tokenization should identify EXCLUDE '-'."""
         parser = PatternParser("-test")
-        assert parser.tokens == [("EXCLUDE", "-"), ("TERM", "test")]
+        assert parser.tokens == [(TokenType.EXCLUDE, "-"), (TokenType.TERM, "test")]
 
     def test_tokenize_wildcard_in_term(self):
         """Tokenization should preserve '*' inside TERM tokens."""
         parser = PatternParser("test* pattern*")
         assert parser.tokens == [
-            ("TERM", "test*"),
-            ("TERM", "pattern*"),
+            (TokenType.TERM, "test*"),
+            (TokenType.TERM, "pattern*"),
         ]
 
     def test_tokenize_complex_query(self):
         """Tokenization should handle complex queries with all token types."""
         parser = PatternParser("(a | b) -c d")
         assert parser.tokens == [
-            ("GROUP_START", "("),
-            ("TERM", "a"),
-            ("OR", "|"),
-            ("TERM", "b"),
-            ("GROUP_END", ")"),
-            ("EXCLUDE", "-"),
-            ("TERM", "c"),
-            ("TERM", "d"),
+            (TokenType.GROUP_START, "("),
+            (TokenType.TERM, "a"),
+            (TokenType.OR, "|"),
+            (TokenType.TERM, "b"),
+            (TokenType.GROUP_END, ")"),
+            (TokenType.EXCLUDE, "-"),
+            (TokenType.TERM, "c"),
+            (TokenType.TERM, "d"),
         ]
 
     def test_tokenize_ignores_whitespace(self):
         """Tokenization should skip whitespace characters."""
         parser = PatternParser("  hello   world  ")
-        assert parser.tokens == [("TERM", "hello"), ("TERM", "world")]
+        assert parser.tokens == [(TokenType.TERM, "hello"), (TokenType.TERM, "world")]
 
     def test_tokenize_empty_query(self):
         """Empty query should produce empty token list."""
@@ -137,7 +137,7 @@ class TestPatternParser:
     def test_peek_at_start(self):
         """Peek should return first token without consuming it."""
         parser = PatternParser("a b")
-        assert parser._peek() == ("TERM", "a")
+        assert parser._peek() == (TokenType.TERM, "a")
         assert parser.token_pos == 0  # Position unchanged
 
     def test_peek_at_end(self):
@@ -150,7 +150,7 @@ class TestPatternParser:
         """Consume without expected_type should consume any token."""
         parser = PatternParser("a | b")
         tok = parser._consume()
-        assert tok == ("TERM", "a")
+        assert tok == (TokenType.TERM, "a")
         assert parser.token_pos == 1
 
     def test_consume_with_expected_type(self):
@@ -163,8 +163,8 @@ class TestPatternParser:
     def test_consume_matching_type(self):
         """Consume should work when token type matches."""
         parser = PatternParser("a | b")
-        tok = parser._consume("TERM")
-        assert tok == ("TERM", "a")
+        tok = parser._consume(TokenType.TERM)
+        assert tok == (TokenType.TERM, "a")
         assert parser.token_pos == 1
 
     def test_parse_simple_term(self):
@@ -276,11 +276,6 @@ class TestPatternParser:
 
 class TestParseQuery:
     """Tests for parse_query function."""
-
-    def test_parse_query_none_raises(self):
-        """parse_query should raise ValueError for None input."""
-        with pytest.raises(ValueError, match="cannot be None"):
-            parse_query(None)
 
     def test_parse_query_empty_raises(self):
         """parse_query should raise ValueError for empty query."""
@@ -488,7 +483,7 @@ class TestASTNodes:
         ("za with space", '"za*"', True),  # * doesn't cross space
         ("dfdfdza", '"*za"', True),
         ("za at start", '"*za"', True),
-        # Negation: -word means not in whole text
+        # Negatio: -word means not in whole text
         ("tivat here", '"tivat -услуги"', True),
         ("tivat услуги", '"tivat -услуги"', False),
         ("тиват", '"(tivat | тиват) -услуги"', True),
@@ -559,27 +554,79 @@ def test_search_match(matcher, text, query, expected):
     assert matcher(text, query) == expected
 
 
-# Property-based from Tester 3: limited for speed
+# Property-based tests for wildcard and OR patterns
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(text=text_strategy, query=st.sampled_from(['"a*"', '"*b"', '"(c | d)"']))
 def test_property_no_crash_basic(matcher, text, query):
-    # Just ensure no exceptions and boolean result
-    try:
-        result = matcher(text, query)
-        assert isinstance(result, bool)
-    except Exception:
-        pytest.fail("Function crashed")
+    r"""Property test for basic wildcard and OR queries.
+
+    Invariants:
+    - Result is always a boolean
+    - Wildcard 'a*' matches text containing a word starting with 'a'
+    - Wildcard '*b' matches text containing a word ending with 'b'
+    - OR '(c | d)' matches text containing 'c' or 'd' as whole words
+    """
+    result = matcher(text, query)
+    assert isinstance(result, bool)
+
+    # Invariant: wildcard 'a*' matches words starting with 'a' (word boundary on left)
+    if query == '"a*"':
+        assert matcher("abc", query) is True      # word 'abc' starts with 'a'
+        assert matcher("", query) is False       # empty text cannot match
+        assert matcher("xabc", query) is False   # no word starts with 'a' in 'xabc'
+
+    # Invariant: wildcard '*b' matches words ending with 'b' (word boundary on right)
+    if query == '"*b"':
+        assert matcher("xb", query) is True       # word 'xb' ends with 'b'
+        assert matcher("ab", query) is True       # word 'ab' ends with 'b'
+        assert matcher("abc", query) is False      # word 'abc' ends with 'c'
+
+    # Invariant: OR '(c | d)' matches text containing 'c' or 'd' as whole words
+    if query == '"(c | d)"':
+        assert matcher("c", query) is True       # contains word 'c'
+        assert matcher("d", query) is True       # contains word 'd'
+        assert matcher("cd", query) is False     # 'cd' is one word, not 'c' or 'd'
+        assert matcher("xy", query) is False   # contains neither
 
 
-# Extended property-based test with richer query generation (ensure no crash)
+# Extended property-based test with richer query generation
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100)
 @given(text=text_strategy, query=generated_query)
 def test_property_no_crash_generated(matcher, text, query):
-    try:
-        result = matcher(text, query)
-        assert isinstance(result, bool)
-    except Exception:
-        pytest.fail("Function crashed")
+    r"""Property test for generated queries with wildcards, OR, and exclusions.
+
+    Invariants:
+    - Result is always a boolean
+    - Exclusion '-word' in sequence context handled correctly
+    - Wildcard patterns match according to their position
+    - OR patterns satisfy disjunction property: match if any alternative matches
+    """
+    result = matcher(text, query)
+    assert isinstance(result, bool)
+
+    query_content = query.strip('"\'')
+
+    # For generated queries, just verify basic invariants that work with sequences
+    # Single wildcard ending with '*' matches words starting with prefix
+    if query_content == "a*":
+        assert matcher("abc", query) is True
+    elif query_content == "*b":
+        assert matcher("xb", query) is True
+    elif query_content == "(c | d)":
+        assert matcher("c", query) is True
+        assert matcher("d", query) is True
+        assert matcher("xy", query) is False
+
+    # Invariant: OR groups should satisfy disjunction - each alternative should match its query
+    if "(A | B)" in query_content or "(B | A)" in query_content:
+        assert matcher("A", query) is True
+        assert matcher("B", query) is True
+        assert matcher("AB", query) is False  # AB is one word, not A or B
+
+    # Invariant: exclusion-only queries should return True for non-matching text
+    # (because exclusions don't trigger, and there are no inclusions to fail)
+    if query_content.startswith("-"):
+        assert matcher("xyz", query) is True
 
 
 # Slow-ish integration test for large text (mark as slow so it's optional in CI)

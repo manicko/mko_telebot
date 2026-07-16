@@ -3,10 +3,8 @@ Paths management for mko_telebot.
 
 Provides:
 - AppPaths: Pydantic model defining all application directory/file paths
-- PathResolver: Utility class for resolving relative paths and ensuring directories
 - APP_PATHS: Module-level singleton instance of AppPaths
 """
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,58 +20,6 @@ APP_DIR: Path = Path(__file__).resolve().parent.parent
 
 # User-specific config directory (cross-platform via platformdirs)
 USER_DIR: Path = Path(user_config_dir(APP_NAME))
-
-
-class PathResolver:
-    """Utility for resolving relative paths and ensuring directories exist."""
-
-    def __init__(self, base_dir: Path) -> None:
-        """Initialize with a base directory for relative path resolution.
-
-        Args:
-            base_dir: Base directory to resolve relative paths against.
-        """
-        self.base_dir = base_dir
-
-    def resolve(self, path: Path | str) -> Path:
-        """Resolve a path, handling relative paths and home-directory expansion.
-
-        Args:
-            path: Path to resolve.
-
-        Returns:
-            Resolved absolute Path.
-        """
-        path = Path(path).expanduser()
-        if not path.is_absolute():
-            path = self.base_dir / path
-        return path.resolve()
-
-    @staticmethod
-    def ensure_dir(path: Path) -> Path:
-        """Ensure a directory exists, creating parent directories as needed.
-
-        Args:
-            path: Directory path to ensure.
-
-        Returns:
-            The same path, now guaranteed to exist.
-        """
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    @staticmethod
-    def ensure_file_parent(path: Path) -> Path:
-        """Ensure the parent directory of a file exists.
-
-        Args:
-            path: File path whose parent directory should be ensured.
-
-        Returns:
-            The same path with parent directory guaranteed to exist.
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return path
 
 
 class AppPaths(BaseModel):

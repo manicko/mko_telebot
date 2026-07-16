@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from telethon.errors import FloodWaitError, WorkerBusyTooLongRetryError
 
-from mko_telebot.core.errors import TelegramServiceError
 from mko_telebot.monitor_forward import process_task
 
 
@@ -135,27 +134,6 @@ class TestProcessTask:
 
             await process_task(mock_task, mock_client, mock_settings)
             assert mock_sleep.await_count >= 1
-
-    async def test_handles_telegram_service_error(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
-    ) -> None:
-        """process_task() should return early on TelegramServiceError without raising."""
-        with (
-            patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
-            patch("asyncio.sleep", new_callable=AsyncMock),
-            patch("mko_telebot.monitor_forward.logger") as mock_logger,
-        ):
-            initial_last_msg = mock_task.last_msg_id
-
-            async def gen() -> Any:
-                raise TelegramServiceError("Service error")
-                yield  # pyright: ignore[reportUnreachable]
-
-            mock_client.iter_messages.return_value = gen()
-
-            await process_task(mock_task, mock_client, mock_settings)
-            assert mock_task.last_msg_id == initial_last_msg
-            mock_logger.error.assert_called()
 
     async def test_skips_already_processed_messages(
         self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock

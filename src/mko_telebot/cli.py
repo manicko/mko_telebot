@@ -18,6 +18,7 @@ from rich.table import Table
 
 from mko_telebot.core.errors import ConfigError, MkoTelebotError
 from mko_telebot.core.paths import APP_PATHS
+from mko_telebot.core.utils import _secure_directory_permissions, _secure_file_permissions
 from mko_telebot.monitor_client import create_client
 from mko_telebot.monitor import run_monitor
 from mko_telebot.logging import setup_logging
@@ -50,22 +51,38 @@ def init(
         raise typer.Exit(code=1)
 
     try:
+        # Create user settings directory with secure permissions (0700)
         dst.mkdir(parents=True, exist_ok=True)
+        _secure_directory_permissions(dst)
 
         copied: int = 0
         skipped: int = 0
+        preserved: int = 0
 
         for item in src.iterdir():
             if not item.is_file():
                 continue
             target: Path = dst / item.name
+            # Preserve telethon_config.yaml to protect user credentials
+            if item.name == "telethon_config.yaml" and target.exists():
+                preserved += 1
+                logger.info("Preserved existing telethon_config.yaml")
+                _secure_file_permissions(target)
+                continue
             if target.exists() and not force:
                 skipped += 1
                 continue
             _ = shutil.copy2(item, target)
+            # Set secure permissions on credential file (0600)
+            if item.name == "telethon_config.yaml":
+                _secure_file_permissions(target)
             copied += 1
 
         console.print(f"[green]Copied {copied} file(s) to {dst}.[/green]")
+        if preserved:
+            console.print(
+                "[yellow]Preserved existing telethon_config.yaml to protect credentials.[/yellow]"
+            )
         if skipped:
             console.print(
                 f"[yellow]Skipped {skipped} existing file(s). Use --force to overwrite.[/yellow]"

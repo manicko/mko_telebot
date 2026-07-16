@@ -1,0 +1,47 @@
+id: task_014_qlt_fix_implicit_fstrings
+
+source_reference: .ai\audit\99-validation\08-quality-validated-findings.md
+source_section: QLT-005
+
+title: Wrap multi-line f-strings in parentheses
+
+priority: low
+
+description: >
+  QLT-005: Implicit string concatenation flagged by basedpyright in telethon.py
+  and monitor_forward.py. Multi-line f-strings need parentheses for proper type
+  checking and code clarity.
+
+goals:
+  - Wrap multi-line f-strings in parentheses
+  - Eliminate reportImplicitStringConcatenation warnings
+
+files:
+  - path: src/mko_telebot/core/telethon.py
+    targets:
+      - type: module
+    semantic_anchors:
+      - action: wrap_multiline_fstrings
+        lines: 60, 162, 195
+
+  - path: src/mko_telebot/monitor_forward.py
+    targets:
+      - type: module
+    semantic_anchors:
+      - action: wrap_multiline_fstrings
+        lines: 107, 115, 143, 260
+
+changes:
+  - action: add_parentheses
+    description: >
+      Wrap multi-line f-strings in parentheses. Example:
+      `f"..." f"..."` → `(f"..." f"...")` or single f-string.
+
+acceptance_criteria:
+  - No reportImplicitStringConcatenation warnings
+  - All f-strings remain functional
+  - All tests pass
+
+tests_to_run:
+  - uv run basedpyright src/mko_telebot/ check
+  - uv run ruff check src/mko_telebot/

@@ -453,15 +453,46 @@ class TestForwardToUsers:
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
+    async def test_permanent_rpc_error_fails_fast(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """forward_to_users() should fail fast on permanent RPCError subclasses."""
+        from telethon.errors import AuthKeyUnregisteredError
+
+        msg = _make_msg_with_link(4, "test_channel")
+        mock_client.send_message.side_effect = AuthKeyUnregisteredError(request=None)
+
+        with pytest.raises(AuthKeyUnregisteredError):
+            await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
+        # Should only be called once (no retries)
+        assert mock_client.send_message.await_count == 1
+
+    @patch("asyncio.sleep", return_value=None)
     async def test_retries_on_rpc_error(
         self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
     ) -> None:
-        """forward_to_users() should retry on RPCError."""
-        from telethon.errors import RPCError
+        """forward_to_users() should retry on ServerError (transient RPCError)."""
+        from telethon.errors import ServerError
 
         msg = _make_msg_with_link(4, "test_channel")
         mock_client.send_message.side_effect = itertools.cycle([
-            RPCError(request=None, message="Test RPC error"),
+            ServerError(request=None, message="Test ServerError"),
+            None,
+        ])
+
+        await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
+        assert mock_client.send_message.await_count >= 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_timed_out_error(
+        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """forward_to_users() should retry on TimedOutError (transient RPCError)."""
+        from telethon.errors import TimedOutError
+
+        msg = _make_msg_with_link(8, "test_channel")
+        mock_client.send_message.side_effect = itertools.cycle([
+            TimedOutError(request=None, message="Timed out"),
             None,
         ])
 

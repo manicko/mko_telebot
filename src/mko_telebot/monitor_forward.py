@@ -104,16 +104,16 @@ async def _send_with_retry(
         except FloodWaitError as e:
             wait_time = _calculate_retry_delay(attempt, is_flood_wait=True, seconds=e.seconds)
             logger.warning(
-                f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "
-                f"for {getattr(target, 'id', target)}"
+                (f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "  # noqa: UP034
+                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
             )
             await asyncio.sleep(wait_time)
 
         except (WorkerBusyTooLongRetryError, RPCError) as e:
             wait_time = _calculate_retry_delay(attempt, is_flood_wait=False)
             logger.warning(
-                f"{type(e).__name__} {e}, retry {attempt + 1}/{max_tries} "
-                f"for {getattr(target, 'id', target)}"
+                (f"{type(e).__name__} {e}, retry {attempt + 1}/{max_tries} "  # noqa: UP034
+                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
             )
             await asyncio.sleep(wait_time)
 
@@ -140,8 +140,8 @@ async def forward_to_users(
         )
         if not success:
             logger.error(
-                f"Failed to send to {getattr(target, 'id', target)} "
-                f"after {settings.telethon.max_retries} attempts"
+                (f"Failed to send to {getattr(target, 'id', target)} "  # noqa: UP034
+                 f"after {settings.telethon.max_retries} attempts")  # noqa: UP034
             )
         await asyncio.sleep(random.uniform(5, 10))
 
@@ -244,10 +244,6 @@ async def _fetch_messages(
             f"Failed to fetch messages for {task.channel_name}: {e}"
         ) from e
 
-    except TelegramServiceError as e:
-        logger.error(f"Error fetching messages in {task.channel_name}: {e}")
-        return []
-
     return new_messages
 
 
@@ -265,8 +261,8 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         await process_messages(new_messages, task, client, settings)
         task.last_msg_id = max(msg.id for msg in new_messages)
         logger.info(
-            f"{task.channel_name}: {len(new_messages)} new messages processed, "
-            f"last_msg_id={task.last_msg_id}"
+            (f"{task.channel_name}: {len(new_messages)} new messages processed, "  # noqa: UP034
+             f"last_msg_id={task.last_msg_id}")  # noqa: UP034
         )
     else:
         logger.info(f"{task.channel_name}: no new messages found")

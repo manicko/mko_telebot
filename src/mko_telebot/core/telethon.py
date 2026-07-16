@@ -57,8 +57,8 @@ class ProxyConfig(BaseModel):
             value = v.get_secret_value()
             if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
                 raise ValueError(
-                    f"{v} appears to be a placeholder value. "
-                    "Replace with your actual value."
+                    (f"{v} appears to be a placeholder value. "  # noqa: UP034
+                     "Replace with your actual value.")  # noqa: UP034
                 )
         return v
 
@@ -159,8 +159,8 @@ class ClientConfig(BaseModel):
         """Reject the template sentinel value 12345 for api_id."""
         if v == 12345:
             raise ValueError(
-                "api_id value 12345 is a template placeholder. "
-                "Replace with your actual API ID from https://my.telegram.org/apps."
+                ("api_id value 12345 is a template placeholder. "  # noqa: UP034
+                 "Replace with your actual API ID from https://my.telegram.org/apps.")  # noqa: UP034
             )
         return v
 
@@ -192,8 +192,8 @@ class TelethonConfig(BaseModel):
         value = v.get_secret_value()
         if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
             raise ValueError(
-                "phone_or_token appears to be a placeholder value. "
-                "Replace with your phone number or bot token."
+                ("phone_or_token appears to be a placeholder value. "  # noqa: UP034
+                 "Replace with your phone number or bot token.")  # noqa: UP034
             )
         return v
 

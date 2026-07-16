@@ -140,7 +140,36 @@ class TestCliInit:
         assert "Skipped" in result.stdout
 
     def test_init_force_overwrites_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        """init --force should overwrite existing files."""
+            """init --force should overwrite existing files except telethon_config.yaml."""
+            from mko_telebot.core.paths import APP_PATHS
+
+            src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+            monkeypatch.setattr(APP_PATHS, "app_dir", src_dir, raising=False)
+            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+
+            # First init
+            runner.invoke(app, ["init"])
+
+            # Modify telethon_config.yaml to simulate user credentials
+            settings_dir = tmp_path / "settings"
+            user_config = settings_dir / "telethon_config.yaml"
+            user_config.write_text("TELETHON_API:\n  is_user: true\n  phone_or_token: 'user_phone'\n  client:\n    api_id: 99999\n    api_hash: 'user_api_hash'\n", encoding="utf-8")
+
+            # Force init
+            result = runner.invoke(app, ["init", "--force"])
+            assert result.exit_code == 0
+            assert "Copied" in result.stdout
+            assert "Preserved existing telethon_config.yaml" in result.stdout
+
+            # Verify telethon_config.yaml was preserved (not overwritten)
+            telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
+            assert telethon_data["TELETHON_API"]["client"]["api_id"] == 99999
+            assert telethon_data["TELETHON_API"]["phone_or_token"] == "user_phone"
+
+    def test_init_force_copies_telethon_config_when_not_exists(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """init --force should copy telethon_config.yaml if user file does not exist."""
         from mko_telebot.core.paths import APP_PATHS
 
         src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
@@ -150,11 +179,21 @@ class TestCliInit:
         # First init
         runner.invoke(app, ["init"])
 
+        # Remove telethon_config.yaml
+        settings_dir = tmp_path / "settings"
+        user_config = settings_dir / "telethon_config.yaml"
+        user_config.unlink()
+
         # Force init
         result = runner.invoke(app, ["init", "--force"])
         assert result.exit_code == 0
         assert "Copied" in result.stdout
-        assert "Skipped" not in result.stdout
+        assert "Preserved" not in result.stdout
+
+        # Verify telethon_config.yaml was copied
+        assert user_config.exists()
+        telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
+        assert telethon_data["TELETHON_API"]["client"]["api_id"] == 12345
 
 
 # ---------------------------------------------------------------------------
