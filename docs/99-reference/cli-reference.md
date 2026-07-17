@@ -170,7 +170,7 @@ mko-telebot run
 |----------|----------|
 | Missing/invalid config | Prints error, exits with code `1`. |
 | `KeyboardInterrupt` (Ctrl+C) | Prints yellow message, exits gracefully with code `130`. |
-| Telegram auth failure | Logged as error; loop continues for other channels. |
+| Telegram auth failure | Raises TelegramAuthError; terminates the run. |
 | FloodWait from Telegram | Waits the required duration, then retries. |
 
 **Exit codes:**
