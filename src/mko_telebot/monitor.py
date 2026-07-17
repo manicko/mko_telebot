@@ -43,9 +43,10 @@ async def reschedule_task(task: Task, queue: asyncio.Queue[Task]) -> None:
 
     logger.debug(f"{task.channel_name} will return to queue in {delay:.1f}s")
 
-    await asyncio.sleep(delay)
-
+    # Put task in queue before sleep so cancellation doesn't lose it
     await queue.put(task)
+
+    await asyncio.sleep(delay)
 
     logger.debug(f"{task.channel_name} returned to queue.")
 
