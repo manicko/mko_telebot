@@ -98,7 +98,9 @@ class PatternParser:
             self.tokens[self.token_pos] if self.token_pos < len(self.tokens) else None
         )
 
-    def _consume(self, expected_type: TokenType | str | None = None) -> tuple[TokenType, str] | None:
+    def _consume(
+        self, expected_type: TokenType | str | None = None
+    ) -> tuple[TokenType, str] | None:
         """Consume and return the current token if it matches expected_type.
 
         If expected_type is None, consume any token. Returns the consumed token or None.
@@ -158,7 +160,11 @@ class PatternParser:
         while True:
             tok = self._peek()
             # Stop if next token ends the sequence context
-            if not tok or tok[0] in (TokenType.OR, TokenType.GROUP_END, TokenType.EXCLUDE):
+            if not tok or tok[0] in (
+                TokenType.OR,
+                TokenType.GROUP_END,
+                TokenType.EXCLUDE,
+            ):
                 break
             nxt = self._parse_term()
             if nxt is None:

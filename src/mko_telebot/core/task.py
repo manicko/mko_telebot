@@ -41,9 +41,7 @@ logger = logging.getLogger(__name__)
 state_dir = APP_PATHS.state_dir
 
 
-
 class Task:
-
     """Represents a monitoring task for a single Telegram channel.
 
 
@@ -82,9 +80,7 @@ class Task:
 
     """
 
-
     def __init__(self, config: ChannelConfig) -> None:
-
         """Initialize Task from a ChannelConfig instance."""
 
         self.channel_name: str = config.name
@@ -115,11 +111,9 @@ class Task:
 
         self.overlap: int = config.overlap
 
-
     async def resolve_targets_entities(
         self, client: TelegramClient, max_retries: int = 3
     ) -> None:
-
         """Resolve each forward target to a Telethon entity and store them.
 
         All entities are resolved into a temporary list first, then assigned
@@ -134,19 +128,13 @@ class Task:
         entities: list[Entity] = []
 
         for ent in self.forward_to:
-
             for attempt in range(max_retries):
-
                 try:
-
                     result = await client.get_entity(ent)
 
                     if isinstance(result, list):
-
                         raise TelegramServiceError(
-
                             f"Ambiguous target '{ent}' resolved to multiple entities"
-
                         )
 
                     entities.append(result)
@@ -158,50 +146,35 @@ class Task:
                     break
 
                 except FloodWaitError as e:
-
-                    wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
+                    wait_time = e.seconds + random.uniform(5, 10) + (2**attempt)
 
                     logger.warning(
-
                         f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_retries} "
-
                         f"for target {ent} in channel {self.channel_name}"
-
                     )
 
                     await asyncio.sleep(wait_time)
 
                     if attempt == max_retries - 1:
-
                         raise TelegramServiceError(
-
                             f"Failed to resolve target entities for channel {self.channel_name} "
-
                             f"after {max_retries} attempts"
-
                         ) from e
 
                 except Exception as e:
-
                     logger.error(
-
                         f"Failed to resolve entity for target {ent} in channel {self.channel_name}: {e}"
-
                     )
 
                     raise TelegramServiceError(
-
                         f"Failed to resolve entity for target {ent}"
-
                     ) from e
 
         self.forward_to_entities = entities
 
-
     async def resolve_channel_entity(
         self, client: TelegramClient, max_retries: int = 3
     ) -> None:
-
         """Resolve channel_name to a Telethon channel entity.
 
         Args:
@@ -210,19 +183,14 @@ class Task:
         """
 
         for attempt in range(max_retries):
-
             try:
-
                 result = await client.get_entity(self.channel_name)
 
                 # get_entity can return Entity or List[Entity], we expect single Entity
 
                 if isinstance(result, list):
-
                     raise TelegramServiceError(
-
                         f"Unexpected list result for channel {self.channel_name}"
-
                     )
 
                 self.channel_entity = result
@@ -230,116 +198,80 @@ class Task:
                 return
 
             except FloodWaitError as e:
-
-                wait_time = e.seconds + random.uniform(5, 10) + (2 ** attempt)
+                wait_time = e.seconds + random.uniform(5, 10) + (2**attempt)
 
                 logger.warning(
-
                     f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_retries} "
-
                     f"for channel {self.channel_name}"
-
                 )
 
                 await asyncio.sleep(wait_time)
 
             except Exception as e:
-
                 logger.error(
-
                     f"Failed to resolve entity for channel {self.channel_name}: {e}"
-
                 )
 
                 raise TelegramServiceError(
-
                     f"Failed to resolve entity for channel {self.channel_name}"
-
                 ) from e
 
         raise TelegramServiceError(
-
             f"Failed to resolve entity for channel {self.channel_name} "
-
             f"after {max_retries} attempts"
-
         )
 
-
     def resolve_state_file(self) -> None:
-
         """Determine and create (if needed) the path to the state file for this channel."""
 
         self.state_file = state_dir / f"{self.channel_name}.json"
 
         try:
-
             ensure_path_exists(self.state_file)
 
             logger.debug(
-
                 f"State file for channel {self.channel_name} is ready: {self.state_file}"
-
             )
 
         except Exception as e:
-
             logger.error(
-
                 f"Failed to create or verify state file path {self.state_file}: {e}"
-
             )
 
             raise StateError(
-
                 f"Failed to create or verify state file for channel {self.channel_name}"
-
             ) from e
 
-
     def set_offset_date(self) -> None:
-
         """Compute and store offset_date as (now - history_days) in UTC."""
 
         self.offset_date = None
 
         if not self.history_days:
-
             return
 
         try:
-
             days = int(self.history_days)
 
         except (TypeError, ValueError) as e:
-
             raise ConfigError(
-
                 f"Invalid history_days for {self.channel_name}: {e}"
-
             ) from e
 
         self.offset_date = datetime.now(UTC) - timedelta(days=days)
 
         logger.debug(
-
             f"Offset date for {self.channel_name} set to {self.offset_date.isoformat()}"
-
         )
-
 
     # ===== State persistence functions =====
 
     async def load_state(self) -> None:
-
         """Load the last processed message id from the state file (if it exists)."""
 
         if self.state_file and self.state_file.exists():
-
             try:
-
                 async with aiofiles.open(self.state_file, encoding="utf-8") as f:
-
                     content = await f.read()
 
                 state = json.loads(content) if content else {}
@@ -347,52 +279,35 @@ class Task:
                 self.last_msg_id = max(self.last_msg_id, state.get("last_id", 0))
 
                 logger.debug(
-
                     f"State for channel {self.channel_name} restored, last_id={self.last_msg_id}"
-
                 )
 
             except Exception as e:
-
                 logger.error(
-
                     f"Error loading state for channel {self.channel_name}: {e}"
-
                 )
 
                 raise StateError(
-
                     f"Failed to load state for channel {self.channel_name}"
-
                 ) from e
 
         else:
-
             logger.debug(f"No saved state for {self.channel_name}, starting fresh")
 
-
     async def save_state(self) -> None:
-
         """Persist current last_msg_id to the state file."""
 
         try:
-
             async with aiofiles.open(str(self.state_file), "w", encoding="utf-8") as f:
-
                 await f.write(json.dumps({"last_id": self.last_msg_id}))
 
             logger.debug(
-
                 f"State for channel {self.channel_name} saved (last_id={self.last_msg_id})"
-
             )
 
         except Exception as e:
-
             logger.error(f"Error saving state for channel {self.channel_name}: {e}")
 
             raise StateError(
-
                 f"Failed to save state for channel {self.channel_name}"
-
             ) from e

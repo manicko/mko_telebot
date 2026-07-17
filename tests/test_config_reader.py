@@ -1,4 +1,4 @@
-﻿"""Tests for the TelepostConfigReader configuration reader.
+"""Tests for the TelepostConfigReader configuration reader.
 
 Tests cover construction, file validation, loading of YAML config files,
 logging config loading, and merging of config.yaml + telethon_config.yaml.
@@ -123,14 +123,18 @@ class TestValidateFiles:
         with pytest.raises(ConfigError, match="Required config file not found"):
             reader.validate_files()
 
-    def test_validate_files_raises_error_when_telethon_config_missing(self, tmp_path: Path):
+    def test_validate_files_raises_error_when_telethon_config_missing(
+        self, tmp_path: Path
+    ):
         """validate_files() should raise ConfigError if telethon_config.yaml is missing."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
             secrets_path=tmp_path / "telethon_config.yaml",
         )
-        with pytest.raises(ConfigError, match="Required telethon config file not found"):
+        with pytest.raises(
+            ConfigError, match="Required telethon config file not found"
+        ):
             reader.validate_files()
 
     def test_validate_files_passes_when_all_files_exist(self, tmp_path: Path):
@@ -163,19 +167,25 @@ class TestLoad:
         with pytest.raises(ConfigError, match="Required config file not found"):
             reader.load()
 
-    def test_load_raises_config_error_when_telethon_config_missing(self, tmp_path: Path):
+    def test_load_raises_config_error_when_telethon_config_missing(
+        self, tmp_path: Path
+    ):
         """load() should raise ConfigError when telethon_config.yaml is missing."""
         _write_yaml(tmp_path / "config.yaml", _valid_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
             secrets_path=tmp_path / "telethon_config.yaml",
         )
-        with pytest.raises(ConfigError, match="Required telethon config file not found"):
+        with pytest.raises(
+            ConfigError, match="Required telethon config file not found"
+        ):
             reader.load()
 
     def test_load_raises_config_error_on_malformed_yaml(self, tmp_path: Path):
         """load() should raise ConfigError when a YAML file is malformed."""
-        (tmp_path / "config.yaml").write_text("{invalid: yaml: broken", encoding="utf-8")
+        (tmp_path / "config.yaml").write_text(
+            "{invalid: yaml: broken", encoding="utf-8"
+        )
         _write_yaml(tmp_path / "telethon_config.yaml", _valid_telethon_config_yaml())
         reader = TelepostConfigReader(
             config_path=tmp_path / "config.yaml",
@@ -294,9 +304,7 @@ class TestLoadLoggingConfig:
             secrets_path=tmp_path / "telethon_config.yaml",
             log_config_path=tmp_path / "log_config.yaml",
         )
-        with pytest.raises(
-            ConfigError, match="Logging configuration file not found"
-        ):
+        with pytest.raises(ConfigError, match="Logging configuration file not found"):
             reader.load_logging_config()
 
     def test_load_logging_config_returns_dict(self, tmp_path: Path):
@@ -541,7 +549,7 @@ class TestValidators:
                 "test_channel": channel,
             },
         )
-# Defaults should be applied when channel uses default values
+        # Defaults should be applied when channel uses default values
         assert config.channels["test_channel"].scan_interval == 600
         assert config.channels["test_channel"].history_limit == 100
 

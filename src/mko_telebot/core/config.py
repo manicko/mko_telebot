@@ -68,9 +68,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:  # pyright: ignore[reportExplicitA
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f)  # pyright: ignore[reportAny]
         if not isinstance(data, dict):
-            raise ConfigError(
-                "Expected a top-level mapping in YAML file", path=path
-            )
+            raise ConfigError("Expected a top-level mapping in YAML file", path=path)
         return data  # pyright: ignore[reportUnknownVariableType]
     except yaml.YAMLError as e:
         raise ConfigError("Malformed YAML in configuration file", path=path) from e
@@ -174,9 +172,7 @@ class TelepostConfigReader:
         try:
             self._settings = TelepostSettings.model_validate(merged)
         except Exception as e:
-            raise ConfigError(
-                f"Configuration validation failed: {e}"
-            ) from e
+            raise ConfigError(f"Configuration validation failed: {e}") from e
         return self._settings
 
     def load_logging_config(self) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
@@ -192,9 +188,7 @@ class TelepostConfigReader:
         """
         path = self.log_config_path or APP_PATHS.log_config_file
         if not path.exists():
-            raise ConfigError(
-                "Logging configuration file not found", path=path
-            )
+            raise ConfigError("Logging configuration file not found", path=path)
         data = _load_yaml(path)
         # Handle LOGGING wrapper key if present
         logging_data = data.get("LOGGING", data)  # pyright: ignore[reportAny]

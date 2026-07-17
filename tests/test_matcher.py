@@ -175,7 +175,11 @@ class TestPatternsForNodeSequence:
     def test_sequence_flattens_patterns(self) -> None:
         """patterns_for_node should flatten all element patterns into list."""
         node = Sequence(
-            elements=[ExactMatch(value="a"), ExactMatch(value="b"), ExactMatch(value="c")]
+            elements=[
+                ExactMatch(value="a"),
+                ExactMatch(value="b"),
+                ExactMatch(value="c"),
+            ]
         )
         result = patterns_for_node(node)
         assert len(result) == 3
@@ -229,9 +233,7 @@ class TestPatternsForNodeExclusion:
     def test_exclusion_with_sequence(self) -> None:
         """patterns_for_node should handle Exclusion with Sequence child."""
         node = Exclusion(
-            child=Sequence(
-                elements=[ExactMatch(value="a"), ExactMatch(value="b")]
-            )
+            child=Sequence(elements=[ExactMatch(value="a"), ExactMatch(value="b")])
         )
         result = patterns_for_node(node)
         assert len(result) == 2
@@ -308,13 +310,19 @@ class TestEvaluateQueryInclusion:
 
     def test_multiple_inclusions_all_match(self) -> None:
         """evaluate_query should return True when all inclusions match."""
-        inclusions: list[ASTNode] = [ExactMatch(value="hello"), ExactMatch(value="world")]
+        inclusions: list[ASTNode] = [
+            ExactMatch(value="hello"),
+            ExactMatch(value="world"),
+        ]
         exclusions: list[ASTNode] = []
         assert evaluate_query("hello there world", inclusions, exclusions) is True
 
     def test_one_inclusion_fails(self) -> None:
         """evaluate_query should return False when any inclusion fails."""
-        inclusions: list[ASTNode] = [ExactMatch(value="hello"), ExactMatch(value="missing")]
+        inclusions: list[ASTNode] = [
+            ExactMatch(value="hello"),
+            ExactMatch(value="missing"),
+        ]
         exclusions: list[ASTNode] = []
         assert evaluate_query("hello world", inclusions, exclusions) is False
 
@@ -383,14 +391,18 @@ class TestEvaluateQueryOrOperation:
 
     def test_or_operation_one_side_matches(self) -> None:
         """evaluate_query should return True when one OR side matches."""
-        or_node = OrOperation(left=ExactMatch(value="hello"), right=ExactMatch(value="world"))
+        or_node = OrOperation(
+            left=ExactMatch(value="hello"), right=ExactMatch(value="world")
+        )
         inclusions: list[ASTNode] = [cast(ASTNode, or_node)]
         exclusions: list[ASTNode] = []
         assert evaluate_query("hello there", inclusions, exclusions) is True
 
     def test_or_operation_neither_matches(self) -> None:
         """evaluate_query should return False when neither OR side matches."""
-        or_node = OrOperation(left=ExactMatch(value="hello"), right=ExactMatch(value="world"))
+        or_node = OrOperation(
+            left=ExactMatch(value="hello"), right=ExactMatch(value="world")
+        )
         inclusions: list[ASTNode] = [cast(ASTNode, or_node)]
         exclusions: list[ASTNode] = []
         assert evaluate_query("goodbye", inclusions, exclusions) is False

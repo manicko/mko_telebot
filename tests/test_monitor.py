@@ -440,16 +440,18 @@ class TestBuildSenderTag:
         assert result == ""
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_retries_on_timed_out_error(
-        self, mock_sleep: AsyncMock
-    ) -> None:
+    async def test_retries_on_timed_out_error(self, mock_sleep: AsyncMock) -> None:
         """build_sender_tag() should retry on TimedOutError and succeed on second attempt."""
         from telethon.errors import TimedOutError
 
         msg = MagicMock()
         sender = MagicMock()
         sender.username = "retry_user"
-        msg.get_sender = AsyncMock(side_effect=itertools.cycle([TimedOutError(request=None, message="Timed out"), sender]))
+        msg.get_sender = AsyncMock(
+            side_effect=itertools.cycle(
+                [TimedOutError(request=None, message="Timed out"), sender]
+            )
+        )
         msg.id = 123
         result = await build_sender_tag(msg)
         assert result == "@retry_user"
@@ -457,53 +459,53 @@ class TestBuildSenderTag:
         assert msg.get_sender.await_count == 2
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_retries_on_server_error(
-        self, mock_sleep: AsyncMock
-    ) -> None:
+    async def test_retries_on_server_error(self, mock_sleep: AsyncMock) -> None:
         """build_sender_tag() should retry on ServerError and succeed on second attempt."""
         from telethon.errors import ServerError
 
         msg = MagicMock()
         sender = MagicMock()
         sender.username = "server_user"
-        msg.get_sender = AsyncMock(side_effect=itertools.cycle([ServerError(request=None, message="Server error"), sender]))
+        msg.get_sender = AsyncMock(
+            side_effect=itertools.cycle(
+                [ServerError(request=None, message="Server error"), sender]
+            )
+        )
         msg.id = 456
         result = await build_sender_tag(msg)
         assert result == "@server_user"
         assert msg.get_sender.await_count == 2
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_retries_on_connection_error(
-        self, mock_sleep: AsyncMock
-    ) -> None:
+    async def test_retries_on_connection_error(self, mock_sleep: AsyncMock) -> None:
         """build_sender_tag() should retry on ConnectionError and succeed on second attempt."""
         msg = MagicMock()
         sender = MagicMock()
         sender.username = "conn_user"
-        msg.get_sender = AsyncMock(side_effect=itertools.cycle([ConnectionError(), sender]))
+        msg.get_sender = AsyncMock(
+            side_effect=itertools.cycle([ConnectionError(), sender])
+        )
         msg.id = 789
         result = await build_sender_tag(msg)
         assert result == "@conn_user"
         assert msg.get_sender.await_count == 2
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_retries_on_timeout_error(
-        self, mock_sleep: AsyncMock
-    ) -> None:
+    async def test_retries_on_timeout_error(self, mock_sleep: AsyncMock) -> None:
         """build_sender_tag() should retry on TimeoutError and succeed on second attempt."""
         msg = MagicMock()
         sender = MagicMock()
         sender.username = "timeout_user"
-        msg.get_sender = AsyncMock(side_effect=itertools.cycle([TimeoutError(), sender]))
+        msg.get_sender = AsyncMock(
+            side_effect=itertools.cycle([TimeoutError(), sender])
+        )
         msg.id = 111
         result = await build_sender_tag(msg)
         assert result == "@timeout_user"
         assert msg.get_sender.await_count == 2
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_retries_on_os_error(
-        self, mock_sleep: AsyncMock
-    ) -> None:
+    async def test_retries_on_os_error(self, mock_sleep: AsyncMock) -> None:
         """build_sender_tag() should retry on OSError and succeed on second attempt."""
         msg = MagicMock()
         sender = MagicMock()
@@ -523,7 +525,9 @@ class TestBuildSenderTag:
 
         msg = MagicMock()
         msg.id = 999
-        msg.get_sender = AsyncMock(side_effect=TimedOutError(request=None, message="Timed out"))
+        msg.get_sender = AsyncMock(
+            side_effect=TimedOutError(request=None, message="Timed out")
+        )
         with patch("mko_telebot.monitor_client.logger") as mock_logger:
             result = await build_sender_tag(msg)
             assert result == ""

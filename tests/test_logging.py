@@ -89,7 +89,9 @@ def _reset_logging() -> None:
 class TestSetupLogging:
     """Tests for setup_logging() function."""
 
-    def test_setup_logging_with_valid_yaml_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_setup_logging_with_valid_yaml_config(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """setup_logging should load and apply valid logging YAML config."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -137,13 +139,18 @@ class TestSetupLogging:
         # Verify logging was configured
         assert _get_root_level() == logging.INFO
 
-    def test_setup_logging_resolves_relative_log_file_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_setup_logging_resolves_relative_log_file_paths(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """setup_logging should resolve relative log file paths to absolute."""
         from mko_telebot.core.paths import APP_PATHS
 
         # Create settings/log_config.yaml with file handler
         settings_dir = tmp_path / "settings"
-        _write_yaml(settings_dir / "log_config.yaml", _valid_logging_yaml_with_file_handler(tmp_path))
+        _write_yaml(
+            settings_dir / "log_config.yaml",
+            _valid_logging_yaml_with_file_handler(tmp_path),
+        )
 
         # Patch user_dir
         monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
@@ -155,7 +162,9 @@ class TestSetupLogging:
         handlers = _get_root_handlers()
         assert len(handlers) > 0
 
-    def test_setup_logging_uses_default_paths_when_none(self, monkeypatch: pytest.MonkeyPatch):
+    def test_setup_logging_uses_default_paths_when_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """setup_logging should use APP_PATHS defaults when config_path is None."""
         from mko_telebot.core.paths import APP_PATHS
 

@@ -186,7 +186,9 @@ async def build_sender_tag(msg: Message) -> str:
 
         except (OSError, ConnectionError, TimeoutError, TimedOutError, ServerError):
             if attempt == 1:
-                logger.warning("Sender resolution failed for msg.id=%s after retries", msg.id)
+                logger.warning(
+                    "Sender resolution failed for msg.id=%s after retries", msg.id
+                )
                 return ""
             await asyncio.sleep(1)
 

@@ -5,6 +5,7 @@ Provides:
 - AppPaths: Pydantic model defining all application directory/file paths
 - APP_PATHS: Module-level singleton instance of AppPaths
 """
+
 from __future__ import annotations
 
 from pathlib import Path

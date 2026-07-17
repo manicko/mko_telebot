@@ -18,7 +18,10 @@ from rich.table import Table
 
 from mko_telebot.core.errors import ConfigError, MkoTelebotError
 from mko_telebot.core.paths import APP_PATHS
-from mko_telebot.core.utils import _secure_directory_permissions, _secure_file_permissions
+from mko_telebot.core.utils import (
+    _secure_directory_permissions,
+    _secure_file_permissions,
+)
 from mko_telebot.monitor_client import create_client
 from mko_telebot.monitor import run_monitor
 from mko_telebot.logging import setup_logging

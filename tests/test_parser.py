@@ -74,12 +74,20 @@ class TestPatternParser:
     def test_tokenize_or_operator(self):
         """Tokenization should identify OR operator '|'."""
         parser = PatternParser("a | b")
-        assert parser.tokens == [(TokenType.TERM, "a"), (TokenType.OR, "|"), (TokenType.TERM, "b")]
+        assert parser.tokens == [
+            (TokenType.TERM, "a"),
+            (TokenType.OR, "|"),
+            (TokenType.TERM, "b"),
+        ]
 
     def test_tokenize_group_start(self):
         """Tokenization should identify GROUP_START '('."""
         parser = PatternParser("(hello)")
-        assert parser.tokens == [(TokenType.GROUP_START, "("), (TokenType.TERM, "hello"), (TokenType.GROUP_END, ")")]
+        assert parser.tokens == [
+            (TokenType.GROUP_START, "("),
+            (TokenType.TERM, "hello"),
+            (TokenType.GROUP_END, ")"),
+        ]
 
     def test_tokenize_group_end(self):
         """Tokenization should identify GROUP_END ')'."""
@@ -397,9 +405,7 @@ class TestASTNodes:
 
     def test_or_operation_is_ast_node(self):
         """OrOperation should be an ASTNode subclass."""
-        node = OrOperation(
-            left=ExactMatch(value="a"), right=ExactMatch(value="b")
-        )
+        node = OrOperation(left=ExactMatch(value="a"), right=ExactMatch(value="b"))
         assert isinstance(node, ASTNode)
 
     def test_sequence_creation(self):
@@ -571,22 +577,22 @@ def test_property_no_crash_basic(matcher, text, query):
 
     # Invariant: wildcard 'a*' matches words starting with 'a' (word boundary on left)
     if query == '"a*"':
-        assert matcher("abc", query) is True      # word 'abc' starts with 'a'
-        assert matcher("", query) is False       # empty text cannot match
-        assert matcher("xabc", query) is False   # no word starts with 'a' in 'xabc'
+        assert matcher("abc", query) is True  # word 'abc' starts with 'a'
+        assert matcher("", query) is False  # empty text cannot match
+        assert matcher("xabc", query) is False  # no word starts with 'a' in 'xabc'
 
     # Invariant: wildcard '*b' matches words ending with 'b' (word boundary on right)
     if query == '"*b"':
-        assert matcher("xb", query) is True       # word 'xb' ends with 'b'
-        assert matcher("ab", query) is True       # word 'ab' ends with 'b'
-        assert matcher("abc", query) is False      # word 'abc' ends with 'c'
+        assert matcher("xb", query) is True  # word 'xb' ends with 'b'
+        assert matcher("ab", query) is True  # word 'ab' ends with 'b'
+        assert matcher("abc", query) is False  # word 'abc' ends with 'c'
 
     # Invariant: OR '(c | d)' matches text containing 'c' or 'd' as whole words
     if query == '"(c | d)"':
-        assert matcher("c", query) is True       # contains word 'c'
-        assert matcher("d", query) is True       # contains word 'd'
-        assert matcher("cd", query) is False     # 'cd' is one word, not 'c' or 'd'
-        assert matcher("xy", query) is False   # contains neither
+        assert matcher("c", query) is True  # contains word 'c'
+        assert matcher("d", query) is True  # contains word 'd'
+        assert matcher("cd", query) is False  # 'cd' is one word, not 'c' or 'd'
+        assert matcher("xy", query) is False  # contains neither
 
 
 # Extended property-based test with richer query generation
@@ -604,7 +610,7 @@ def test_property_no_crash_generated(matcher, text, query):
     result = matcher(text, query)
     assert isinstance(result, bool)
 
-    query_content = query.strip('"\'')
+    query_content = query.strip("\"'")
 
     # For generated queries, just verify basic invariants that work with sequences
     # Single wildcard ending with '*' matches words starting with prefix

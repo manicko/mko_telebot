@@ -45,9 +45,7 @@ class ChannelConfig(BaseModel):
     def validate_channel_name(cls, v: str) -> str:
         """Validate channel name rejects path traversal characters."""
         if "/" in v or "\\" in v or ".." in v:
-            raise ValueError(
-                "Invalid channel name: contains forbidden path character"
-            )
+            raise ValueError("Invalid channel name: contains forbidden path character")
         return v
 
     @field_validator("keywords", mode="before")
@@ -57,9 +55,12 @@ class ChannelConfig(BaseModel):
         if not v:
             return v
         from mko_telebot.core.parser import parse_query
+
         for keyword in v:
             if not isinstance(keyword, str):
-                raise ValueError(f"Keyword must be a string, got {type(keyword).__name__}")
+                raise ValueError(
+                    f"Keyword must be a string, got {type(keyword).__name__}"
+                )
             if not keyword.strip():
                 raise ValueError("Keyword cannot be empty or whitespace only")
             try:
@@ -102,9 +103,12 @@ class ChannelDefaults(BaseModel):
         if not v:
             return v
         from mko_telebot.core.parser import parse_query
+
         for keyword in v:
             if not isinstance(keyword, str):
-                raise ValueError(f"Keyword must be a string, got {type(keyword).__name__}")
+                raise ValueError(
+                    f"Keyword must be a string, got {type(keyword).__name__}"
+                )
             if not keyword.strip():
                 raise ValueError("Keyword cannot be empty or whitespace only")
             try:

@@ -11,7 +11,12 @@ from telethon import TelegramClient
 
 from mko_telebot.core import Task
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.errors import StateError, ConfigError, TelegramServiceError, TelegramAuthError
+from mko_telebot.core.errors import (
+    StateError,
+    ConfigError,
+    TelegramServiceError,
+    TelegramAuthError,
+)
 from .monitor_client import start_client
 from .monitor_forward import process_task
 
@@ -80,84 +85,77 @@ async def process_and_reschedule(
                 )
                 # Continue with in-memory state for next iteration
     except TelegramServiceError as e:
-        logger.error(
-            "Error processing channel %s: %s", task.channel_name, e
-        )
+        logger.error("Error processing channel %s: %s", task.channel_name, e)
     finally:
         asyncio.create_task(reschedule_task(task, queue))
 
 
 async def main_loop(
-        settings: TelepostSettings,
-        client: TelegramClient,
-        queue: asyncio.Queue[Task],
-        lock: asyncio.Lock,
-    ) -> None:
-        """Main monitoring loop that sequentially processes channels.
+    settings: TelepostSettings,
+    client: TelegramClient,
+    queue: asyncio.Queue[Task],
+    lock: asyncio.Lock,
+) -> None:
+    """Main monitoring loop that sequentially processes channels.
 
-        Args:
-            settings (TelepostSettings): Application settings.
-            client (TelegramClient): The Telethon client instance.
-            queue (asyncio.Queue): Queue for scheduling tasks.
-            lock (asyncio.Lock): Lock to serialize task processing.
+    Args:
+        settings (TelepostSettings): Application settings.
+        client (TelegramClient): The Telethon client instance.
+        queue (asyncio.Queue): Queue for scheduling tasks.
+        lock (asyncio.Lock): Lock to serialize task processing.
 
-        """
+    """
 
-        max_retries = settings.telethon.max_retries
+    max_retries = settings.telethon.max_retries
 
-        channels_delay = settings.channels.channels_delay
+    channels_delay = settings.channels.channels_delay
 
-        channels = settings.channels.channels
+    channels = settings.channels.channels
 
-        channels_list = list(channels.keys())
+    channels_list = list(channels.keys())
 
-        if not channels:
+    if not channels:
+        logger.error(
+            "No channels configured. Please add at least one channel to your configuration."
+        )
 
-            logger.error(
+        raise ConfigError("No channels configured in configuration file")
 
-                "No channels configured. Please add at least one channel to your configuration."
+    stagger_start_seconds = settings.channels.stagger_start_seconds
 
-            )
+    for channel_name in channels_list:
+        try:
+            channel_settings = channels[channel_name]
 
-            raise ConfigError("No channels configured in configuration file")
+            task = Task(config=channel_settings)
 
-        stagger_start_seconds = settings.channels.stagger_start_seconds
+            await task.resolve_channel_entity(client, max_retries)
 
-        for channel_name in channels_list:
+            task.resolve_state_file()
 
-            try:
+            await task.load_state()
 
-                channel_settings = channels[channel_name]
+            await task.resolve_targets_entities(client, max_retries)
 
-                task = Task(config=channel_settings)
+            await asyncio.sleep(random.uniform(0, stagger_start_seconds))
 
-                await task.resolve_channel_entity(client, max_retries)
+            await queue.put(task)
 
-                task.resolve_state_file()
+        except TelegramServiceError as e:
+            logger.error(f"Failed to initialize channel {channel_name}: {e}")
 
-                await task.load_state()
+            continue
 
-                await task.resolve_targets_entities(client, max_retries)
+    logger.info("Monitoring loop started.")
 
-                await asyncio.sleep(random.uniform(0, stagger_start_seconds))
+    while True:
+        task = await queue.get()
 
-                await queue.put(task)
+        asyncio.create_task(
+            process_and_reschedule(task, client, queue, lock, settings)
+        ).add_done_callback(_handle_task_exception)
 
-            except TelegramServiceError as e:
-
-                logger.error(f"Failed to initialize channel {channel_name}: {e}")
-
-                continue
-
-        logger.info("Monitoring loop started.")
-
-        while True:
-
-            task = await queue.get()
-
-            asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings)).add_done_callback(_handle_task_exception)
-
-            await asyncio.sleep(channels_delay)
+        await asyncio.sleep(channels_delay)
 
 
 async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> None:

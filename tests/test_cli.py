@@ -78,7 +78,9 @@ class TestCliConfig:
 class TestCliValidate:
     """Tests for the validate command."""
 
-    def test_validate_exits_code_1_when_config_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_validate_exits_code_1_when_config_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """validate should exit code 1 when config files are missing."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -98,7 +100,9 @@ class TestCliValidate:
 class TestCliInit:
     """Tests for the init command."""
 
-    def test_init_creates_config_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_init_creates_config_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """init should copy template files to the user config directory."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -121,9 +125,13 @@ class TestCliInit:
             (settings_dir / "telethon_config.yaml").read_text(encoding="utf-8")
         )
         assert telethon_data["TELETHON_API"]["client"]["api_id"] == 12345
-        assert "PLACEHOLDER_REPLACE_ME" in telethon_data["TELETHON_API"]["phone_or_token"]
+        assert (
+            "PLACEHOLDER_REPLACE_ME" in telethon_data["TELETHON_API"]["phone_or_token"]
+        )
 
-    def test_init_skips_existing_without_force(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_init_skips_existing_without_force(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """init without --force should skip existing files."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -139,32 +147,37 @@ class TestCliInit:
         assert result.exit_code == 0
         assert "Skipped" in result.stdout
 
-    def test_init_force_overwrites_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-            """init --force should overwrite existing files except telethon_config.yaml."""
-            from mko_telebot.core.paths import APP_PATHS
+    def test_init_force_overwrites_existing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """init --force should overwrite existing files except telethon_config.yaml."""
+        from mko_telebot.core.paths import APP_PATHS
 
-            src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
-            monkeypatch.setattr(APP_PATHS, "app_dir", src_dir, raising=False)
-            monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+        src_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+        monkeypatch.setattr(APP_PATHS, "app_dir", src_dir, raising=False)
+        monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
 
-            # First init
-            runner.invoke(app, ["init"])
+        # First init
+        runner.invoke(app, ["init"])
 
-            # Modify telethon_config.yaml to simulate user credentials
-            settings_dir = tmp_path / "settings"
-            user_config = settings_dir / "telethon_config.yaml"
-            user_config.write_text("TELETHON_API:\n  is_user: true\n  phone_or_token: 'user_phone'\n  client:\n    api_id: 99999\n    api_hash: 'user_api_hash'\n", encoding="utf-8")
+        # Modify telethon_config.yaml to simulate user credentials
+        settings_dir = tmp_path / "settings"
+        user_config = settings_dir / "telethon_config.yaml"
+        user_config.write_text(
+            "TELETHON_API:\n  is_user: true\n  phone_or_token: 'user_phone'\n  client:\n    api_id: 99999\n    api_hash: 'user_api_hash'\n",
+            encoding="utf-8",
+        )
 
-            # Force init
-            result = runner.invoke(app, ["init", "--force"])
-            assert result.exit_code == 0
-            assert "Copied" in result.stdout
-            assert "Preserved existing telethon_config.yaml" in result.stdout
+        # Force init
+        result = runner.invoke(app, ["init", "--force"])
+        assert result.exit_code == 0
+        assert "Copied" in result.stdout
+        assert "Preserved existing telethon_config.yaml" in result.stdout
 
-            # Verify telethon_config.yaml was preserved (not overwritten)
-            telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
-            assert telethon_data["TELETHON_API"]["client"]["api_id"] == 99999
-            assert telethon_data["TELETHON_API"]["phone_or_token"] == "user_phone"
+        # Verify telethon_config.yaml was preserved (not overwritten)
+        telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
+        assert telethon_data["TELETHON_API"]["client"]["api_id"] == 99999
+        assert telethon_data["TELETHON_API"]["phone_or_token"] == "user_phone"
 
     def test_init_force_copies_telethon_config_when_not_exists(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -195,7 +208,9 @@ class TestCliInit:
         telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
         assert telethon_data["TELETHON_API"]["client"]["api_id"] == 12345
 
-    def test_init_does_not_copy_keyw_config_example_keep(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_init_does_not_copy_keyw_config_example_keep(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """init should skip keyw_config_example_keep.yaml to prevent user confusion."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -223,7 +238,9 @@ class TestCliInit:
 class TestCliRun:
     """Tests for the run command error paths."""
 
-    def test_run_missing_config_exits_1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_run_missing_config_exits_1(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """run should exit code 1 when config files are missing."""
         from mko_telebot.core.paths import APP_PATHS
 
@@ -234,7 +251,9 @@ class TestCliRun:
         assert result.exit_code == 1
         assert "Configuration error" in result.stdout
 
-    def test_run_invalid_telethon_config_exits_1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def test_run_invalid_telethon_config_exits_1(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """run should exit code 1 when telethon config file has invalid content."""
         from mko_telebot.core.paths import APP_PATHS
 

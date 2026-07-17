@@ -25,7 +25,10 @@ from mko_telebot.core.errors import TelegramServiceError
 from mko_telebot.core.models import TelepostSettings
 from .monitor_client import build_message_link, build_sender_tag
 
-def _calculate_retry_delay(attempt: int, is_flood_wait: bool, seconds: int = 0) -> float:
+
+def _calculate_retry_delay(
+    attempt: int, is_flood_wait: bool, seconds: int = 0
+) -> float:
     """Calculate backoff delay based on error type.
 
     Args:
@@ -37,8 +40,9 @@ def _calculate_retry_delay(attempt: int, is_flood_wait: bool, seconds: int = 0) 
         Wait time in seconds with exponential backoff and jitter.
     """
     if is_flood_wait:
-        return seconds + random.uniform(5, 10) + (2 ** attempt)
-    return (2 ** attempt) + random.uniform(0, 3)
+        return seconds + random.uniform(5, 10) + (2**attempt)
+    return (2**attempt) + random.uniform(0, 3)
+
 
 logger = logging.getLogger(__name__)
 
@@ -102,14 +106,18 @@ async def _send_with_retry(
     for attempt in range(max_tries):
         try:
             await _send_message_to_target(client, target, caption, msg_media)
-            logger.info(f"{channel_name}: forwarded message to {getattr(target, 'id', target)}")
+            logger.info(
+                f"{channel_name}: forwarded message to {getattr(target, 'id', target)}"
+            )
             return True
 
         except FloodWaitError as e:
-            wait_time = _calculate_retry_delay(attempt, is_flood_wait=True, seconds=e.seconds)
+            wait_time = _calculate_retry_delay(
+                attempt, is_flood_wait=True, seconds=e.seconds
+            )
             logger.warning(
-                (f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "  # noqa: UP034
-                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
+                f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_tries} "  # noqa: UP034
+                f"for {getattr(target, 'id', target)}"  # noqa: UP034
             )
             await asyncio.sleep(wait_time)
 
@@ -117,16 +125,16 @@ async def _send_with_retry(
             # Transient errors - retry with backoff
             wait_time = _calculate_retry_delay(attempt, is_flood_wait=False)
             logger.warning(
-                (f"{type(e).__name__} {e}, retry {attempt + 1}/{max_tries} "  # noqa: UP034
-                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
+                f"{type(e).__name__} {e}, retry {attempt + 1}/{max_tries} "  # noqa: UP034
+                f"for {getattr(target, 'id', target)}"  # noqa: UP034
             )
             await asyncio.sleep(wait_time)
 
         except RPCError as e:
             # Permanent RPCError subclasses (UnauthorizedError family) - fail fast
             logger.error(
-                (f"Permanent RPC error {type(e).__name__} {e} "  # noqa: UP034
-                 f"for {getattr(target, 'id', target)}")
+                f"Permanent RPC error {type(e).__name__} {e} "  # noqa: UP034
+                f"for {getattr(target, 'id', target)}"
             )
             raise TelegramServiceError(f"Telegram send error: {e}") from e
 
@@ -148,18 +156,24 @@ async def forward_to_users(
 
     for target in task.forward_to_entities:
         success = await _send_with_retry(
-            client, target, caption, msg_media or None,
-            settings.telethon.max_retries, task.channel_name,
+            client,
+            target,
+            caption,
+            msg_media or None,
+            settings.telethon.max_retries,
+            task.channel_name,
         )
         if not success:
             logger.error(
-                (f"Failed to send to {getattr(target, 'id', target)} "  # noqa: UP034
-                 f"after {settings.telethon.max_retries} attempts")  # noqa: UP034
+                f"Failed to send to {getattr(target, 'id', target)} "  # noqa: UP034
+                f"after {settings.telethon.max_retries} attempts"  # noqa: UP034
             )
         await asyncio.sleep(random.uniform(5, 10))
 
 
-def _build_caption(msg_text: str | None, sender_tag: str | None, link: str | None) -> str:
+def _build_caption(
+    msg_text: str | None, sender_tag: str | None, link: str | None
+) -> str:
     """Build caption for forwarded message from text, sender tag, and link."""
     caption_lines = []
     if msg_text:
@@ -250,7 +264,9 @@ async def _fetch_messages(
             return new_messages
 
         except FloodWaitError as e:
-            wait_time = _calculate_retry_delay(attempt, is_flood_wait=True, seconds=e.seconds)
+            wait_time = _calculate_retry_delay(
+                attempt, is_flood_wait=True, seconds=e.seconds
+            )
             logger.warning(
                 f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_retries} "
                 f"for {task.channel_name}"
@@ -269,8 +285,7 @@ async def _fetch_messages(
         except RPCError as e:
             # Permanent RPCError subclasses - fail fast
             logger.error(
-                f"Permanent RPC error {type(e).__name__} {e} "
-                f"for {task.channel_name}"
+                f"Permanent RPC error {type(e).__name__} {e} for {task.channel_name}"
             )
             raise TelegramServiceError(
                 f"Failed to fetch messages for {task.channel_name}: {e}"
@@ -280,7 +295,9 @@ async def _fetch_messages(
     return []
 
 
-async def process_task(task: Task, client: TelegramClient, settings: TelepostSettings) -> None:
+async def process_task(
+    task: Task, client: TelegramClient, settings: TelepostSettings
+) -> None:
     """Fetch and process recent messages from a specific Telegram channel."""
     logger.debug(f"{task.channel_name} is processed")
 
@@ -288,16 +305,14 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         logger.error(f"Channel entity not resolved for {task.channel_name}")
         return
 
-    new_messages = await _fetch_messages(
-        client, task, settings.telethon.max_retries
-    )
+    new_messages = await _fetch_messages(client, task, settings.telethon.max_retries)
 
     if new_messages:
         await process_messages(new_messages, task, client, settings)
         task.last_msg_id = max(msg.id for msg in new_messages)
         logger.info(
-            (f"{task.channel_name}: {len(new_messages)} new messages processed, "  # noqa: UP034
-             f"last_msg_id={task.last_msg_id}")  # noqa: UP034
+            f"{task.channel_name}: {len(new_messages)} new messages processed, "  # noqa: UP034
+            f"last_msg_id={task.last_msg_id}"  # noqa: UP034
         )
     else:
         logger.info(f"{task.channel_name}: no new messages found")
