@@ -1,0 +1,60 @@
+id: task_006_wrap_rpcerror_telegram_service
+
+title: Wrap RPCError in TelegramServiceError for proper handling
+
+priority: critical
+
+depends_on: []
+
+description: >
+  In _send_with_retry (monitor_forward.py:125-131), a permanent RPCError subclass
+  (e.g., UnauthorizedError, ChatWriteForbiddenError) is re-raised with bare raise,
+  causing it to escape process_and_reschedule which only catches TelegramServiceError.
+  This crashes the worker task and pollutes the event loop. Wrap RPCError in
+  TelegramServiceError so a single bad target/channel does not terminate the
+  entire monitor process.
+
+goals:
+  - wrap RPCError in TelegramServiceError in _send_with_retry
+  - ensure forward_to_users catches and handles wrapped errors
+  - add Task exception sink in main_loop for escaped exceptions
+
+files:
+  - path: src/mko_telebot/monitor_forward.py
+    targets:
+      - type: function
+        name: _send_with_retry
+    semantic_anchors:
+      replace_in_body:
+        - type: exception_handler
+          value: except RPCError as e: ... raise
+        - type: exception_handler
+          value: raise TelegramServiceError
+
+  - path: src/mko_telebot/monitor.py
+    targets:
+      - type: function
+        name: main_loop
+    semantic_anchors:
+      insert_after:
+        type: function_call
+        value: asyncio.create_task
+
+changes:
+  - action: add_code
+    description: >
+      Wrap RPCError in TelegramServiceError; add done_callback to log unhandled exceptions
+    code_hint: |
+      except RPCError as e:
+          raise TelegramServiceError(f"Telegram send error: {e}") from e
+
+acceptance_criteria:
+  - RPCError is wrapped in TelegramServiceError
+  - process_and_reschedule can catch and handle wrapped errors
+  - main_loop has exception sink for untracked tasks
+  - tests pass
+  - no duplicate forwards after error recovery
+
+tests_to_run:
+  - uv run pytest tests/test_monitor_forward.py -v -k send_with_retry
+  - uv run pytest tests/test_monitor.py -v

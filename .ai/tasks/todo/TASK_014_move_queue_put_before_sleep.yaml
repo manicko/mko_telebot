@@ -1,0 +1,44 @@
+id: task_014_move_queue_put_before_sleep
+
+title: Move queue.put before sleep in reschedule_task
+
+priority: low
+
+depends_on: []
+
+description: >
+  In reschedule_task (monitor.py:28-35), queue.put happens only after sleep. If the task
+  is cancelled during sleep, the channel is never re-queued. Move queue.put before
+  sleep to prevent stalled channels on interrupt.
+
+goals:
+  - prevent permanently stalled channels on cancellation
+  - move queue.put before sleep
+  - maintain fire-and-forget design per project guidelines
+
+files:
+  - path: src/mko_telebot/monitor.py
+    targets:
+      - type: function
+        name: reschedule_task
+    semantic_anchors:
+      reorder_operations:
+        - move: queue.put(task)
+        - before: await asyncio.sleep(task.scan_interval)
+
+changes:
+  - action: add_code
+    description: >
+      Reorder: put task in queue before sleeping
+    code_hint: |
+      # Put task in queue before sleep so cancellation doesn't lose it
+      await queue.put(task)
+      await asyncio.sleep(...)
+
+acceptance_criteria:
+  - queue.put executes before sleep
+  - Channel not lost on cancellation
+  - tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_monitor.py -v

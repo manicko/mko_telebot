@@ -1,0 +1,44 @@
+id: task_017_fix_property_test_invariant
+
+title: Fix property test invariant for exclusion-only wildcard queries
+
+priority: medium
+
+depends_on: []
+
+description: >
+  test_property_no_crash_generated in tests/test_parser.py fails because the test
+  assumes exclusion-only queries "match everything". The invariant "if query_content
+  starts with '-', assert matcher('xyz', query) is True" is incorrect. xyz starts
+  with 'x' which matches 'X' under IGNORECASE, so -X* correctly excludes xyz.
+  Fix the test to use text guaranteed not to match the exclusion pattern.
+
+goals:
+  - fix falsifying test case in test_property_no_crash_generated
+  - use text that genuinely doesn't match exclusion pattern (e.g., 'abc' for '-X*')
+  - make test pass without changing production code
+
+files:
+  - path: tests/test_parser.py
+    targets:
+      - type: function
+        name: test_property_no_crash_generated
+    semantic_anchors:
+      replace_in_body:
+        - type: assertion
+          value: assert matcher("xyz", query) is True
+
+changes:
+  - action: add_code
+    description: >
+      Replace 'xyz' with 'abc' which doesn't match X* under IGNORECASE
+    code_hint: |
+      # Change matcher("xyz", query) to matcher("abc", query) for exclusion patterns
+
+acceptance_criteria:
+  - test_property_no_crash_generated passes
+  - Production code unchanged (case-insensitive matching preserved)
+  - Invariant correctly documents exclusion semantics
+
+tests_to_run:
+  - uv run pytest tests/test_parser.py -v -k property_no_crash

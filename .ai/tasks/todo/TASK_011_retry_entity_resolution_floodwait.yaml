@@ -1,0 +1,47 @@
+id: task_011_retry_entity_resolution_floodwait
+
+title: Retry entity resolution after FloodWaitError
+
+priority: medium
+
+depends_on: [task_008_enable_telethon_flood_sleep_threshold]
+
+description: >
+  In resolve_targets_entities and resolve_channel_entity (task.py), FloodWaitError is
+  caught, sleep occurs, then TelegramServiceError is immediately raised without retry.
+  This aborts resolution for that target/channel. Add bounded retry consistent with
+  the send path to prevent premature abortion.
+
+goals:
+  - retry get_entity after FloodWaitError in resolve_targets_entities
+  - retry get_entity after FloodWaitError in resolve_channel_entity
+  - bounded retry prevents cascading failures
+
+files:
+  - path: src/mko_telebot/core/task.py
+    targets:
+      - type: function
+        name: resolve_targets_entities
+      - type: function
+        name: resolve_channel_entity
+    semantic_anchors:
+      replace_in_body:
+        - type: exception_handler
+          value: except FloodWaitError as e: ... raise TelegramServiceError
+
+changes:
+  - action: add_code
+    description: >
+      Replace immediate raise with retry loop after sleep
+    code_hint: |
+      except FloodWaitError as e:
+          await asyncio.sleep(e.seconds + random.uniform(10, 15))
+          # Retry once before raising TelegramServiceError
+
+acceptance_criteria:
+  - Entity resolution retries after FloodWaitError
+  - Bounded to prevent infinite loops
+  - Tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_task.py -v

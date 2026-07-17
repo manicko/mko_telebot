@@ -69,7 +69,7 @@
 - monitor_forward.py:108-114, 241-243 — manual `FloodWaitError` handling with custom sleeps.
 - core/task.py:161-175, 215-229 — manual `FloodWaitError` handling in entity resolution.
 
-**Recommendation:** Make the policy explicit. Either set `flood_sleep_threshold=0` on the client and own all flood-wait handling manually (recommended for predictable backoff), or remove the manual handlers and rely on Telethon. Document the chosen policy. Effort: small. Priority: recommended.
+**Recommendation:** Set `flood_sleep_threshold=0` in `create_client` (monitor_client.py:52) to disable Telethon's auto-sleep; keep all existing manual FloodWaitError handlers as the single source of truth for backoff (leveraging `_calculate_retry_delay`'s exponential backoff with jitter already implemented). This prevents double-sleeping on flood waits <60s and ensures consistent retry behavior across `_send_with_retry`, `_fetch_messages`, and entity resolution paths. No doc change needed beyond the inline rationale: manual handlers already provide bounded retries with predictable backoff for this monitoring use case.
 
 ---
 
@@ -93,7 +93,7 @@
 - settings/telethon_config.yaml:13 — `is_user: true` default; no password key.
 - docs/11-guides/configuration.md — no mention of 2FA password requirement for user accounts.
 
-**Recommendation:** Either (a) add a `password` field to `TelethonConfig`, pass it to `client.start(password=...)`, and document the 2FA flow; or (b) if 2FA is explicitly unsupported, fail fast with a clear message naming the 2FA requirement and document the limitation in docs/11-guides/configuration.md and the schema. Effort: small. Priority: mandatory.
+**Recommendation:** Implement 2FA support for user accounts. Add `password: SecretStr | None = None` to `TelethonConfig` in `core/telethon.py` (after line 185). Thread it through `start_client()` in `monitor_client.py` (lines 80-86) via `client.start(phone=..., password=password.get_secret_value() if password else None)`. On `SessionPasswordNeededError` when `password` is `None`, raise `TelegramAuthError("Telegram 2FA password required. Add 'password' to telethon_config.yaml")` for fail-fast clarity. Add `password: null` placeholder to `settings/telethon_config.yaml` (after line 14). Document the `password` field in `docs/11-guides/configuration.md` under `TelethonConfig`: type `str` (`SecretStr`), optional, required when the user account has 2FA enabled. Effort: small. Priority: mandatory.
 
 ---
 
@@ -114,7 +114,7 @@
 - monitor_client.py:157-160 — `except (OSError, ConnectionError, TimeoutError) as e: ... return ""`.
 - monitor_forward.py:146 — `sender_tag = await build_sender_tag(msg)` used once; no retry.
 
-**Recommendation:** For transient errors, retry `get_sender()` with small backoff before falling back to `""`, or re-raise so the item is retried in the send path. At minimum, distinguish transient vs permanent errors in logging so silent author loss is observable. Effort: small. Priority: recommended.
+**Recommendation:** In `build_sender_tag` (monitor_client.py), wrap `await msg.get_sender()` in a bounded retry loop (max 2 attempts, 1s sleep between) for transient errors (`OSError`, `ConnectionError`, `TimeoutError`, and `TimedOutError`, `ServerError` from Telethon). On permanent `RPCError`, fail fast (re-raise) or log and return `""`. After retry exhaustion, log a WARNING naming `msg.id` so silent author loss is observable. Effort: small. Priority: recommended.
 
 ---
 
@@ -213,7 +213,7 @@
 
 ### Advisory Recommendations
 
-- **INT-003** (MEDIUM): Set `flood_sleep_threshold=0` on client to own all flood-wait handling manually, or remove manual handlers. Document the chosen policy.
-- **INT-005** (MEDIUM): Distinguish transient vs permanent errors in `build_sender_tag` logging. Consider retry on transient errors.
+- **INT-003** (MEDIUM): Set `flood_sleep_threshold=0` in `create_client` (monitor_client.py:52) to disable Telethon's auto-sleep; keep manual handlers as single source of truth for backoff.
+- **INT-005** (MEDIUM): Add bounded retry (max 2 attempts, 1s sleep) in `build_sender_tag` for transient errors; log WARNING with `msg.id` on final failure.
 - **INT-006** (MEDIUM): Retry `get_entity` after FloodWait in entity resolution instead of raising immediately.
 - **INT-007** (LOW): `await client.disconnect()` in `run_monitor`'s `finally`, and add reconnect wrapper around per-task work.

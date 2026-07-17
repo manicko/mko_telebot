@@ -92,7 +92,7 @@ entities.append(result)
 > - **Action:** Validated
 > - **Detail:** The inconsistency is confirmed. When a target identifier is ambiguous (e.g., username shared across user and channel), Telethon may return a list. The forward target path discards this silently while the channel entity path raises an error. This creates an operational blind spot where configured targets may be permanently ignored.
 
-**Recommendation:** Either take the first element of the list or raise `TelegramServiceError` on ambiguity. At minimum, add `logger.warning` naming the offending target. Priority: mandatory.
+**Recommendation:** In `resolve_targets_entities` (`task.py:151-153`), replace the silent `continue` with `raise TelegramServiceError(f"Ambiguous target '{ent}' resolved to multiple entities")`, matching the behavior in `resolve_channel_entity` (`task.py:205-211`). This ensures operator visibility and triggers rescheduling instead of silently dropping the forward target. Note: `tests/test_task.py` may need updating as it currently tests only success/error cases without covering the list-result path. Priority: mandatory.
 
 ---
 

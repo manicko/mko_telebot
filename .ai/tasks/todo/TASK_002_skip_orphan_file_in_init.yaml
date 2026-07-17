@@ -1,0 +1,45 @@
+id: task_002_skip_orphan_file_in_init
+
+title: Skip keyw_config_example_keep.yaml during init
+
+priority: low
+
+depends_on: []
+
+description: >
+  init() copies every file in APP_PATHS.app_settings_dir to the user settings dir,
+  including keyw_config_example_keep.yaml which contains a CHANNELS block but is never
+  loaded by TelepostConfigReader.load(). This creates a silent footgun where users edit
+  the wrong file and their changes are ignored. Add skip condition for the example file.
+
+goals:
+  - exclude keyw_config_example_keep.yaml from init copy
+  - prevent user confusion about which file to edit
+  - ensure only loadable templates are copied
+
+files:
+  - path: src/mko_telebot/cli.py
+    targets:
+      - type: function
+        name: init
+    semantic_anchors:
+      insert_after:
+        type: function_call
+        value: _secure_directory_permissions
+
+changes:
+  - action: add_code
+    description: >
+      Add skip condition for keyw_config_example_keep.yaml in copy loop
+    code_hint: |
+      # Inside the for loop over settings files
+      if item.name == "keyw_config_example_keep.yaml":
+          continue  # Exclude orphan reference file
+
+acceptance_criteria:
+  - init does not copy keyw_config_example_keep.yaml
+  - init still copies config.yaml, telethon_config.yaml, log_config.yaml
+  - tests pass
+
+tests_to_run:
+  - uv run pytest tests/test_cli.py -v -k init

@@ -66,7 +66,7 @@ alwaysApply: false
 > - **Detail:** Finding is correct. The file is copied but never read by the config loader. Users editing this file will see their changes ignored because `load()` only processes `config.yaml`. The presence of `CHANNELS` block creates a silent footgun.
 > - **See also:** Documentation could clarify this is a non-loaded reference file
 
-**Recommendation:** Either (a) exclude `keyw_config_example_keep.yaml` from the copy loop (copy only the loadable templates + keep the example only as an in-package reference), or (b) document explicitly that it is a non-loaded reference and must not be edited as config. Option (a) is cleaner and avoids the silent-ignore footgun. Effort: trivial. Priority: recommended.
+**Recommendation:** In `cli.py:62-79` within `init()`, add a skip condition for the example file before copying. Specifically, after the `is_file()` check, add `if item.name == "keyw_config_example_keep.yaml": continue` to exclude it from the copy loop. This ensures only loadable templates (`config.yaml`, `telethon_config.yaml`, `log_config.yaml`) are copied, and the example remains as an in-package reference only. Optionally, `docs/11-guides/configuration.md` could note that `keyw_config_example_keep.yaml` is an in-package reference file that is not copied to user config. Effort: trivial. Priority: recommended.
 
 ---
 

@@ -1,0 +1,42 @@
+id: task_021_verify_integration_fixes
+
+title: Verify — Integration error handling fixes
+
+priority: high
+
+type: verification
+
+status: blocked
+
+depends_on:
+  - task_006_wrap_rpcerror_telegram_service
+  - task_007_retry_floodwait_fetch
+  - task_011_retry_entity_resolution_floodwait
+
+verifies:
+  - task_006_wrap_rpcerror_telegram_service
+  - task_007_retry_floodwait_fetch
+  - task_011_retry_entity_resolution_floodwait
+  - task_012_await_client_disconnect
+  - task_013_multi_entity_target_error
+
+verification_steps:
+  - build: "uv run basedpyright src/mko_telebot; uv run ruff check src/mko_telebot"
+  - test: "uv run pytest tests/ -v --tb=short"
+  - smoke_check: "uv run mko-telebot --help"
+
+pass_criteria:
+  - All type checks pass (basedpyright: 0 errors)
+  - All lint checks pass (ruff: 0 issues)
+  - All tests pass (pytest: exit 0)
+  - CLI help renders without error
+
+failure_action: return to rework
+
+notes: |
+  This verification covers the critical integration fixes that address:
+  - RPCError wrapping (INT-001/DF-001)
+  - FloodWait retry logic (INT-002, INT-006)
+  - Task exception handling in main_loop
+  - Multi-entity target error handling (DF-002)
+  - Proper client disconnect await (INT-007)

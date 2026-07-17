@@ -145,7 +145,7 @@ alwaysApply: false
 > - **Action:** Validated (BEST-PRACTICE)
 > - **Detail:** Finding is correct. The broad exception catch is a design gap. However, the recommendation to narrow the catch is appropriate for an advisory finding. The current behavior is intentional for defensive operation, but configuration-time validation could be improved.
 
-**Recommendation:** Consider narrowing the catch to specific error types (`ValueError` from `parse_query`, `re.error` from regex). At minimum, fail loud for configuration-time queries since keyword filters are static config.
+**Recommendation:** Replace the broad `except Exception` catch in `search_match` (matcher.py:172-183) with `except (ValueError, re.error) as e:`. Keep defensive `return False` but change `logger.exception` to `logger.warning("Filter evaluation failed for query %r: %s", query, e)` to log without the full traceback overhead. This narrows the exception scope to expected error types while preserving runtime safety; broader exceptions should propagate (not be swallowed).
 
 ---
 
@@ -169,7 +169,9 @@ alwaysApply: false
 > - **Action:** Validated (BEST-PRACTICE)
 > - **Detail:** Finding is correct. The `dict[str, Any]` for YAML parsing is a necessary boundary type (heterogeneous YAML → typed models). The `list[Any]` for media is less defensible but reflects Telethon's heterogeneous media types. Both use `# pyright: ignore` to suppress warnings.
 
-**Recommendation:** For Telegram media, consider a narrow `Union` of handled types. For YAML parsing, keep `dict[str, Any]` at the boundary but ensure early narrowing to typed models (already done via `TelepostSettings`).
+**Recommendation:** Keep `dict[str, Any]` at the raw YAML parse boundary — this is the standard Pydantic/PyYAML interop type and is validated to `TelepostSettings` immediately (lines 171-179 in config.py). For the media list in `monitor_forward.py` (lines 84, 97, 139), keep `list[Any]` but add an explicit `# pyright: ignore[reportExplicitAny]` with a comment documenting it as a Telethon `FileLike` boundary: Telethon's `FileLike` union contains 63 variants (Photo, Document, InputPhoto, InputDocument, etc.) and `send_file` accepts `Sequence[FileLike]`. Creating a narrow union would be overengineering; the current `list[Any]` is the pragmatic boundary type. In `channels.py` (lines 151-171), the `dict[str, Any]` is used internally for Pydantic model merging and is acceptable.
+
+**Action:** Add `# pyright: ignore[reportExplicitAny]` on line 84 (and 97, 139) with comment: `# Telethon FileLike boundary: 63-type union, keep Any to avoid overengineering`.
 
 ---
 

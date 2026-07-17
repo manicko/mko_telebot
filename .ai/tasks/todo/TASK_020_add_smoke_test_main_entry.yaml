@@ -1,0 +1,38 @@
+id: task_020_add_smoke_test_main_entry
+
+title: Add smoke test for main.py entry point
+
+priority: low
+
+depends_on: []
+
+description: >
+  main.py has 0% test coverage. A simple smoke test that imports mko_telebot.main
+  and asserts main is callable would catch broken imports before deployment.
+
+goals:
+  - add test that imports mko_telebot.main
+  - assert main callable or returns expected value
+  - coverage check passes
+
+files:
+  - path: tests/test_main.py
+    targets: []
+
+changes:
+  - action: create_file
+    description: >
+      Create minimal test_main.py with import and callability check
+    code_hint: |
+      def test_main_entry_point_imports():
+          from mko_telebot.main import main
+          assert callable(main)
+
+acceptance_criteria:
+  - tests/test_main.py exists
+  - Smoke test passes
+  - Coverage shows main.py covered
+
+tests_to_run:
+  - uv run pytest tests/test_main.py -v
+  - uv run pytest --cov=mko_telebot.main -v

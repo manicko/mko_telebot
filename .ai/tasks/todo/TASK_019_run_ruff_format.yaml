@@ -1,0 +1,41 @@
+id: task_019_run_ruff_format
+
+title: Apply ruff formatting to all source and test files
+
+priority: high
+
+depends_on: [task_018_resolve_formatter_conflict]
+
+description: >
+  ruff format --check reports 29 files would be reformatted. Run ruff format to
+  normalize all files to match pyproject.toml configuration (line-length 88).
+
+goals:
+  - format all Python files with ruff
+  - satisfy formatter check
+  - ensure consistent code style
+
+files:
+  - path: src/mko_telebot/cli.py
+    targets: []
+  - path: src/mko_telebot/main.py
+    targets: []
+  - path: src/mko_telebot/core/task.py
+    targets: []
+  # ... other 26 files needing formatting
+
+changes:
+  - action: apply_formatter
+    description: >
+      Run ruff format on entire codebase
+    code_hint: |
+      ruff format .
+
+acceptance_criteria:
+  - ruff format --check . passes
+  - No functional changes to code
+  - All tests pass
+
+tests_to_run:
+  - uv run ruff format --check .
+  - uv run pytest tests/ -q
