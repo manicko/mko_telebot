@@ -12,6 +12,7 @@
 TELETHON_API:
   is_user: true
   phone_or_token: "PLACEHOLDER_REPLACE_ME"
+  password: ""  # 2FA password for user accounts (leave empty for bot)
   client:
     api_id: 12345  # Sentinel value - replace with your actual API ID
     api_hash: "PLACEHOLDER_REPLACE_ME"

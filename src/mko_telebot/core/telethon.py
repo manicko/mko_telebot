@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from typing import ClassVar
 from enum import StrEnum
 
+
 class ProxyType(StrEnum):
     """Proxy protocol types supported by Telethon.
 
@@ -57,8 +58,8 @@ class ProxyConfig(BaseModel):
             value = v.get_secret_value()
             if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
                 raise ValueError(
-                    (f"{v} appears to be a placeholder value. "  # noqa: UP034
-                     "Replace with your actual value.")  # noqa: UP034
+                    f"{v} appears to be a placeholder value. "  # noqa: UP034
+                    "Replace with your actual value."  # noqa: UP034
                 )
         return v
 
@@ -138,9 +139,7 @@ class ClientConfig(BaseModel):
                 f"{v} appears to be a placeholder value. Replace with your actual value."
             )
         if "/" in v or "\\" in v or ".." in v:
-            raise ValueError(
-                "session must not contain path traversal characters"
-            )
+            raise ValueError("session must not contain path traversal characters")
         return v
 
     @field_validator("app_version", "device_model", "system_version")
@@ -159,8 +158,8 @@ class ClientConfig(BaseModel):
         """Reject the template sentinel value 12345 for api_id."""
         if v == 12345:
             raise ValueError(
-                ("api_id value 12345 is a template placeholder. "  # noqa: UP034
-                 "Replace with your actual API ID from https://my.telegram.org/apps.")  # noqa: UP034
+                "api_id value 12345 is a template placeholder. "  # noqa: UP034
+                "Replace with your actual API ID from https://my.telegram.org/apps."  # noqa: UP034
             )
         return v
 
@@ -172,6 +171,7 @@ class TelethonConfig(BaseModel):
     Attributes:
         is_user: True for user account (phone auth), False for bot
         phone_or_token: Phone number (user) or bot token
+        password: Optional 2FA password for user accounts
         max_retries: Number of times to retry posting on failure
     """
 
@@ -179,6 +179,9 @@ class TelethonConfig(BaseModel):
     is_user: bool = Field(default=True, description="True for user, False for bot")
     phone_or_token: SecretStr = Field(
         ..., min_length=5, description="Phone number or bot token"
+    )
+    password: SecretStr | None = Field(
+        default=None, description="2FA password for user accounts"
     )
     max_retries: int = Field(
         default=5, ge=1, le=20, description="Max retry attempts for sending messages"
@@ -192,8 +195,8 @@ class TelethonConfig(BaseModel):
         value = v.get_secret_value()
         if value.startswith("YOUR_") or value.startswith("PLACEHOLDER_"):
             raise ValueError(
-                ("phone_or_token appears to be a placeholder value. "  # noqa: UP034
-                 "Replace with your phone number or bot token.")  # noqa: UP034
+                "phone_or_token appears to be a placeholder value. "  # noqa: UP034
+                "Replace with your phone number or bot token."  # noqa: UP034
             )
         return v
 

@@ -20,13 +20,17 @@ from mko_telebot.monitor_forward import forward_to_users, process_messages
 from mko_telebot.monitor import process_and_reschedule
 
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_msg_stub(
-    msg_id: int, text: str = "", grouped_id: int | None = None, has_media: bool = False, media_caption: str | None = None
+    msg_id: int,
+    text: str = "",
+    grouped_id: int | None = None,
+    has_media: bool = False,
+    media_caption: str | None = None,
 ) -> MagicMock:
     """Create a mock Telethon message with given attributes and async get_sender."""
     msg = MagicMock()
@@ -54,6 +58,7 @@ def _make_msg_with_link(msg_id: int, username: str) -> MagicMock:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_client() -> MagicMock:
     """Create a mock Telethon client with async method stubs."""
@@ -72,11 +77,14 @@ def mock_settings() -> MagicMock:
     settings = MagicMock()
     settings.telethon.is_user = True
     settings.telethon.phone_or_token.get_secret_value.return_value = "+1234567890"
+    settings.telethon.password = None
     settings.telethon.max_retries = 3
 
     # Set up client attributes for create_client
     settings.telethon.client.api_id = 123456
-    settings.telethon.client.api_hash.get_secret_value.return_value = "test_hash_abcdef123456"
+    settings.telethon.client.api_hash.get_secret_value.return_value = (
+        "test_hash_abcdef123456"
+    )
     settings.telethon.client.session = "test_session"
     settings.telethon.client.proxy = None
     settings.telethon.client.app_version = "1.0.0"
@@ -104,6 +112,7 @@ def mock_task() -> MagicMock:
 # ---------------------------------------------------------------------------
 # create_client
 # ---------------------------------------------------------------------------
+
 
 class TestCreateClient:
     """Tests for create_client()."""
@@ -168,7 +177,9 @@ class TestCreateClient:
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
             settings.telethon.client.api_id = 999888
-            settings.telethon.client.api_hash.get_secret_value.return_value = "test_hash_value"
+            settings.telethon.client.api_hash.get_secret_value.return_value = (
+                "test_hash_value"
+            )
             settings.telethon.client.session = "s1"
             settings.telethon.client.app_version = "1.0.0"
             settings.telethon.client.device_model = "TestDevice"
@@ -193,7 +204,9 @@ class TestCreateClient:
             mock_paths.session_dir = Path("/tmp/sessions")
             settings = MagicMock()
             settings.telethon.client.api_id = 111222
-            settings.telethon.client.api_hash.get_secret_value.return_value = "real_secret_hash_value"
+            settings.telethon.client.api_hash.get_secret_value.return_value = (
+                "real_secret_hash_value"
+            )
             settings.telethon.client.session = "secret_session"
             settings.telethon.client.proxy = None
             settings.telethon.client.app_version = None
@@ -249,19 +262,40 @@ class TestCreateClient:
 # start_client
 # ---------------------------------------------------------------------------
 
+
 class TestStartClient:
     """Tests for start_client()."""
 
-    async def test_auth_success_user(self, mock_client: MagicMock, mock_settings: MagicMock) -> None:
+    async def test_auth_success_user(
+        self, mock_client: MagicMock, mock_settings: MagicMock
+    ) -> None:
         """start_client() should start with phone for user accounts."""
         mock_settings.telethon.is_user = True
         result = await start_client(mock_client, mock_settings)
         assert result is True
         mock_client.start.assert_awaited_once_with(
-            phone=mock_settings.telethon.phone_or_token.get_secret_value()
+            phone=mock_settings.telethon.phone_or_token.get_secret_value(),
+            password="",
         )
 
-    async def test_auth_success_bot(self, mock_client: MagicMock, mock_settings: MagicMock) -> None:
+    async def test_auth_success_user_with_password(
+        self, mock_client: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """start_client() should pass password when configured for user accounts."""
+        from pydantic import SecretStr
+
+        mock_settings.telethon.is_user = True
+        mock_settings.telethon.password = SecretStr("my_2fa_password")
+        result = await start_client(mock_client, mock_settings)
+        assert result is True
+        mock_client.start.assert_awaited_once_with(
+            phone=mock_settings.telethon.phone_or_token.get_secret_value(),
+            password="my_2fa_password",
+        )
+
+    async def test_auth_success_bot(
+        self, mock_client: MagicMock, mock_settings: MagicMock
+    ) -> None:
         """start_client() should start with bot_token for bot accounts."""
         mock_settings.telethon.is_user = False
         result = await start_client(mock_client, mock_settings)
@@ -275,6 +309,7 @@ class TestStartClient:
     ) -> None:
         """start_client() should return False on Telethon auth errors."""
         from telethon.errors import AuthKeyUnregisteredError
+
         mock_client.start.side_effect = AuthKeyUnregisteredError("Auth failed")
         result = await start_client(mock_client, mock_settings)
         assert result is False
@@ -282,19 +317,25 @@ class TestStartClient:
     async def test_auth_failure_2fa_error(
         self, mock_client: MagicMock, mock_settings: MagicMock
     ) -> None:
-        """start_client() should return False on 2FA errors (ValueError)."""
-        mock_client.start.side_effect = ValueError("Two-step verification is enabled")
-        result = await start_client(mock_client, mock_settings)
-        assert result is False
+        """start_client() should raise TelegramAuthError on 2FA errors."""
+        from mko_telebot.core.errors import TelegramAuthError
+        from telethon.errors import SessionPasswordNeededError
+
+        mock_client.start.side_effect = SessionPasswordNeededError("2FA required")
+        with pytest.raises(TelegramAuthError, match="2FA password required"):
+            await start_client(mock_client, mock_settings)
 
     async def test_auth_failure_rpc_error(
-            self, mock_client: MagicMock, mock_settings: MagicMock
-        ) -> None:
-            """start_client() should return False on RPC errors."""
-            from telethon.errors import RPCError
-            mock_client.start.side_effect = RPCError(request="TestRequest", message="RPC error")
-            result = await start_client(mock_client, mock_settings)
-            assert result is False
+        self, mock_client: MagicMock, mock_settings: MagicMock
+    ) -> None:
+        """start_client() should return False on RPC errors."""
+        from telethon.errors import RPCError
+
+        mock_client.start.side_effect = RPCError(
+            request="TestRequest", message="RPC error"
+        )
+        result = await start_client(mock_client, mock_settings)
+        assert result is False
 
     async def test_auth_failure_connection_error(
         self, mock_client: MagicMock, mock_settings: MagicMock
@@ -308,6 +349,7 @@ class TestStartClient:
 # ---------------------------------------------------------------------------
 # build_message_link
 # ---------------------------------------------------------------------------
+
 
 class TestBuildMessageLink:
     """Tests for build_message_link()."""
@@ -345,6 +387,7 @@ class TestBuildMessageLink:
 # ---------------------------------------------------------------------------
 # build_sender_tag
 # ---------------------------------------------------------------------------
+
 
 class TestBuildSenderTag:
     """Tests for build_sender_tag()."""
@@ -401,31 +444,50 @@ class TestBuildSenderTag:
 # forward_to_users
 # ---------------------------------------------------------------------------
 
+
 class TestForwardToUsers:
     """Tests for forward_to_users()."""
 
     @patch("asyncio.sleep", return_value=None)
     async def test_sends_text_message(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should send text-only message via client.send_message."""
         msg = _make_msg_with_link(1, "test_channel")
-        await forward_to_users(msg, "Hello world", [], mock_task, mock_client, mock_settings)
-        assert mock_client.send_message.await_count == len(mock_task.forward_to_entities)
+        await forward_to_users(
+            msg, "Hello world", [], mock_task, mock_client, mock_settings
+        )
+        assert mock_client.send_message.await_count == len(
+            mock_task.forward_to_entities
+        )
 
     @patch("asyncio.sleep", return_value=None)
     async def test_sends_media_message(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should send media via client.send_file."""
         msg = _make_msg_with_link(2, "test_channel")
         media = [MagicMock()]
-        await forward_to_users(msg, "Photo caption", media, mock_task, mock_client, mock_settings)
+        await forward_to_users(
+            msg, "Photo caption", media, mock_task, mock_client, mock_settings
+        )
         assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
 
     @patch("asyncio.sleep", return_value=None)
     async def test_includes_link_in_caption(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should include source link in caption."""
         msg = _make_msg_with_link(10, "test_channel")
@@ -437,24 +499,34 @@ class TestForwardToUsers:
 
     @patch("asyncio.sleep", return_value=None)
     async def test_retries_on_flood_wait(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should retry on FloodWaitError."""
         from telethon.errors import FloodWaitError
 
         msg = _make_msg_with_link(3, "test_channel")
         # Cycle: error then success, repeated enough for all targets × retries
-        mock_client.send_message.side_effect = itertools.cycle([
-            FloodWaitError(request=None, capture=30),
-            None,
-        ])
+        mock_client.send_message.side_effect = itertools.cycle(
+            [
+                FloodWaitError(request=None, capture=30),
+                None,
+            ]
+        )
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
     async def test_permanent_rpc_error_fails_fast(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should fail fast on permanent RPCError subclasses."""
         from telethon.errors import AuthKeyUnregisteredError
@@ -463,61 +535,85 @@ class TestForwardToUsers:
         mock_client.send_message.side_effect = AuthKeyUnregisteredError(request=None)
 
         with pytest.raises(TelegramServiceError):
-            await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
+            await forward_to_users(
+                msg, "Hello", [], mock_task, mock_client, mock_settings
+            )
         # Should only be called once (no retries)
         assert mock_client.send_message.await_count == 1
 
     @patch("asyncio.sleep", return_value=None)
     async def test_retries_on_rpc_error(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should retry on ServerError (transient RPCError)."""
         from telethon.errors import ServerError
 
         msg = _make_msg_with_link(4, "test_channel")
-        mock_client.send_message.side_effect = itertools.cycle([
-            ServerError(request=None, message="Test ServerError"),
-            None,
-        ])
+        mock_client.send_message.side_effect = itertools.cycle(
+            [
+                ServerError(request=None, message="Test ServerError"),
+                None,
+            ]
+        )
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
     async def test_retries_on_timed_out_error(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should retry on TimedOutError (transient RPCError)."""
         from telethon.errors import TimedOutError
 
         msg = _make_msg_with_link(8, "test_channel")
-        mock_client.send_message.side_effect = itertools.cycle([
-            TimedOutError(request=None, message="Timed out"),
-            None,
-        ])
+        mock_client.send_message.side_effect = itertools.cycle(
+            [
+                TimedOutError(request=None, message="Timed out"),
+                None,
+            ]
+        )
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
     async def test_retries_on_worker_busy_retry(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should retry on WorkerBusyTooLongRetryError."""
         from telethon.errors import WorkerBusyTooLongRetryError
 
         msg = _make_msg_with_link(7, "test_channel")
-        mock_client.send_message.side_effect = itertools.cycle([
-            WorkerBusyTooLongRetryError(request=None),
-            None,
-        ])
+        mock_client.send_message.side_effect = itertools.cycle(
+            [
+                WorkerBusyTooLongRetryError(request=None),
+                None,
+            ]
+        )
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         assert mock_client.send_message.await_count >= 2
 
     @patch("asyncio.sleep", return_value=None)
     async def test_exhausts_retries(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should exhaust all retries and not raise."""
         from telethon.errors import FloodWaitError
@@ -527,21 +623,30 @@ class TestForwardToUsers:
         mock_client.send_message.side_effect = FloodWaitError(request=None, capture=30)
 
         await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
-        assert mock_client.send_message.await_count >= 2 * len(mock_task.forward_to_entities)
+        assert mock_client.send_message.await_count >= 2 * len(
+            mock_task.forward_to_entities
+        )
 
     @patch("asyncio.sleep", return_value=None)
     async def test_handles_empty_text_and_no_media(
-        self, mock_sleep: AsyncMock, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        self,
+        mock_sleep: AsyncMock,
+        mock_client: MagicMock,
+        mock_settings: MagicMock,
+        mock_task: MagicMock,
     ) -> None:
         """forward_to_users() should handle empty text with no media gracefully."""
         msg = _make_msg_with_link(6, "test_channel")
         await forward_to_users(msg, "", [], mock_task, mock_client, mock_settings)
-        assert mock_client.send_message.await_count == len(mock_task.forward_to_entities)
+        assert mock_client.send_message.await_count == len(
+            mock_task.forward_to_entities
+        )
 
 
 # ---------------------------------------------------------------------------
 # process_messages
 # ---------------------------------------------------------------------------
+
 
 class TestProcessMessages:
     """Tests for process_messages().
@@ -551,8 +656,15 @@ class TestProcessMessages:
     """
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/1")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/1",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_forward_on_keyword_match(
         self,
         mock_sender_tag: AsyncMock,
@@ -565,13 +677,22 @@ class TestProcessMessages:
         """process_messages() should forward messages matching keywords via send_message."""
         messages = [_make_msg_stub(1, "this is a test message")]
         await process_messages(messages, mock_task, mock_client, mock_settings)
-        assert mock_client.send_message.await_count == len(mock_task.forward_to_entities)
+        assert mock_client.send_message.await_count == len(
+            mock_task.forward_to_entities
+        )
         args, _ = mock_client.send_message.call_args
         assert "test" in args[1]
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/2")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/2",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_does_not_forward_on_no_match(
         self,
         mock_sender_tag: AsyncMock,
@@ -588,8 +709,15 @@ class TestProcessMessages:
         mock_client.send_file.assert_not_called()
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/10")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/10",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_groups_album_messages(
         self,
         mock_sender_tag: AsyncMock,
@@ -615,8 +743,15 @@ class TestProcessMessages:
         assert "test photo two" in caption
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/20")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/20",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_does_not_forward_album_without_keyword_match(
         self,
         mock_sender_tag: AsyncMock,
@@ -637,8 +772,15 @@ class TestProcessMessages:
         mock_client.send_file.assert_not_called()
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/30")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/30",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_processes_individual_messages_separately(
         self,
         mock_sender_tag: AsyncMock,
@@ -658,8 +800,15 @@ class TestProcessMessages:
         assert mock_client.send_message.await_count == 4
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/70")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/70",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_groups_by_grouped_id_correctly(
         self,
         mock_sender_tag: AsyncMock,
@@ -675,16 +824,24 @@ class TestProcessMessages:
             _make_msg_stub(100, "test group one", grouped_id=100, has_media=True),
             _make_msg_stub(101, "test group one more", grouped_id=100, has_media=True),
             _make_msg_stub(200, "test group two", grouped_id=200, has_media=True),
-            _make_msg_stub(300, "standalone test", grouped_id=None, has_media=False),  # standalone
+            _make_msg_stub(
+                300, "standalone test", grouped_id=None, has_media=False
+            ),  # standalone
         ]
         await process_messages(messages, mock_task, mock_client, mock_settings)
         # 2 albums (each to 2 targets) + 1 text (to 2 targets) = 6 total calls
         assert mock_client.send_file.await_count == 4  # 2 albums (2 targets each)
-        assert mock_client.send_message.await_count == 2  # 1 standalone text (2 targets)
+        assert (
+            mock_client.send_message.await_count == 2
+        )  # 1 standalone text (2 targets)
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
     @patch("mko_telebot.monitor_forward.build_message_link", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_uses_msg_id_when_no_grouped_id(
         self,
         mock_sender_tag: AsyncMock,
@@ -707,7 +864,11 @@ class TestProcessMessages:
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
     @patch("mko_telebot.monitor_forward.build_message_link", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_skips_messages_without_text(
         self,
         mock_sender_tag: AsyncMock,
@@ -724,8 +885,15 @@ class TestProcessMessages:
         mock_client.send_file.assert_not_called()
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/50")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="@testuser")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/50",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="@testuser",
+    )
     async def test_includes_sender_tag_in_caption(
         self,
         mock_sender_tag: AsyncMock,
@@ -743,8 +911,15 @@ class TestProcessMessages:
         assert "Author: @testuser" in caption
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/60")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/60",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_includes_source_link_in_caption(
         self,
         mock_sender_tag: AsyncMock,
@@ -762,8 +937,15 @@ class TestProcessMessages:
         assert "Source: https://t.me/test/60" in caption
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/45")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/45",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_forwards_all_messages_when_keywords_empty(
         self,
         mock_sender_tag: AsyncMock,
@@ -784,8 +966,15 @@ class TestProcessMessages:
         assert mock_client.send_message.await_count == 4
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/47")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/47",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_forwards_captionless_media_without_keywords(
         self,
         mock_sender_tag: AsyncMock,
@@ -804,8 +993,15 @@ class TestProcessMessages:
         assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/80")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/80",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_forwards_media_with_matching_caption(
         self,
         mock_sender_tag: AsyncMock,
@@ -822,8 +1018,15 @@ class TestProcessMessages:
         assert mock_client.send_file.await_count == len(mock_task.forward_to_entities)
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/81")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/81",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_does_not_forward_media_with_non_matching_caption(
         self,
         mock_sender_tag: AsyncMock,
@@ -841,8 +1044,15 @@ class TestProcessMessages:
         mock_client.send_file.assert_not_called()
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/90")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/90",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_does_not_forward_captionless_media_with_keywords(
         self,
         mock_sender_tag: AsyncMock,
@@ -861,8 +1071,15 @@ class TestProcessMessages:
         mock_client.send_file.assert_not_called()
 
     @patch("mko_telebot.monitor_forward.asyncio.sleep", return_value=None)
-    @patch("mko_telebot.monitor_forward.build_message_link", return_value="https://t.me/test/82")
-    @patch("mko_telebot.monitor_forward.build_sender_tag", new_callable=AsyncMock, return_value="")
+    @patch(
+        "mko_telebot.monitor_forward.build_message_link",
+        return_value="https://t.me/test/82",
+    )
+    @patch(
+        "mko_telebot.monitor_forward.build_sender_tag",
+        new_callable=AsyncMock,
+        return_value="",
+    )
     async def test_includes_caption_in_forwarded_text(
         self,
         mock_sender_tag: AsyncMock,
@@ -873,7 +1090,9 @@ class TestProcessMessages:
         mock_task: MagicMock,
     ) -> None:
         """process_messages() should include media caption in forwarded message text."""
-        msg = _make_msg_stub(82, "test", has_media=True, media_caption="photo test caption")
+        msg = _make_msg_stub(
+            82, "test", has_media=True, media_caption="photo test caption"
+        )
         msg.chat.username = "test_channel"
         await process_messages([msg], mock_task, mock_client, mock_settings)
         args, kwargs = mock_client.send_file.call_args
@@ -885,6 +1104,7 @@ class TestProcessMessages:
 # ---------------------------------------------------------------------------
 # process_and_reschedule
 # ---------------------------------------------------------------------------
+
 
 class TestProcessAndReschedule:
     """Tests for process_and_reschedule()."""
@@ -898,7 +1118,9 @@ class TestProcessAndReschedule:
         mock_task.save_state = AsyncMock()
 
         with patch("mko_telebot.monitor.process_task", new_callable=AsyncMock):
-            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+            await process_and_reschedule(
+                mock_task, mock_client, queue, lock, mock_settings
+            )
             mock_task.save_state.assert_awaited_once()
 
     async def test_continues_after_save_state_error(
@@ -913,7 +1135,9 @@ class TestProcessAndReschedule:
             patch("mko_telebot.monitor.process_task", new_callable=AsyncMock),
             patch("mko_telebot.monitor.logger") as mock_logger,
         ):
-            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+            await process_and_reschedule(
+                mock_task, mock_client, queue, lock, mock_settings
+            )
             mock_logger.error.assert_called_once()
             # Verify that state save error was logged
             assert "Failed to save task state" in mock_logger.error.call_args[0][0]
@@ -930,13 +1154,17 @@ class TestProcessAndReschedule:
             patch(
                 "mko_telebot.monitor.process_task",
                 new_callable=AsyncMock,
-                side_effect=TelegramServiceError("RPC error")
+                side_effect=TelegramServiceError("RPC error"),
             ),
-            patch("mko_telebot.monitor.reschedule_task", new_callable=AsyncMock) as mock_reschedule,
+            patch(
+                "mko_telebot.monitor.reschedule_task", new_callable=AsyncMock
+            ) as mock_reschedule,
             patch("mko_telebot.monitor.logger") as mock_logger,
         ):
             # Should NOT raise - error is caught
-            await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+            await process_and_reschedule(
+                mock_task, mock_client, queue, lock, mock_settings
+            )
 
             # Verify error was logged
             mock_logger.error.assert_called()
@@ -955,7 +1183,9 @@ class TestProcessAndReschedule:
 
         with patch("mko_telebot.monitor.process_task", new_callable=AsyncMock):
             with pytest.raises(ValueError, match="Unexpected error"):
-                await process_and_reschedule(mock_task, mock_client, queue, lock, mock_settings)
+                await process_and_reschedule(
+                    mock_task, mock_client, queue, lock, mock_settings
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -973,11 +1203,17 @@ class TestRunMonitor:
 
         mock_settings = MagicMock()
 
-        with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=True):
+        with patch(
+            "mko_telebot.monitor.start_client",
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
             # Import after patching to get the mocked version
             from mko_telebot import monitor
 
-            with patch.object(monitor, "main_loop", new_callable=AsyncMock) as mock_loop:
+            with patch.object(
+                monitor, "main_loop", new_callable=AsyncMock
+            ) as mock_loop:
                 # Set side_effect to raise KeyboardInterrupt from inside the mocked coroutine
                 mock_loop.side_effect = KeyboardInterrupt("test exit")
 
@@ -988,20 +1224,26 @@ class TestRunMonitor:
                 mock_client.disconnect.assert_called_once()
 
     async def test_does_not_run_loop_on_auth_failure(self) -> None:
-            """run_monitor() should not enter mainLoop if start_client fails."""
-            from mko_telebot.core.errors import TelegramAuthError
+        """run_monitor() should not enter mainLoop if start_client fails."""
+        from mko_telebot.core.errors import TelegramAuthError
 
-            mock_client = MagicMock()
-            mock_client.disconnect = Mock()
+        mock_client = MagicMock()
+        mock_client.disconnect = Mock()
 
-            mock_settings = MagicMock()
+        mock_settings = MagicMock()
 
-            with patch("mko_telebot.monitor.start_client", new_callable=AsyncMock, return_value=False):
-                from mko_telebot.monitor import run_monitor
+        with patch(
+            "mko_telebot.monitor.start_client",
+            new_callable=AsyncMock,
+            return_value=False,
+        ):
+            from mko_telebot.monitor import run_monitor
 
-                with pytest.raises(TelegramAuthError, match="Telegram authentication failed"):
-                    await run_monitor(mock_settings, mock_client)
-                mock_client.disconnect.assert_not_called()
+            with pytest.raises(
+                TelegramAuthError, match="Telegram authentication failed"
+            ):
+                await run_monitor(mock_settings, mock_client)
+            mock_client.disconnect.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

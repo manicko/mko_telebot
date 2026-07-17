@@ -7,7 +7,10 @@ from telethon import TelegramClient
 
 from mko_telebot.core import APP_PATHS
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.utils import _secure_directory_permissions, _secure_file_permissions
+from mko_telebot.core.utils import (
+    _secure_directory_permissions,
+    _secure_file_permissions,
+)
 from telethon.tl.custom.message import Message
 
 logger = logging.getLogger(__name__)
@@ -76,13 +79,26 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
     Returns:
         True if client started successfully, False otherwise.
 
+    Raises:
+        TelegramAuthError: When 2FA password is required but not configured.
+
     """
-    from telethon.errors import RPCError, AuthKeyUnregisteredError, SessionPasswordNeededError
+    from telethon.errors import (  # noqa: WPS442
+        RPCError,
+        AuthKeyUnregisteredError,
+        SessionPasswordNeededError,
+    )
+    from mko_telebot.core.errors import TelegramAuthError
+
+    password_value: str = ""
+    if settings.telethon.password is not None:
+        password_value = settings.telethon.password.get_secret_value()
 
     try:
         if settings.telethon.is_user:
             await client.start(  # pyright: ignore[reportGeneralTypeIssues]
-                phone=settings.telethon.phone_or_token.get_secret_value()
+                phone=settings.telethon.phone_or_token.get_secret_value(),
+                password=password_value,
             )
         else:
             await client.start(  # pyright: ignore[reportGeneralTypeIssues]
@@ -99,7 +115,14 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
 
         return True
 
-    except (AuthKeyUnregisteredError, SessionPasswordNeededError, ValueError) as e:
+    except SessionPasswordNeededError as e:
+        # 2FA required but no password configured - raise explicit error
+        raise TelegramAuthError(
+            "2FA password required but not configured. "
+            "Add password field to your configuration."
+        ) from e
+
+    except (AuthKeyUnregisteredError, ValueError) as e:
         logger.error(f"Telegram authentication failed: {e}")
         return False
 
