@@ -169,7 +169,7 @@ mko-telebot run
 | Scenario | Behavior |
 |----------|----------|
 | Missing/invalid config | Prints error, exits with code `1`. |
-| `KeyboardInterrupt` (Ctrl+C) | Prints yellow message, exits gracefully with code `0`. |
+| `KeyboardInterrupt` (Ctrl+C) | Prints yellow message, exits gracefully with code `130`. |
 | Telegram auth failure | Logged as error; loop continues for other channels. |
 | FloodWait from Telegram | Waits the required duration, then retries. |
 
@@ -177,7 +177,7 @@ mko-telebot run
 
 | Code | Condition |
 |------|-----------|
-| `0` | Normal exit (Ctrl+C triggers "Shutdown requested" message). |
+| `130` | Normal interrupt exit (Ctrl+C triggers "Shutdown requested" message). |
 | `1` | Configuration error — cannot load or validate config files. |
 
 **Examples:**
