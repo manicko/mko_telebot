@@ -1,109 +1,110 @@
 # Rollout ordering with explicit dependencies
-# Tasks can execute in parallel when no dependencies exist between them
+# All tasks completed
 
 tasks:
-  # Phase 1 â€” Research (blocking some security tasks)
+  # Phase 1 — Research - COMPLETED
   - id: task_022_research_windows_acl_approach
     depends_on: []
-    status: pending
+    status: completed
 
-  # Phase 2 â€” Independent fixes (can run in parallel)
+  # Phase 2 — Independent fixes - COMPLETED
   - id: task_001_fix_validate_schema
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_002_skip_orphan_file_in_init
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_003_format_log_config_yaml
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_008_enable_telethon_flood_sleep_threshold
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_010_add_sender_tag_retry
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_013_multi_entity_target_error
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_014_move_queue_put_before_sleep
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_015_update_docs_exit_code
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_016_update_docs_auth_failure
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_017_fix_property_test_invariant
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_018_resolve_formatter_conflict
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_020_add_smoke_test_main_entry
     depends_on: []
-    status: pending
+    status: completed
 
-  # Phase 3 â€” Security tasks (blocked until research)
+  # Phase 3 — Security tasks - COMPLETED
   - id: task_004_secure_session_file_windows
     depends_on:
       - task_022_research_windows_acl_approach
-    status: blocked
+    status: completed
 
   - id: task_005_credential_file_hardening_cross_platform
     depends_on:
       - task_004_secure_session_file_windows
-    status: pending
+    status: completed
+    note: Already satisfied by task_004 implementation
 
   - id: task_009_add_2fa_password_support
     depends_on:
       - task_004_secure_session_file_windows
-    status: pending
+    status: completed
 
-  # Phase 4 â€” Integration tasks with internal dependencies
+  # Phase 4 — Integration tasks - COMPLETED
   - id: task_006_wrap_rpcerror_telegram_service
     depends_on: []
-    status: pending
+    status: completed
 
   - id: task_007_retry_floodwait_fetch
     depends_on:
       - task_006_wrap_rpcerror_telegram_service
-    status: pending
+    status: completed
 
   - id: task_011_retry_entity_resolution_floodwait
     depends_on:
       - task_008_enable_telethon_flood_sleep_threshold
-    status: pending
+    status: completed
 
   - id: task_012_await_client_disconnect
     depends_on:
       - task_006_wrap_rpcerror_telegram_service
-    status: pending
+    status: completed
 
-  # Phase 5 â€” Formatting (depends on formatter resolution)
+  # Phase 5 — Formatting - COMPLETED
   - id: task_019_run_ruff_format
     depends_on:
       - task_018_resolve_formatter_conflict
-    status: pending
+    status: completed
 
-  # Phase 6 â€” Verification
+  # Phase 6 — Verification - COMPLETED
   - id: task_021_verify_integration_fixes
     depends_on:
       - task_006_wrap_rpcerror_telegram_service
       - task_007_retry_floodwait_fetch
       - task_011_retry_entity_resolution_floodwait
       - task_012_await_client_disconnect
-    status: pending
+    status: completed
     type: verification
