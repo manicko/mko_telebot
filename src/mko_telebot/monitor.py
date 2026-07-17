@@ -87,63 +87,76 @@ async def process_and_reschedule(
 
 
 async def main_loop(
-    settings: TelepostSettings,
-    client: TelegramClient,
-    queue: asyncio.Queue[Task],
-    lock: asyncio.Lock,
-) -> None:
-    """Main monitoring loop that sequentially processes channels.
+        settings: TelepostSettings,
+        client: TelegramClient,
+        queue: asyncio.Queue[Task],
+        lock: asyncio.Lock,
+    ) -> None:
+        """Main monitoring loop that sequentially processes channels.
 
-    Args:
-        settings (TelepostSettings): Application settings.
-        client (TelegramClient): The Telethon client instance.
-        queue (asyncio.Queue): Queue for scheduling tasks.
-        lock (asyncio.Lock): Lock to serialize task processing.
+        Args:
+            settings (TelepostSettings): Application settings.
+            client (TelegramClient): The Telethon client instance.
+            queue (asyncio.Queue): Queue for scheduling tasks.
+            lock (asyncio.Lock): Lock to serialize task processing.
 
-    """
-    channels_delay = settings.channels.channels_delay
+        """
 
-    channels = settings.channels.channels
+        max_retries = settings.telethon.max_retries
 
-    channels_list = list(channels.keys())
+        channels_delay = settings.channels.channels_delay
 
-    if not channels:
-        logger.error(
-            "No channels configured. Please add at least one channel to your configuration."
-        )
-        raise ConfigError("No channels configured in configuration file")
+        channels = settings.channels.channels
 
-    stagger_start_seconds = settings.channels.stagger_start_seconds
+        channels_list = list(channels.keys())
 
-    for channel_name in channels_list:
-        try:
-            channel_settings = channels[channel_name]
+        if not channels:
 
-            task = Task(config=channel_settings)
+            logger.error(
 
-            await task.resolve_channel_entity(client)
+                "No channels configured. Please add at least one channel to your configuration."
 
-            task.resolve_state_file()
+            )
 
-            await task.load_state()
+            raise ConfigError("No channels configured in configuration file")
 
-            await task.resolve_targets_entities(client)
+        stagger_start_seconds = settings.channels.stagger_start_seconds
 
-            await asyncio.sleep(random.uniform(0, stagger_start_seconds))
+        for channel_name in channels_list:
 
-            await queue.put(task)
-        except TelegramServiceError as e:
-            logger.error(f"Failed to initialize channel {channel_name}: {e}")
-            continue
+            try:
 
-    logger.info("Monitoring loop started.")
+                channel_settings = channels[channel_name]
 
-    while True:
-        task = await queue.get()
+                task = Task(config=channel_settings)
 
-        asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings)).add_done_callback(_handle_task_exception)
+                await task.resolve_channel_entity(client, max_retries)
 
-        await asyncio.sleep(channels_delay)
+                task.resolve_state_file()
+
+                await task.load_state()
+
+                await task.resolve_targets_entities(client, max_retries)
+
+                await asyncio.sleep(random.uniform(0, stagger_start_seconds))
+
+                await queue.put(task)
+
+            except TelegramServiceError as e:
+
+                logger.error(f"Failed to initialize channel {channel_name}: {e}")
+
+                continue
+
+        logger.info("Monitoring loop started.")
+
+        while True:
+
+            task = await queue.get()
+
+            asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings)).add_done_callback(_handle_task_exception)
+
+            await asyncio.sleep(channels_delay)
 
 
 async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> None:

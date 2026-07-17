@@ -19,7 +19,6 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 def _make_config(**overrides: Any) -> ChannelConfig:
     """Create a ChannelConfig with default test values."""
     defaults: dict[str, Any] = {
@@ -303,24 +302,41 @@ class TestResolveChannelEntity:
         assert task.channel_entity is None
 
     async def test_raises_on_flood_wait_error(self) -> None:
-        """resolve_channel_entity() should wait on FloodWaitError before re-raising TelegramServiceError."""
+        """resolve_channel_entity() should retry on FloodWaitError before raising TelegramServiceError."""
         config = _make_config(name="@test_channel")
         task = _make_task(config)
         mock_client = AsyncMock()
         mock_client.get_entity.side_effect = FloodWaitError(request=None, capture=30)
 
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(
                 TelegramServiceError,
-                match="Failed to resolve entity for channel.*after flood wait",
+                match="Failed to resolve entity for channel.*after \\d+ attempts",
             ):
                 await task.resolve_channel_entity(mock_client)
 
-        # Verify wait was called with e.seconds + jitter (30 + 5 to 10)
-        mock_sleep.assert_awaited_once()
-        call_args = mock_sleep.call_args[0][0]
-        assert 35 <= call_args <= 40
+        # Should have retried max_retries times
+        assert mock_client.get_entity.await_count == 3
         assert task.channel_entity is None
+
+    async def test_retries_and_succeeds_on_flood_wait_error(self) -> None:
+        """resolve_channel_entity() should retry and succeed after FloodWaitError on 2nd attempt."""
+        config = _make_config(name="@test_channel")
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_entity = MagicMock()
+        # First call raises FloodWaitError, second succeeds
+        mock_client.get_entity.side_effect = [
+            FloodWaitError(request=None, capture=30),
+            mock_entity,
+        ]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            await task.resolve_channel_entity(mock_client)
+
+        assert task.channel_entity is mock_entity
+        # Two calls: first failed, second succeeded
+        assert mock_client.get_entity.await_count == 2
 
     async def test_raises_on_connection_error(self) -> None:
         """resolve_channel_entity() should raise TelegramServiceError on connection errors."""
@@ -403,7 +419,7 @@ class TestResolveTargetsEntities:
         assert mock_sleep.await_count == 2
 
     async def test_raises_on_flood_wait_error(self) -> None:
-        """resolve_targets_entities() should wait on FloodWaitError before re-raising TelegramServiceError."""
+        """resolve_targets_entities() should retry on FloodWaitError before raising TelegramServiceError."""
         config = _make_config(
             name="@test_channel", forward_to=["@target1", "@target2"]
         )
@@ -411,18 +427,36 @@ class TestResolveTargetsEntities:
         mock_client = AsyncMock()
         mock_client.get_entity.side_effect = FloodWaitError(request=None, capture=30)
 
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(
                 TelegramServiceError,
-                match="Failed to resolve target entities for channel.*after flood wait",
+                match="Failed to resolve target entities for channel.*after \\d+ attempts",
             ):
                 await task.resolve_targets_entities(mock_client)
 
-        # Verify wait was called with e.seconds + jitter (30 + 5 to 10)
-        mock_sleep.assert_awaited_once()
-        call_args = mock_sleep.call_args[0][0]
-        assert 35 <= call_args <= 40
+        # Should have retried max_retries times for first target
+        assert mock_client.get_entity.await_count == 3
         assert task.forward_to_entities == []
+
+    async def test_retries_and_succeeds_on_flood_wait_error(self) -> None:
+        """resolve_targets_entities() should retry and succeed after FloodWaitError on 2nd attempt."""
+        config = _make_config(
+            name="@test_channel", forward_to=["@target1"]
+        )
+        task = _make_task(config)
+        mock_client = AsyncMock()
+        mock_entity = MagicMock()
+        # First call raises FloodWaitError, second succeeds (for single target)
+        mock_client.get_entity.side_effect = [
+            FloodWaitError(request=None, capture=30),
+            mock_entity,
+        ]
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            await task.resolve_targets_entities(mock_client)
+
+        assert task.forward_to_entities == [mock_entity]
+        assert mock_client.get_entity.await_count == 2
 
     async def test_error_on_first_target_stops_resolution(self) -> None:
         """resolve_targets_entities() should stop on first error without resolving remaining targets."""
