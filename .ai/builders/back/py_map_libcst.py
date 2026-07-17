@@ -84,13 +84,15 @@ class SemanticCollector(cst.CSTVisitor):
         if isinstance(node.func, cst.Name):
             function_name = node.func.value
 
-            self.anchors.append({
-                "id": self.build_hash("function_call", function_name),
-                "symbol_path": self.get_symbol_path(),
-                "type": "function_call",
-                "value": function_name,
-                "stable_hash": self.build_hash("function_call", function_name),
-            })
+            self.anchors.append(
+                {
+                    "id": self.build_hash("function_call", function_name),
+                    "symbol_path": self.get_symbol_path(),
+                    "type": "function_call",
+                    "value": function_name,
+                    "stable_hash": self.build_hash("function_call", function_name),
+                }
+            )
 
     # =========================================================
     # RETURNS
@@ -98,12 +100,14 @@ class SemanticCollector(cst.CSTVisitor):
 
     def visit_Return(self, node):
 
-        self.anchors.append({
-            "id": self.build_hash("return_statement", "return"),
-            "symbol_path": self.get_symbol_path(),
-            "type": "return_statement",
-            "stable_hash": self.build_hash("return_statement", "return"),
-        })
+        self.anchors.append(
+            {
+                "id": self.build_hash("return_statement", "return"),
+                "symbol_path": self.get_symbol_path(),
+                "type": "return_statement",
+                "stable_hash": self.build_hash("return_statement", "return"),
+            }
+        )
 
     # =========================================================
     # HELPERS
@@ -155,22 +159,24 @@ for file in ROOT.rglob("*.py"):
     # FILE MAP
     # =========================================================
 
-    semantic_graph["files"].append({
-        "path": str(file),
-        "module": str(file).replace("/", ".").replace("\\", ".").replace(".py", ""),
-        "layer": (
-            "api"
-            if "/api/" in str(file)
-            else "service"
-            if "/services/" in str(file)
-            else "model"
-            if "/models/" in str(file)
-            else "unknown"
-        ),
-        "imports": collector.imports,
-        "classes": collector.classes,
-        "functions": collector.functions,
-    })
+    semantic_graph["files"].append(
+        {
+            "path": str(file),
+            "module": str(file).replace("/", ".").replace("\\", ".").replace(".py", ""),
+            "layer": (
+                "api"
+                if "/api/" in str(file)
+                else "service"
+                if "/services/" in str(file)
+                else "model"
+                if "/models/" in str(file)
+                else "unknown"
+            ),
+            "imports": collector.imports,
+            "classes": collector.classes,
+            "functions": collector.functions,
+        }
+    )
 
     # =========================================================
     # ANCHORS

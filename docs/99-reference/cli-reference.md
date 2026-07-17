@@ -113,8 +113,9 @@ mko-telebot validate
 
 1. Creates a `TelepostConfigReader` pointing at the user config directory.
 2. Calls `validate_files()` which checks that both `config.yaml` and `telethon_config.yaml` exist.
-3. If valid, prints a success message in green.
-4. If validation fails, prints the error in red and exits with code `1`.
+3. Calls `reader.load()`, which performs **full Pydantic schema validation** (field types, ranges, keyword syntax, placeholder rejection, path-traversal checks). This catches malformed or invalid config content — not just missing files — before the monitor starts.
+4. If valid, prints a success message in green.
+5. If validation fails at either step, prints the error in red and exits with code `1`.
 
 **Exit codes:**
 

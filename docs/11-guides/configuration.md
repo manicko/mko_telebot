@@ -252,7 +252,8 @@ The root key `TELETHON_API` maps to `TelethonConfig` in the Pydantic model.
 |-------|------|---------|-------------|
 | `is_user` | `bool` | `true` | `true` = authenticate as a user account (phone-based auth). `false` = authenticate as a bot (bot token auth). |
 | `phone_or_token` | `str` (SecretStr) | _required_ | Phone number with country code (e.g. `+79123456789`) for user accounts, or bot token (e.g. `123456:ABC-DEF1234...`) for bots. Stored as a SecretStr — see [SecretStr Handling](#secretstr-handling). Minimum length: 5 characters. |
-| `max_retries` | `int` | `5` | Maximum number of retry attempts when sending messages fails. Valid range: 1–20. Implements exponential backoff with jitter. |
+| `password` | `str` (SecretStr) or `null` | `null` | Two-factor authentication (2FA) password for **user accounts**. Required when Telegram enforces 2FA on login; if `SessionPasswordNeededError` is raised and this field is `null`, the run terminates with an explicit `TelegramAuthError` telling the operator to add the password. Stored as a SecretStr — see [SecretStr Handling](#secretstr-handling). Ignored for bot accounts. |
+| `max_retries` | `int` | `5` | Maximum number of retry attempts when sending messages fails. Valid range:1–20. Implements exponential backoff with jitter. |
 | `client` | `ClientConfig` | _required_ | Telethon client configuration (see below). |
 
 #### `ClientConfig`
@@ -415,8 +416,11 @@ On POSIX systems, the application tightens filesystem permissions when it create
 
 - **Settings directory** — created with mode `0700` (owner read/write/execute only).
 - **Credential files** — `telethon_config.yaml` (and any other file holding `SecretStr` fields) is written with mode `0600` (owner read/write only).
+- **Session files** — the Telethon `.session` auth-key file is hardened after the client successfully authenticates (see `start_client`), with the same `0600` restriction as credential files, since it contains the authenticated session key.
 
-These restrictions are best-effort: on non-POSIX platforms (e.g. Windows) the permission change is skipped gracefully and does not affect normal operation. Combined with [SecretStr Handling](#secretstr-handling), this provides defense-in-depth for Telegram credentials at rest — values are both masked in logs and restricted on disk.
+On **Windows**, POSIX permission bits are ignored by `os.chmod`, so the application instead applies an **ACL** via `icacls` to restrict the file to the current user only (`/inheritance:r /grant:r %USERNAME%:F`). This covers both credential files and session files on shared Windows hosts. If `icacls` is unavailable the restriction is skipped gracefully.
+
+These restrictions are best-effort: on non-POSIX, non-Windows platforms the permission change is skipped gracefully and does not affect normal operation. Combined with [SecretStr Handling](#secretstr-handling), this provides defense-in-depth for Telegram credentials and session keys at rest — values are both masked in logs and restricted on disk.
 
 ---
 
@@ -525,6 +529,7 @@ TELETHON_API:
 TELETHON_API:
   is_user: true
   phone_or_token: "+79123456789"
+  password: "my-2fa-password"   # Required only if Telegram enforces 2FA on this account
   max_retries: 5
   client:
     session: "my_session"

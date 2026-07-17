@@ -143,7 +143,11 @@ Beyond startup safeguards, the monitor guarantees that channels survive errors r
 | Runtime channel resilience | A channel that errors during a scan is logged and rescheduled; it is never permanently dropped from monitoring |
 | Config-load validation | Keyword syntax and `history_days` are validated at load time; invalid values raise `ConfigError` before the monitor starts |
 | Credential file protection | `init --force` preserves an existing `telethon_config.yaml` so credentials are never overwritten by templates |
-| Credential file permissions | On POSIX, credential files are set to `0600` and the config directory to `0700` to limit exposure on multi-user systems |
+| Credential file permissions | Credential files are restricted to the owner on POSIX (`0600`, dir `0700`) and via an owner-only ACL on Windows (`icacls`) to limit exposure on multi-user systems |
+| Session file hardening | Telethon `.session` auth-key files are permission-restricted (`0600` on POSIX, owner-only ACL on Windows) after authentication |
+| Two-factor authentication | User accounts can supply a `password` for 2FA; if Telegram requires it and none is configured, the run fails fast with a clear `TelegramAuthError` |
+| Ambiguous target detection | A forward target resolving to multiple Telegram entities raises `TelegramServiceError` instead of silently dropping forwards, giving the operator visibility and triggering reschedule |
+| Full schema validation in `validate` | `mko-telebot validate` runs Pydantic schema validation (types, ranges, keyword syntax, placeholders) in addition to file-existence checks |
 | History day filtering | `history_days` limits scanning to recent messages only |
 
 ---
