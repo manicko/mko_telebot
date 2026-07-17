@@ -126,9 +126,9 @@ async def _send_with_retry(
             # Permanent RPCError subclasses (UnauthorizedError family) - fail fast
             logger.error(
                 (f"Permanent RPC error {type(e).__name__} {e} "  # noqa: UP034
-                 f"for {getattr(target, 'id', target)}")  # noqa: UP034
+                 f"for {getattr(target, 'id', target)}")
             )
-            raise
+            raise TelegramServiceError(f"Telegram send error: {e}") from e
 
     return False
 

@@ -462,7 +462,7 @@ class TestForwardToUsers:
         msg = _make_msg_with_link(4, "test_channel")
         mock_client.send_message.side_effect = AuthKeyUnregisteredError(request=None)
 
-        with pytest.raises(AuthKeyUnregisteredError):
+        with pytest.raises(TelegramServiceError):
             await forward_to_users(msg, "Hello", [], mock_task, mock_client, mock_settings)
         # Should only be called once (no retries)
         assert mock_client.send_message.await_count == 1

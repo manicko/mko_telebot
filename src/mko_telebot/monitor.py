@@ -18,6 +18,19 @@ from .monitor_forward import process_task
 logger = logging.getLogger(__name__)
 
 
+def _handle_task_exception(task: asyncio.Task[None]) -> None:
+    """Log any unhandled exceptions from background task.
+
+    Args:
+        task: The completed asyncio Task to check for exceptions.
+
+    """
+    try:
+        task.result()
+    except Exception as e:
+        logger.error("Unhandled exception in background task: %s", e)
+
+
 async def reschedule_task(task: Task, queue: asyncio.Queue[Task]) -> None:
     """Schedule the next run for the given channel after its scan delay.
 
@@ -128,7 +141,7 @@ async def main_loop(
     while True:
         task = await queue.get()
 
-        asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings))
+        asyncio.create_task(process_and_reschedule(task, client, queue, lock, settings)).add_done_callback(_handle_task_exception)
 
         await asyncio.sleep(channels_delay)
 
