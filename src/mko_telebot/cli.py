@@ -98,6 +98,8 @@ def validate() -> None:
     try:
         reader: TelepostConfigReader = TelepostConfigReader.from_user_dir()
         reader.validate_files()
+        # Load and validate schema against Pydantic models
+        reader.load()
         console.print("[green]Configuration files are valid.[/green]")
     except ConfigError as e:
         console.print(f"[red]Configuration error:[/red] {e}")
