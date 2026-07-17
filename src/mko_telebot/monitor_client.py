@@ -49,6 +49,7 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
     session_path.parent.mkdir(parents=True, exist_ok=True)
     _secure_directory_permissions(session_path.parent)
 
+    # Disable Telethon's auto-sleep on FloodWaitError (default 60s) to use manual handlers only
     return TelegramClient(
         session=str(session_path),
         api_id=client.api_id,
@@ -59,6 +60,7 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
         system_version=client.system_version or "",
         lang_code=client.lang_code or "",
         system_lang_code=client.system_lang_code or "",
+        flood_sleep_threshold=0,
     )
 
 
