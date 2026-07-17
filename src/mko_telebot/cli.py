@@ -62,6 +62,9 @@ def init(
         for item in src.iterdir():
             if not item.is_file():
                 continue
+            # Skip orphan example file that is never loaded
+            if item.name == "keyw_config_example_keep.yaml":
+                continue
             target: Path = dst / item.name
             # Preserve telethon_config.yaml to protect user credentials
             if item.name == "telethon_config.yaml" and target.exists():

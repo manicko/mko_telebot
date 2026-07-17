@@ -195,6 +195,25 @@ class TestCliInit:
         telethon_data = yaml.safe_load(user_config.read_text(encoding="utf-8"))
         assert telethon_data["TELETHON_API"]["client"]["api_id"] == 12345
 
+    def test_init_does_not_copy_keyw_config_example_keep(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        """init should skip keyw_config_example_keep.yaml to prevent user confusion."""
+        from mko_telebot.core.paths import APP_PATHS
+
+        app_dir = Path(__file__).resolve().parent.parent / "src" / "mko_telebot"
+        monkeypatch.setattr(APP_PATHS, "app_dir", app_dir, raising=False)
+        monkeypatch.setattr(APP_PATHS, "user_dir", tmp_path, raising=False)
+
+        result = runner.invoke(app, ["init"])
+        assert result.exit_code == 0
+
+        settings_dir = tmp_path / "settings"
+        # Verify keyw_config_example_keep.yaml was NOT copied
+        assert not (settings_dir / "keyw_config_example_keep.yaml").exists()
+        # Verify other config files were copied
+        assert (settings_dir / "config.yaml").exists()
+        assert (settings_dir / "telethon_config.yaml").exists()
+        assert (settings_dir / "log_config.yaml").exists()
+
 
 # ---------------------------------------------------------------------------
 # run
