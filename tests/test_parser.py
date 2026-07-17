@@ -625,8 +625,9 @@ def test_property_no_crash_generated(matcher, text, query):
 
     # Invariant: exclusion-only queries should return True for non-matching text
     # (because exclusions don't trigger, and there are no inclusions to fail)
+    # Use numeric text since generated patterns only use letter characters
     if query_content.startswith("-"):
-        assert matcher("xyz", query) is True
+        assert matcher("123", query) is True
 
 
 # Slow-ish integration test for large text (mark as slow so it's optional in CI)
