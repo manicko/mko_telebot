@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -159,35 +160,39 @@ async def build_sender_tag(msg: Message) -> str:
         '@username' if available, otherwise 'First Last' or empty string.
 
     """
-    from telethon.errors import RPCError
+    from telethon.errors import RPCError, ServerError, TimedOutError
 
-    try:
-        sender = await msg.get_sender()
+    for attempt in range(2):
+        try:
+            sender = await msg.get_sender()
 
-        if not sender:
+            if not sender:
+                return ""
+
+            if getattr(sender, "username", None):
+                return f"@{sender.username}"
+
+            name = " ".join(
+                filter(
+                    None,
+                    [
+                        getattr(sender, "first_name", None),
+                        getattr(sender, "last_name", None),
+                    ],
+                )
+            )
+
+            return name.strip()
+
+        except (OSError, ConnectionError, TimeoutError, TimedOutError, ServerError):
+            if attempt == 1:
+                logger.warning("Sender resolution failed for msg.id=%s after retries", msg.id)
+                return ""
+            await asyncio.sleep(1)
+
+        except RPCError as e:
+            logger.exception(f"Error while building sender tag: {e}")
+
             return ""
 
-        if getattr(sender, "username", None):
-            return f"@{sender.username}"
-
-        name = " ".join(
-            filter(
-                None,
-                [
-                    getattr(sender, "first_name", None),
-                    getattr(sender, "last_name", None),
-                ],
-            )
-        )
-
-        return name.strip()
-
-    except RPCError as e:
-        logger.exception(f"Error while building sender tag: {e}")
-
-        return ""
-
-    except (OSError, ConnectionError, TimeoutError) as e:
-        logger.exception(f"Error while building sender tag: {e}")
-
-        return ""
+    return ""

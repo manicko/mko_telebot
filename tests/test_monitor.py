@@ -439,10 +439,99 @@ class TestBuildSenderTag:
         result = await build_sender_tag(msg)
         assert result == ""
 
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_timed_out_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should retry on TimedOutError and succeed on second attempt."""
+        from telethon.errors import TimedOutError
 
-# ---------------------------------------------------------------------------
-# forward_to_users
-# ---------------------------------------------------------------------------
+        msg = MagicMock()
+        sender = MagicMock()
+        sender.username = "retry_user"
+        msg.get_sender = AsyncMock(side_effect=itertools.cycle([TimedOutError(request=None, message="Timed out"), sender]))
+        msg.id = 123
+        result = await build_sender_tag(msg)
+        assert result == "@retry_user"
+        # Should be called twice (first attempt fails, second succeeds)
+        assert msg.get_sender.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_server_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should retry on ServerError and succeed on second attempt."""
+        from telethon.errors import ServerError
+
+        msg = MagicMock()
+        sender = MagicMock()
+        sender.username = "server_user"
+        msg.get_sender = AsyncMock(side_effect=itertools.cycle([ServerError(request=None, message="Server error"), sender]))
+        msg.id = 456
+        result = await build_sender_tag(msg)
+        assert result == "@server_user"
+        assert msg.get_sender.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_connection_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should retry on ConnectionError and succeed on second attempt."""
+        msg = MagicMock()
+        sender = MagicMock()
+        sender.username = "conn_user"
+        msg.get_sender = AsyncMock(side_effect=itertools.cycle([ConnectionError(), sender]))
+        msg.id = 789
+        result = await build_sender_tag(msg)
+        assert result == "@conn_user"
+        assert msg.get_sender.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_timeout_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should retry on TimeoutError and succeed on second attempt."""
+        msg = MagicMock()
+        sender = MagicMock()
+        sender.username = "timeout_user"
+        msg.get_sender = AsyncMock(side_effect=itertools.cycle([TimeoutError(), sender]))
+        msg.id = 111
+        result = await build_sender_tag(msg)
+        assert result == "@timeout_user"
+        assert msg.get_sender.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_retries_on_os_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should retry on OSError and succeed on second attempt."""
+        msg = MagicMock()
+        sender = MagicMock()
+        sender.username = "os_user"
+        msg.get_sender = AsyncMock(side_effect=itertools.cycle([OSError(), sender]))
+        msg.id = 222
+        result = await build_sender_tag(msg)
+        assert result == "@os_user"
+        assert msg.get_sender.await_count == 2
+
+    @patch("asyncio.sleep", return_value=None)
+    async def test_exhausts_retries_on_transient_error(
+        self, mock_sleep: AsyncMock
+    ) -> None:
+        """build_sender_tag() should log warning after exhausting retries on transient errors."""
+        from telethon.errors import TimedOutError
+
+        msg = MagicMock()
+        msg.id = 999
+        msg.get_sender = AsyncMock(side_effect=TimedOutError(request=None, message="Timed out"))
+        with patch("mko_telebot.monitor_client.logger") as mock_logger:
+            result = await build_sender_tag(msg)
+            assert result == ""
+            # Verify warning logged on final failure
+            mock_logger.warning.assert_called_once()
+            assert "Sender resolution failed" in mock_logger.warning.call_args[0][0]
+        # Should be called twice (max attempts)
+        assert msg.get_sender.await_count == 2
 
 
 class TestForwardToUsers:
