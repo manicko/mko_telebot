@@ -100,40 +100,47 @@ class TestProcessTask:
             assert mock_task.last_msg_id == 200
 
     async def test_handles_flood_wait_error(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
-    ) -> None:
-        """process_task() should handle FloodWaitError with sleep and continue."""
-        with (
-            patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
-            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-        ):
+            self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        ) -> None:
+            """process_task() should retry on FloodWaitError up to max_retries times."""
+            with (
+                patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
+                patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            ):
 
-            async def gen() -> Any:
-                raise FloodWaitError(request=None, capture=30)
-                yield  # pyright: ignore[reportUnreachable]
+                # Create a fresh async generator on each call (side_effect calls the function)
+                def make_failing_gen(*args: Any, **kwargs: Any) -> Any:
+                    async def gen() -> Any:
+                        raise FloodWaitError(request=None, capture=30)
+                        yield  # pyright: ignore[reportUnreachable]
+                    return gen()
 
-            mock_client.iter_messages.return_value = gen()
+                mock_client.iter_messages.side_effect = make_failing_gen
 
-            await process_task(mock_task, mock_client, mock_settings)
-            assert mock_sleep.await_count >= 1
+                await process_task(mock_task, mock_client, mock_settings)
+                # Each FloodWaitError triggers sleep, all max_retries attempts fail
+                assert mock_sleep.await_count == mock_settings.telethon.max_retries
 
     async def test_handles_worker_busy_error(
-        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
-    ) -> None:
-        """process_task() should handle WorkerBusyTooLongRetryError with sleep."""
-        with (
-            patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
-            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-        ):
+            self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+        ) -> None:
+            """process_task() should retry on WorkerBusyTooLongRetryError up to max_retries times."""
+            with (
+                patch("mko_telebot.monitor_forward.process_messages", new_callable=AsyncMock),
+                patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            ):
 
-            async def gen() -> Any:
-                raise WorkerBusyTooLongRetryError(request=None)
-                yield  # pyright: ignore[reportUnreachable]
+                def make_failing_gen(*args: Any, **kwargs: Any) -> Any:
+                    async def gen() -> Any:
+                        raise WorkerBusyTooLongRetryError(request=None)
+                        yield  # pyright: ignore[reportUnreachable]
+                    return gen()
 
-            mock_client.iter_messages.return_value = gen()
+                mock_client.iter_messages.side_effect = make_failing_gen
 
-            await process_task(mock_task, mock_client, mock_settings)
-            assert mock_sleep.await_count >= 1
+                await process_task(mock_task, mock_client, mock_settings)
+                # Should retry max_retries times (3) with sleep on each failure
+                assert mock_sleep.await_count == mock_settings.telethon.max_retries
 
     async def test_skips_already_processed_messages(
         self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
@@ -174,3 +181,44 @@ class TestProcessTask:
             await process_task(mock_task, mock_client, mock_settings)
             mock_process.assert_not_called()
             mock_logger.info.assert_called()
+
+# ---------------------------------------------------------------------------
+# TestFetchMessages - retry behavior tests
+# ---------------------------------------------------------------------------
+
+class TestFetchMessagesRetry:
+    """Tests for _fetch_messages() retry logic."""
+
+    async def test_retries_and_succeeds_after_flood_wait(
+        self, mock_client: MagicMock, mock_settings: MagicMock, mock_task: MagicMock
+    ) -> None:
+        """_fetch_messages should retry and succeed after FloodWaitError on 2nd attempt."""
+        call_count = 0
+
+        async def failing_then_success_gen() -> Any:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise FloodWaitError(request=None, capture=5)
+            # Succeed on 2nd attempt - yield a message
+            msg = MagicMock()
+            msg.id = 100
+            msg.message = "test"
+            msg.grouped_id = None
+            msg.media = None
+            yield msg
+
+        def make_gen(*args: Any, **kwargs: Any) -> Any:
+            return failing_then_success_gen()
+
+        mock_client.iter_messages.side_effect = make_gen
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            from mko_telebot.monitor_forward import _fetch_messages
+
+            messages = await _fetch_messages(
+                mock_client, mock_task, mock_settings.telethon.max_retries
+            )
+            assert len(messages) == 1
+            assert messages[0].id == 100
+            assert call_count == 2  # Failed once, succeeded on retry

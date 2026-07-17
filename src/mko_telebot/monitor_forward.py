@@ -218,46 +218,66 @@ async def process_messages(
 async def _fetch_messages(
     client: TelegramClient,
     task: Task,
+    max_retries: int,
 ) -> list[Message]:
-    """Fetch messages from channel with error handling."""
+    """Fetch messages from channel with error handling and retry logic.
+
+    Args:
+        client: TelegramClient instance for API calls.
+        task: Task object with channel configuration.
+        max_retries: Maximum number of retry attempts for transient errors.
+
+    Returns:
+        List of Message objects fetched from the channel.
+    """
     assert task.channel_entity is not None  # Checked in process_task before calling
     min_id = max(1, task.last_msg_id - task.overlap + 1)
-    new_messages: list[Message] = []
 
-    try:
-        messages_iter = client.iter_messages(
-            task.channel_entity,
-            min_id=min_id,
-            offset_date=task.offset_date,
-            limit=task.history_limit,
-            reverse=True,
-        )
+    for attempt in range(max_retries):
+        try:
+            messages_iter = client.iter_messages(
+                task.channel_entity,
+                min_id=min_id,
+                offset_date=task.offset_date,
+                limit=task.history_limit,
+                reverse=True,
+            )
+            new_messages: list[Message] = []
+            async for msg in messages_iter:
+                if msg.id <= task.last_msg_id:
+                    continue
+                new_messages.append(msg)
+            return new_messages
 
-        async for msg in messages_iter:
-            if msg.id <= task.last_msg_id:
-                continue
-            new_messages.append(msg)
+        except FloodWaitError as e:
+            wait_time = _calculate_retry_delay(attempt, is_flood_wait=True, seconds=e.seconds)
+            logger.warning(
+                f"Flood wait {e.seconds}s, retry {attempt + 1}/{max_retries} "
+                f"for {task.channel_name}"
+            )
+            await asyncio.sleep(wait_time)
 
-    except FloodWaitError as e:
-        logger.warning(f"Flood wait {e.seconds}s while fetching {task.channel_name}")
-        await asyncio.sleep(e.seconds + random.uniform(10, 15))
-        return []
+        except (WorkerBusyTooLongRetryError, TimedOutError, ServerError) as e:
+            # Transient errors - retry with backoff
+            wait_time = _calculate_retry_delay(attempt, is_flood_wait=False)
+            logger.warning(
+                f"{type(e).__name__} {e}, retry {attempt + 1}/{max_retries} "
+                f"for {task.channel_name}"
+            )
+            await asyncio.sleep(wait_time)
 
-    except WorkerBusyTooLongRetryError as e:
-        logger.warning(f"Worker busy retry while fetching {task.channel_name}: {e}")
-        await asyncio.sleep(random.uniform(5, 10))
-        return []
+        except RPCError as e:
+            # Permanent RPCError subclasses - fail fast
+            logger.error(
+                f"Permanent RPC error {type(e).__name__} {e} "
+                f"for {task.channel_name}"
+            )
+            raise TelegramServiceError(
+                f"Failed to fetch messages for {task.channel_name}: {e}"
+            ) from e
 
-    except RPCError as e:
-        logger.warning(
-            f"RPC error during message fetching: {type(e).__name__} in {task.channel_name}"
-        )
-        await asyncio.sleep(5)
-        raise TelegramServiceError(
-            f"Failed to fetch messages for {task.channel_name}: {e}"
-        ) from e
-
-    return new_messages
+    # All retries exhausted - return empty list
+    return []
 
 
 async def process_task(task: Task, client: TelegramClient, settings: TelepostSettings) -> None:
@@ -268,7 +288,9 @@ async def process_task(task: Task, client: TelegramClient, settings: TelepostSet
         logger.error(f"Channel entity not resolved for {task.channel_name}")
         return
 
-    new_messages = await _fetch_messages(client, task)
+    new_messages = await _fetch_messages(
+        client, task, settings.telethon.max_retries
+    )
 
     if new_messages:
         await process_messages(new_messages, task, client, settings)
