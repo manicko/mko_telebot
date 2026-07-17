@@ -95,6 +95,15 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
+# --- mko_telebot bundled config templates (DO NOT IGNORE) ---
+# The shipped template files under src/mko_telebot/settings/ MUST be tracked in git.
+# They contain NO secrets — only placeholders (PLACEHOLDER_REPLACE_ME) — and exist to
+# give users a ready-to-use template. Do not add `*.yaml` ignore rules that would
+# accidentally exclude these files.
+!src/mko_telebot/settings/telethon_config.yaml
+!src/mko_telebot/settings/config.yaml
+!src/mko_telebot/settings/log_config.yaml
+
 # UV
 #   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more

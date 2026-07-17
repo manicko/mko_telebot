@@ -2,6 +2,10 @@
 # Copy this file to your user settings directory and customize for your deployment.
 # See docs/11-guides/configuration.md for full documentation.
 #
+# IMPORTANT: This is a TEMPLATE shipped in the package. It contains NO secrets — only
+# placeholders below. It MUST be tracked in git (must NOT be gitignored) so users get a
+# ready-to-use template. Your real credentials go in the USER copy, not here.
+#
 # Replace PLACEHOLDER_REPLACE_ME values with your actual credentials from:
 # https://my.telegram.org/apps
 

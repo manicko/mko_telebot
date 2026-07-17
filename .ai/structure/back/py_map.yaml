@@ -9,6 +9,7 @@
   - rich.table
   - mko_telebot.core.errors
   - mko_telebot.core.paths
+  - mko_telebot.core.utils
   - mko_telebot.monitor_client
   - mko_telebot.monitor
   - mko_telebot.logging
@@ -61,9 +62,11 @@
   - pathlib
   - telethon
   - mko_telebot.core
-  - mko_telebot.core.errors
   - mko_telebot.core.models
+  - mko_telebot.core.utils
   - telethon.tl.custom.message
+  - telethon.errors
+  - telethon.errors
   classes: []
   functions:
   - create_client
@@ -113,12 +116,16 @@
   - __future__
   - pydantic
   - typing
+  - mko_telebot.core.parser
+  - mko_telebot.core.parser
   classes:
   - ChannelConfig
   - ChannelDefaults
   - ChannelsConfig
   functions:
   - validate_channel_name
+  - validate_keywords
+  - validate_keywords
   - strip_defaults_from_channels
   - apply_defaults_to_channels
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\config.py
@@ -185,8 +192,10 @@
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.parser
   layer: unknown
   imports:
+  - enum
   - ast_nodes
   classes:
+  - TokenType
   - PatternParser
   functions:
   - __init__
@@ -207,13 +216,8 @@
   - platformdirs
   - pydantic
   classes:
-  - PathResolver
   - AppPaths
   functions:
-  - __init__
-  - resolve
-  - ensure_dir
-  - ensure_file_parent
   - app_settings_dir
   - user_settings_dir
   - state_dir
@@ -270,6 +274,9 @@
   - pathlib
   classes: []
   functions:
+  - _is_posix
+  - _secure_directory_permissions
+  - _secure_file_permissions
   - ensure_path_exists
 - path: C:\py_dev\mko_telebot\.ai\builders\..\..\src\mko_telebot\core\__init__.py
   module: C:_dev.mko_telebot..ai.builders.......src.mko_telebot.core.__init__

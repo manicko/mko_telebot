@@ -49,6 +49,12 @@ src/mko_telebot/settings/
 
 These are templates. **Do not edit them in-place** — they are overwritten on package upgrades.
 
+> **IMPORTANT — these template files MUST be committed to git and MUST NOT be ignored.**
+> They contain **no secrets**, only placeholder values (e.g. `PLACEHOLDER_REPLACE_ME`).
+> Their purpose is to ship a ready-to-use template that users copy into their own config
+> directory and customize. A `.gitignore` rule that excludes `*.yaml` must never cover these
+> files (explicit `!` un-ignore exceptions are already present in `.gitignore`).
+
 ### User Config Directory
 
 User-specific config files live in the platform-specific user config directory, resolved via [`platformdirs`](https://pypi.org/project/platformdirs/):
@@ -202,6 +208,14 @@ This matches messages containing "Barcelona" AND "bicycle" (in English or Russia
 ## `telethon_config.yaml` — Telethon API Credentials
 
 This file holds the **TELETHON_API** section — credentials needed to connect to Telegram via the Telethon library.
+
+> **NOTE — this is a TEMPLATE file, not a live credential store.**
+> The copy shipped at `src/mko_telebot/settings/telethon_config.yaml` contains **only placeholders**
+> (e.g. `phone_or_token: "PLACEHOLDER_REPLACE_ME"`, `api_id: 12345`, `api_hash: "PLACEHOLDER_REPLACE_ME"`)
+> and **no real secrets**. It MUST be tracked in git (never gitignored) so it can serve as the
+> user-facing template. Users copy it to their user config directory and replace the placeholders
+> with real values; the user copy (which may hold secrets) is the one that must stay private.
+> The directory copy is further protected by [Credential File Permissions](#credential-file-permissions).
 
 ### Top-Level Structure
 
