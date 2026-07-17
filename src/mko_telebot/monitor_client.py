@@ -7,7 +7,7 @@ from telethon import TelegramClient
 
 from mko_telebot.core import APP_PATHS
 from mko_telebot.core.models import TelepostSettings
-from mko_telebot.core.utils import _secure_directory_permissions
+from mko_telebot.core.utils import _secure_directory_permissions, _secure_file_permissions
 from telethon.tl.custom.message import Message
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,8 @@ def create_client(settings: TelepostSettings) -> TelegramClient:
 async def start_client(client: TelegramClient, settings: TelepostSettings) -> bool:
     """Initialize and start the Telethon client.
 
+    Session files are secured after client creation to prevent credential exposure.
+
     Args:
         client: The Telethon client instance.
         settings: Application settings with auth configuration.
@@ -86,6 +88,12 @@ async def start_client(client: TelegramClient, settings: TelepostSettings) -> bo
             )
 
         logger.info("Telethon client started successfully.")
+
+        # Harden session file permissions after successful start
+        if client.session and hasattr(client.session, "filename"):
+            session_path = Path(client.session.filename)
+            if session_path.exists():
+                _secure_file_permissions(session_path)
 
         return True
 
