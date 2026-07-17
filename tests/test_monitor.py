@@ -1288,7 +1288,7 @@ class TestRunMonitor:
     async def test_starts_client_and_runs_loop(self) -> None:
         """run_monitor() should start client and enter main loop on success."""
         mock_client = MagicMock()
-        mock_client.disconnect = Mock()
+        mock_client.disconnect = AsyncMock()
 
         mock_settings = MagicMock()
 
@@ -1310,7 +1310,7 @@ class TestRunMonitor:
                     await monitor.run_monitor(mock_settings, mock_client)
 
                 mock_loop.assert_awaited_once()
-                mock_client.disconnect.assert_called_once()
+                mock_client.disconnect.assert_awaited_once()
 
     async def test_does_not_run_loop_on_auth_failure(self) -> None:
         """run_monitor() should not enter mainLoop if start_client fails."""

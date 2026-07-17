@@ -173,7 +173,7 @@ async def run_monitor(settings: TelepostSettings, client: TelegramClient) -> Non
         try:
             await main_loop(settings, client, queue, lock)
         finally:
-            client.disconnect()
+            await client.disconnect()  # pyright: ignore[reportGeneralTypeIssues]
             logger.info("Telethon client disconnected.")
     else:
         raise TelegramAuthError("Telegram authentication failed")
